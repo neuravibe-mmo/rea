@@ -404,3 +404,83 @@ demos remain subject to vendor terms, including user, feature, automation, and
 output sharing restrictions. Cracked copies, stolen keys, unauthorized key
 sharing, and bypassing license restrictions are not authorized. This guidance
 does not amend MIT or third-party licenses.
+
+
+# Bí kíp REA: Tách app ra lấy spec, rồi cho AI xây lại từ đầu, không dính bug cũ!
+
+Đây là trick REA clean-room mà tôi thấy hay nhất tháng này! Gần như chưa ai chạy đúng cách!
+
+## Ý tưởng cốt lõi
+
+REA tháo tung app ra, Jev chỉ giữ lại cái gì có bằng chứng, và một session Opus 5.5 mới tinh xây lại feature từ mỗi cái spec Jev đã duyệt! Không copy, không đoán mò lọt vào code, vì builder không bao giờ thấy code gốc, chỉ thấy spec!
+
+**Clean-room rule trong 1 câu:** Model thấy code gốc thì không bao giờ được viết code, và model viết code thì không bao giờ được thấy code gốc!
+
+---
+
+## 1. Thiết lập kết nối
+
+Bạn kết nối REA như này thôi:
+
+```bash
+npx rea-agents setup
+
+```
+
+*Repo gốc: [GitHub - morluto/rea*](https://github.com/morluto/rea)
+
+---
+
+## 2. Chi tiết phân chia công việc đang chạy
+
+* **REA – Phân tích:** Đọc feature xuống tận binary và viết mọi rule vào `SPEC.md`, mỗi rule đều có evidence!
+* **Jev – Kiểm duyệt:** Kiểm tra từng rule dựa trên evidence của REA và trả lại bất cứ rule nào không có bằng chứng!
+* **Opus 5.5 – Xây dựng lại:** Một session Opus 5.5 mới tinh chỉ nhận `SPEC.md` và rebuild lại feature, không được mở code gốc!
+* **Haiku 5.5 – Kiểm thử:** Chạy test với 3 bản cố tình làm hỏng!
+
+### Vai trò của Opus xuất hiện ở 3 thời điểm:
+
+1. Rebuild từ spec đã duyệt.
+2. Những check Jev đánh là `unclear`.
+3. Ký duyệt trước khi ship!
+
+---
+
+## 3. Quy trình hoạt động đầy đủ
+
+1. **REA – Phân tích:** Đọc và kiểm tra ứng dụng, sau đó tạo tệp `SPEC.md`, ghi lại toàn bộ quy tắc và hành vi, kèm bằng chứng xác thực cho từng quy tắc.
+2. **Jev – Kiểm duyệt:** Xét duyệt từng quy tắc. Quy tắc nào thiếu bằng chứng sẽ được trả về REA để kiểm tra lại.
+3. **Opus 5.5 – Xây dựng lại:** Bắt đầu một phiên làm việc hoàn toàn mới, chỉ sử dụng tệp `SPEC.md` đã được phê duyệt để xây dựng lại tính năng, không xem mã nguồn gốc.
+4. **Haiku 5.5 – Kiểm thử:** Chạy các bài kiểm thử và kiểm tra thêm 3 phiên bản được cố tình tạo lỗi để xác nhận hệ thống phát hiện đúng lỗi.
+5. **Jev – Xử lý kết quả:** Những trường hợp kiểm thử chưa rõ ràng sẽ được chuyển lại cho Opus để xử lý.
+6. **`/goal` – Duy trì thực thi:** Tiếp tục cho đến khi phiên bản xây dựng lại vượt qua kiểm thử và cả 3 phiên bản cố tình tạo lỗi đều không vượt qua kiểm thử.
+
+---
+
+## 4. Prompt mẫu cho Claude Code
+
+Bạn paste thẳng đoạn prompt này vào Claude Code, thay `[FEATURE]` và `[APP]` bằng tính năng và ứng dụng của bạn:
+
+```text
+Thiết lập quy trình xây dựng lại độc lập (Clean Room) theo các bước sau:
+1. Sử dụng REA để điều tra tính năng [FEATURE] trong ứng dụng [APP]. Ghi lại toàn bộ hành vi và quy tắc vào tệp SPEC.md. Mỗi quy tắc phải kèm theo bằng chứng mà REA đã thu thập được.
+2. Chuyển từng quy tắc cho Jev kiểm duyệt. Bất kỳ quy tắc nào không có bằng chứng đều phải được trả lại REA để điều tra và bổ sung.
+3. Khởi tạo một phiên làm việc hoàn toàn mới, chỉ cung cấp tệp SPEC.md. Sử dụng Opus 5.5 để xây dựng lại tính năng mà không được mở hoặc tham khảo mã nguồn gốc.
+4. Sử dụng Haiku 5.5 để viết các bài kiểm thử và tạo thêm 3 phiên bản cố tình chứa lỗi. Sử dụng /goal để tiếp tục thực hiện cho đến khi phiên bản xây dựng lại vượt qua toàn bộ bài kiểm thử và cả 3 phiên bản cố tình chứa lỗi đều bị kiểm thử phát hiện và đánh trượt.
+5. Yêu cầu bắt buộc:
+- Trước tiên, hãy hiển thị tệp SPEC.md để tôi kiểm tra.
+- Tuyệt đối không được bắt đầu xây dựng lại tính năng cho đến khi tôi ra lệnh "BẮT ĐẦU".
+
+```
+
+---
+
+## 5. Tại sao trick này hay hơn copy-paste thông thường?
+
+* Bình thường khi bảo Opus *"refactor lại feature này"*, nó sẽ copy luôn bug cũ và logic đoán mò.
+* Với **REA clean-room**, Opus 5.5 không bao giờ thấy code gốc mà chỉ thấy `SPEC.md` đã được Jev duyệt kèm bằng chứng. Do đó, code mới là code sạch, không dính nợ kỹ thuật cũ.
+* 3 bản do Haiku 5.5 tạo ra nhằm đảm bảo test đủ mạnh: Nếu 3 bản hỏng mà vẫn pass test nghĩa là test phế và phải viết lại. Lệnh `/goal` sẽ chạy tới khi bản rebuild pass và cả 3 bản hỏng đều fail hết.
+
+---
+
+*Ví dụ thực tế:* Tác giả đang dùng trick này cho 1 feature thanh toán cũ, REA tách ra được 23 rule, Jev trả lại 7 rule không có evidence, Opus 5.5 xây lại từ 16 rule còn lại, giúp code gọn hơn 40%!
