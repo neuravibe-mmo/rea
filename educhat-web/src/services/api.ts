@@ -253,4 +253,69 @@ export const api = {
     });
     return await res.json();
   },
+
+  async getCourseDetail(id: string) {
+    const res = await fetch(`${API_BASE}/courses/${id}`);
+    if (!res.ok) throw new Error(`Lỗi tải chi tiết khóa học (${res.status})`);
+    const json = await res.json();
+    return json.data;
+  },
+
+  async getCourseStudents(courseId: string) {
+    const res = await fetch(
+      `${API_BASE}/teacher/courses/${courseId}/students`,
+      {
+        headers: this.getAuthHeaders(),
+      },
+    );
+    if (!res.ok) throw new Error(`Lỗi tải danh sách học viên (${res.status})`);
+    const json = await res.json();
+    return json.data || [];
+  },
+
+  async addCourseLesson(
+    courseId: string,
+    lesson: {
+      title: string;
+      duration?: string;
+      video_url?: string;
+      is_free_preview?: boolean;
+    },
+  ) {
+    const res = await fetch(`${API_BASE}/teacher/courses/${courseId}/lessons`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(lesson),
+    });
+    return await res.json();
+  },
+
+  async deleteCourseLesson(courseId: string, lessonId: string) {
+    const res = await fetch(
+      `${API_BASE}/teacher/courses/${courseId}/lessons/${lessonId}`,
+      {
+        method: "DELETE",
+        headers: this.getAuthHeaders(),
+      },
+    );
+    return await res.json();
+  },
+
+  async updateCourse(
+    courseId: string,
+    data: {
+      title?: string;
+      price?: number;
+      duration?: string;
+      level?: string;
+      category?: string;
+    },
+  ) {
+    const res = await fetch(`${API_BASE}/teacher/courses/${courseId}`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    return await res.json();
+  },
 };

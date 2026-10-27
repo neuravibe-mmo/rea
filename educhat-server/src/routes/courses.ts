@@ -29,3 +29,34 @@ coursesRouter.get("/", (req: Request, res: Response): any => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// GET /api/courses/:id - Course detail with syllabus lessons
+coursesRouter.get("/:id", (req: Request, res: Response): any => {
+  try {
+    const { id } = req.params;
+    const course = db
+      .prepare("SELECT * FROM courses WHERE id = ?")
+      .get(id) as any;
+    if (!course) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Không tìm thấy khóa học" });
+    }
+
+    const lessons = db
+      .prepare(
+        "SELECT * FROM lessons WHERE course_id = ? ORDER BY order_index ASC",
+      )
+      .all(id);
+
+    return res.json({
+      success: true,
+      data: {
+        ...course,
+        lessons,
+      },
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});

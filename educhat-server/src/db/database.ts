@@ -146,5 +146,17 @@ export function initDatabase() {
       joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (group_id) REFERENCES study_groups(id)
     );
+
+    CREATE TABLE IF NOT EXISTS lessons (
+      id TEXT PRIMARY KEY,
+      course_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      duration TEXT DEFAULT '15:00',
+      video_url TEXT,
+      order_index INTEGER DEFAULT 1,
+      is_free_preview INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (course_id) REFERENCES courses(id)
+    );
   `);
 }

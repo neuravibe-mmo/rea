@@ -16,13 +16,19 @@ import {
 } from "lucide-react";
 import { api } from "../services/api";
 import type { TeacherOverviewData } from "../types";
+import { CourseDetailModal } from "./CourseDetailModal";
+import { TeacherCourseWorkspaceModal } from "./TeacherCourseWorkspaceModal";
 
 interface TeacherDashboardProps {
   onNavigateHome: () => void;
+  onSelectCourseDetail?: (course: any) => void;
+  onSelectCourseWorkspace?: (course: any) => void;
 }
 
 export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   onNavigateHome,
+  onSelectCourseDetail,
+  onSelectCourseWorkspace,
 }) => {
   const [data, setData] = useState<TeacherOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,6 +42,14 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [showDocModal, setShowDocModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
+
+  // Course Detail (Direction 1) & Workspace (Direction 2) states
+  const [selectedDetailCourse, setSelectedDetailCourse] = useState<any | null>(
+    null,
+  );
+  const [selectedWorkspaceCourse, setSelectedWorkspaceCourse] = useState<
+    any | null
+  >(null);
 
   // Form states
   const [newCourse, setNewCourse] = useState({
@@ -528,7 +542,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
             <div className="dashboard-cards-grid">
               {data.courses.map((course) => (
-                <div key={course.id} className="dashboard-card-item">
+                <div
+                  key={course.id}
+                  className="dashboard-card-item"
+                  onClick={() =>
+                    onSelectCourseDetail
+                      ? onSelectCourseDetail(course)
+                      : setSelectedDetailCourse(course)
+                  }
+                  style={{ cursor: "pointer" }}
+                >
                   <div
                     style={{
                       position: "relative",
@@ -658,6 +681,65 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                         >
                           Đang mở lớp
                         </span>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          marginTop: "12px",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onSelectCourseDetail) {
+                              onSelectCourseDetail(course);
+                            } else {
+                              setSelectedDetailCourse(course);
+                            }
+                          }}
+                          className="btn"
+                          style={{
+                            flex: 1,
+                            fontSize: "12px",
+                            padding: "8px 10px",
+                            background: "#eff6ff",
+                            color: "#2563eb",
+                            border: "1px solid #bfdbfe",
+                            fontWeight: 600,
+                            borderRadius: "8px",
+                          }}
+                        >
+                          👁️ Tổng quan (H.1)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onSelectCourseWorkspace) {
+                              onSelectCourseWorkspace(course);
+                            } else {
+                              setSelectedWorkspaceCourse(course);
+                            }
+                          }}
+                          className="btn"
+                          style={{
+                            flex: 1,
+                            fontSize: "12px",
+                            padding: "8px 10px",
+                            background:
+                              "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+                            color: "#0f172a",
+                            fontWeight: 700,
+                            border: "none",
+                            borderRadius: "8px",
+                            boxShadow: "0 2px 8px rgba(245, 158, 11, 0.25)",
+                          }}
+                        >
+                          ⚙️ Quản trị (H.2)
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -1906,6 +1988,29 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* COURSE DETAIL MODAL (DIRECTION 1) */}
+      <CourseDetailModal
+        course={selectedDetailCourse}
+        currentUser={data?.profile}
+        onClose={() => setSelectedDetailCourse(null)}
+        onOpenTeacherWorkspace={(c) => {
+          setSelectedDetailCourse(null);
+          setSelectedWorkspaceCourse(c);
+        }}
+        onEnrollSuccess={() => fetchOverview()}
+      />
+
+      {/* TEACHER COURSE WORKSPACE MODAL (DIRECTION 2) */}
+      <TeacherCourseWorkspaceModal
+        course={selectedWorkspaceCourse}
+        onClose={() => setSelectedWorkspaceCourse(null)}
+        onBackToDetail={(c) => {
+          setSelectedWorkspaceCourse(null);
+          setSelectedDetailCourse(c);
+        }}
+        onCourseUpdated={() => fetchOverview()}
+      />
     </div>
   );
 };

@@ -321,6 +321,62 @@ export function seedData() {
     "Luyện thi THPT",
   );
 
+  // Seed Lessons for Course crs_1 (Kỹ năng Thiết kế Bài giảng E-learning)
+  const insertLesson = db.prepare(`
+    INSERT OR IGNORE INTO lessons (id, course_id, title, duration, video_url, order_index, is_free_preview)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  insertLesson.run(
+    "lsn_1",
+    "crs_1",
+    "Bài 1: Tổng quan về Thiết kế Bài giảng E-learning Chuẩn Quốc tế (SCORM/xAPI)",
+    "12:45",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    1,
+    1,
+  );
+
+  insertLesson.run(
+    "lsn_2",
+    "crs_1",
+    "Bài 2: Cấu trúc kịch bản sư phạm hiện đại theo Thông tư Bộ GD&ĐT",
+    "18:20",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    2,
+    1,
+  );
+
+  insertLesson.run(
+    "lsn_3",
+    "crs_1",
+    "Bài 3: Nguyên tắc phối màu, Typography và đồ họa trực quan trong bài giảng số",
+    "24:10",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    3,
+    0,
+  );
+
+  insertLesson.run(
+    "lsn_4",
+    "crs_1",
+    "Bài 4: Kỹ thuật xây dựng câu hỏi tương tác H5P và trắc nghiệm gamification",
+    "19:50",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    4,
+    0,
+  );
+
+  insertLesson.run(
+    "lsn_5",
+    "crs_1",
+    "Bài 5: Xuất bản, tích hợp LMS EduChat và đo lường mức độ tương tác học viên",
+    "16:30",
+    "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+    5,
+    0,
+  );
+
   console.log("Seed completed successfully!");
 }
 

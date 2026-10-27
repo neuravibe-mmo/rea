@@ -7,6 +7,8 @@ import { VideoModal } from "./components/VideoModal";
 import { Footer } from "./components/Footer";
 import { TeacherDashboard } from "./components/TeacherDashboard";
 import { StudentDashboard } from "./components/StudentDashboard";
+import { CourseDetailPage } from "./components/CourseDetailPage";
+import { TeacherCourseWorkspacePage } from "./components/TeacherCourseWorkspacePage";
 import type { Article, Course, VideoShort, DocumentItem, User } from "./types";
 import {
   BookOpen,
@@ -59,6 +61,24 @@ export function App() {
 
   // Video shorts modal
   const [activeVideo, setActiveVideo] = useState<VideoShort | null>(null);
+
+  // Selected Course and Previous Tab for Page Navigation
+  const [selectedCourse, setSelectedCourse] = useState<Course | any | null>(
+    null,
+  );
+  const [previousTab, setPreviousTab] = useState("home");
+
+  const handleOpenCourseDetail = (courseItem: any) => {
+    setSelectedCourse(courseItem);
+    setPreviousTab(activeTab);
+    setActiveTab("course_detail");
+  };
+
+  const handleOpenCourseWorkspace = (courseItem: any) => {
+    setSelectedCourse(courseItem);
+    setPreviousTab(activeTab);
+    setActiveTab("teacher_course_workspace");
+  };
 
   // Fetch all datasets from Backend API
   const loadAllData = useCallback(async () => {
@@ -841,10 +861,13 @@ export function App() {
                     <div
                       key={course.id}
                       className="glass-card"
+                      onClick={() => handleOpenCourseDetail(course)}
                       style={{
                         overflow: "hidden",
                         display: "flex",
                         flexDirection: "column",
+                        cursor: "pointer",
+                        transition: "transform 0.2s, box-shadow 0.2s",
                       }}
                     >
                       <div style={{ position: "relative", height: "180px" }}>
@@ -978,15 +1001,14 @@ export function App() {
                             </span>
                           </div>
                           <button
-                            onClick={() =>
-                              alert(
-                                `Đã ghi nhận quan tâm khóa học "${course.title}". Bộ phận hỗ trợ EduChat sẽ liên hệ qua tài khoản của bạn!`,
-                              )
-                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenCourseDetail(course);
+                            }}
                             className="btn btn-primary"
                             style={{ padding: "8px 16px", fontSize: "13px" }}
                           >
-                            Đăng ký học
+                            Chi tiết & Đăng ký
                           </button>
                         </div>
                       </div>
@@ -1100,7 +1122,14 @@ export function App() {
                 <div
                   key={course.id}
                   className="glass-card"
-                  style={{ padding: "24px" }}
+                  onClick={() => handleOpenCourseDetail(course)}
+                  style={{
+                    padding: "24px",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    transition: "transform 0.2s, box-shadow 0.2s",
+                  }}
                 >
                   <img
                     src={course.image}
@@ -1144,10 +1173,13 @@ export function App() {
                       {course.price}
                     </strong>
                     <button
-                      onClick={() => alert("Đã đăng ký khóa học thành công!")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenCourseDetail(course);
+                      }}
                       className="btn btn-primary"
                     >
-                      Vào học ngay
+                      Xem & Đăng ký
                     </button>
                   </div>
                 </div>
@@ -1468,7 +1500,11 @@ export function App() {
 
         {/* LMS TEACHER CONSOLE VIEW */}
         {activeTab === "teacher_console" && (
-          <TeacherDashboard onNavigateHome={() => setActiveTab("home")} />
+          <TeacherDashboard
+            onNavigateHome={() => setActiveTab("home")}
+            onSelectCourseDetail={handleOpenCourseDetail}
+            onSelectCourseWorkspace={handleOpenCourseWorkspace}
+          />
         )}
 
         {/* STUDENT DASHBOARD VIEW */}
@@ -1476,6 +1512,34 @@ export function App() {
           <StudentDashboard
             onNavigateHome={() => setActiveTab("home")}
             onExploreCourses={() => setActiveTab("courses")}
+          />
+        )}
+
+        {/* COURSE DETAIL FULL-PAGE VIEW (DIRECTION 1) */}
+        {activeTab === "course_detail" && selectedCourse && (
+          <CourseDetailPage
+            course={selectedCourse}
+            currentUser={user}
+            onBack={() => setActiveTab(previousTab || "courses")}
+            onOpenTeacherWorkspace={
+              user?.role === "teacher" ||
+              user?.role === "Giảng viên" ||
+              user?.role === "admin" ||
+              selectedCourse.instructor === user?.fullname
+                ? handleOpenCourseWorkspace
+                : undefined
+            }
+            onEnrollSuccess={() => loadAllData()}
+          />
+        )}
+
+        {/* TEACHER COURSE WORKSPACE FULL-PAGE VIEW (DIRECTION 2) */}
+        {activeTab === "teacher_course_workspace" && selectedCourse && (
+          <TeacherCourseWorkspacePage
+            course={selectedCourse}
+            onBackToDetail={handleOpenCourseDetail}
+            onBackToTeacherConsole={() => setActiveTab("teacher_console")}
+            onCourseUpdated={() => loadAllData()}
           />
         )}
       </main>
