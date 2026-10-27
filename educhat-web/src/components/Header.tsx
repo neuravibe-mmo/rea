@@ -228,26 +228,64 @@ export const Header: React.FC<HeaderProps> = ({
             { id: "articles", label: "Bài viết", icon: BookOpen },
             { id: "courses", label: "Khóa học", icon: GraduationCap },
             { id: "documents", label: "Tài liệu", icon: FileText },
+            ...(user &&
+            (user.role === "teacher" ||
+              user.role === "Giảng viên" ||
+              user.role === "admin")
+              ? [
+                  {
+                    id: "teacher_console",
+                    label: "LMS Giảng viên",
+                    icon: Sparkles,
+                    highlight: true,
+                  },
+                ]
+              : []),
+            ...(user && (user.role === "student" || user.role === "Học viên")
+              ? [
+                  {
+                    id: "student_dashboard",
+                    label: "Góc học tập",
+                    icon: GraduationCap,
+                    highlight: true,
+                  },
+                ]
+              : []),
             { id: "about", label: "Giới thiệu", icon: Info },
           ].map((item) => {
             const Icon = item.icon;
             const active = activeTab === item.id;
+            const isHighlight = (item as any).highlight;
             return (
               <button
                 key={item.id}
                 onClick={() => onSelectTab(item.id)}
                 style={{
                   background: active
-                    ? "rgba(56, 189, 248, 0.18)"
-                    : "transparent",
-                  color: active ? "#38bdf8" : "rgba(255, 255, 255, 0.85)",
+                    ? isHighlight
+                      ? "rgba(245, 158, 11, 0.25)"
+                      : "rgba(56, 189, 248, 0.18)"
+                    : isHighlight
+                      ? "rgba(245, 158, 11, 0.12)"
+                      : "transparent",
+                  color: active
+                    ? isHighlight
+                      ? "#fbbf24"
+                      : "#38bdf8"
+                    : isHighlight
+                      ? "#fcd34d"
+                      : "rgba(255, 255, 255, 0.85)",
                   border: active
-                    ? "1px solid rgba(56, 189, 248, 0.35)"
-                    : "1px solid transparent",
+                    ? isHighlight
+                      ? "1px solid #f59e0b"
+                      : "1px solid rgba(56, 189, 248, 0.35)"
+                    : isHighlight
+                      ? "1px solid rgba(245, 158, 11, 0.3)"
+                      : "1px solid transparent",
                   padding: "7px 13px",
                   borderRadius: "var(--radius-sm)",
                   fontSize: "13px",
-                  fontWeight: 600,
+                  fontWeight: isHighlight ? 700 : 600,
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -359,6 +397,60 @@ export const Header: React.FC<HeaderProps> = ({
                   {user.role}
                 </span>
               </div>
+              {(user.role === "teacher" ||
+                user.role === "Giảng viên" ||
+                user.role === "admin") && (
+                <button
+                  onClick={() => {
+                    onSelectTab("teacher_console");
+                    setDropdownOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "rgba(245, 158, 11, 0.08)",
+                    border: "none",
+                    borderBottom: "1px solid var(--border-light)",
+                    textAlign: "left",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    color: "#b45309",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <Sparkles size={14} color="#f59e0b" />
+                  <span>Bàn làm việc Giảng viên</span>
+                </button>
+              )}
+              {(user.role === "student" || user.role === "Học viên") && (
+                <button
+                  onClick={() => {
+                    onSelectTab("student_dashboard");
+                    setDropdownOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "rgba(16, 185, 129, 0.08)",
+                    border: "none",
+                    borderBottom: "1px solid var(--border-light)",
+                    textAlign: "left",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    color: "#047857",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <GraduationCap size={14} color="#10b981" />
+                  <span>Góc học tập Học sinh</span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   onSelectTab("profile");

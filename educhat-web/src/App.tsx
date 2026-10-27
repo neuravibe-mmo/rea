@@ -5,6 +5,8 @@ import { AuthModal } from "./components/AuthModal";
 import { ArticleModal } from "./components/ArticleModal";
 import { VideoModal } from "./components/VideoModal";
 import { Footer } from "./components/Footer";
+import { TeacherDashboard } from "./components/TeacherDashboard";
+import { StudentDashboard } from "./components/StudentDashboard";
 import type { Article, Course, VideoShort, DocumentItem, User } from "./types";
 import {
   BookOpen,
@@ -143,24 +145,62 @@ export function App() {
     }
   }, []);
 
-  // Initial user check & initial data load
+  // Initial user JWT verification & initial data load
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem("user");
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
+    const verifyAuthSession = async () => {
+      const token =
+        localStorage.getItem("token") || localStorage.getItem("educhat_token");
+      if (!token) {
+        setUser(null);
+        localStorage.removeItem("user");
+        return;
       }
-    } catch (e) {
-      console.error("Error loading user from localStorage:", e);
-    }
 
+      try {
+        const res = await api.getMe();
+        if (res.success && res.user) {
+          const verifiedUser: User = {
+            id: res.user.id,
+            fullname: res.user.fullname,
+            email: res.user.email,
+            phone: res.user.phone || "0912345678",
+            cccd: res.user.cccd || "001200001234",
+            role:
+              res.user.role === "teacher"
+                ? "Giảng viên"
+                : res.user.role === "admin"
+                  ? "Ban quản trị"
+                  : "Học viên",
+            avatar:
+              res.user.avatar ||
+              "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
+            joinedDate: "27/10/2026",
+            bio: res.user.bio,
+          };
+          setUser(verifiedUser);
+          localStorage.setItem("user", JSON.stringify(verifiedUser));
+        } else {
+          // Token is invalid or expired
+          localStorage.removeItem("token");
+          localStorage.removeItem("educhat_token");
+          localStorage.removeItem("user");
+          setUser(null);
+        }
+      } catch (e) {
+        console.warn("Không thể xác thực JWT với máy chủ backend:", e);
+      }
+    };
+
+    verifyAuthSession();
     loadAllData();
   }, [loadAllData]);
 
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    localStorage.removeItem("educhat_token");
     setUser(null);
+    setActiveTab("home");
   };
 
   // Filtered articles
@@ -1424,6 +1464,19 @@ export function App() {
               </button>
             </div>
           </div>
+        )}
+
+        {/* LMS TEACHER CONSOLE VIEW */}
+        {activeTab === "teacher_console" && (
+          <TeacherDashboard onNavigateHome={() => setActiveTab("home")} />
+        )}
+
+        {/* STUDENT DASHBOARD VIEW */}
+        {activeTab === "student_dashboard" && (
+          <StudentDashboard
+            onNavigateHome={() => setActiveTab("home")}
+            onExploreCourses={() => setActiveTab("courses")}
+          />
         )}
       </main>
 

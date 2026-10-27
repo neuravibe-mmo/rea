@@ -93,5 +93,58 @@ export function initDatabase() {
       thumbnail TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS enrollments (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      course_id TEXT NOT NULL,
+      progress_percent INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      enrolled_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (course_id) REFERENCES courses(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS quizzes (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      course_id TEXT,
+      teacher_id TEXT NOT NULL,
+      teacher_name TEXT NOT NULL,
+      duration_minutes INTEGER DEFAULT 45,
+      total_questions INTEGER DEFAULT 20,
+      subject TEXT DEFAULT 'Chung',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS quiz_submissions (
+      id TEXT PRIMARY KEY,
+      quiz_id TEXT NOT NULL,
+      student_id TEXT NOT NULL,
+      student_name TEXT NOT NULL,
+      score REAL DEFAULT 0,
+      max_score REAL DEFAULT 10,
+      submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (quiz_id) REFERENCES quizzes(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS study_groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      teacher_id TEXT NOT NULL,
+      teacher_name TEXT NOT NULL,
+      members_count INTEGER DEFAULT 1,
+      subject TEXT DEFAULT 'Chung',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS group_members (
+      id TEXT PRIMARY KEY,
+      group_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      role TEXT DEFAULT 'member',
+      joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (group_id) REFERENCES study_groups(id)
+    );
   `);
 }

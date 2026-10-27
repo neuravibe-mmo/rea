@@ -8,6 +8,8 @@ import { coursesRouter } from "./routes/courses.js";
 import { documentsRouter } from "./routes/documents.js";
 import { videosRouter } from "./routes/videos.js";
 import { statsRouter } from "./routes/stats.js";
+import { teacherRouter } from "./routes/teacher.js";
+import { studentRouter } from "./routes/student.js";
 
 const app = express();
 const PORT = process.env.PORT || 5001;
@@ -38,6 +40,8 @@ app.use("/api/courses", coursesRouter);
 app.use("/api/documents", documentsRouter);
 app.use("/api/videos", videosRouter);
 app.use("/api/stats", statsRouter);
+app.use("/api/teacher", teacherRouter);
+app.use("/api/student", studentRouter);
 
 // Legacy EduChat.vn PHP Query Compatibility Layer (as documented in SPEC.md)
 app.all("/", (req: Request, res: Response): any => {
