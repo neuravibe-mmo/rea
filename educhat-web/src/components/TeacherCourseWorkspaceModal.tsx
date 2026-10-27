@@ -13,6 +13,7 @@ import {
   Save,
   Check,
   Search,
+  UserPlus,
 } from "lucide-react";
 import { api } from "../services/api";
 
@@ -33,6 +34,23 @@ export const TeacherCourseWorkspaceModal: React.FC<
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
+
+  // Add Student modal UI state
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [newStudentForm, setNewStudentForm] = useState({
+    fullname: "",
+    email: "",
+    phone: "",
+    cccd: "",
+    role: "Học viên chính thức",
+    initialProgress: 0,
+    sendNotification: true,
+  });
+
+  const handleAddStudentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowAddStudentModal(false);
+  };
 
   // New Lesson form
   const [showAddLessonForm, setShowAddLessonForm] = useState(false);
@@ -707,20 +725,53 @@ export const TeacherCourseWorkspaceModal: React.FC<
                   </p>
                 </div>
 
-                <div style={{ position: "relative", minWidth: "260px" }}>
-                  <input
-                    type="text"
-                    value={studentSearch}
-                    onChange={(e) => setStudentSearch(e.target.value)}
-                    placeholder="Tìm theo tên học viên hoặc email..."
-                    className="form-input"
-                    style={{ paddingLeft: "36px", fontSize: "13px" }}
-                  />
-                  <Search
-                    size={15}
-                    color="#94a3b8"
-                    style={{ position: "absolute", left: "12px", top: "14px" }}
-                  />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ position: "relative", minWidth: "240px" }}>
+                    <input
+                      type="text"
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      placeholder="Tìm theo tên học viên hoặc email..."
+                      className="form-input"
+                      style={{ paddingLeft: "36px", fontSize: "13px" }}
+                    />
+                    <Search
+                      size={15}
+                      color="#94a3b8"
+                      style={{
+                        position: "absolute",
+                        left: "12px",
+                        top: "14px",
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAddStudentModal(true)}
+                    className="btn btn-primary"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "9px 16px",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      borderRadius: "var(--radius-sm)",
+                      whiteSpace: "nowrap",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <UserPlus size={16} />
+                    <span>Thêm học viên mới</span>
+                  </button>
                 </div>
               </div>
 
@@ -1084,6 +1135,385 @@ export const TeacherCourseWorkspaceModal: React.FC<
           )}
         </div>
       </div>
+
+      {/* Modal Thêm Học Viên Mới (Giao diện) */}
+      {showAddStudentModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.65)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1100,
+            padding: "16px",
+          }}
+          onClick={() => setShowAddStudentModal(false)}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              width: "100%",
+              maxWidth: "540px",
+              borderRadius: "var(--radius-lg)",
+              overflow: "hidden",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              border: "1px solid #e2e8f0",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: "18px 24px",
+                borderBottom: "1px solid #e2e8f0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "#f8fafc",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+              >
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "10px",
+                    background: "rgba(14, 165, 233, 0.12)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <UserPlus size={20} color="#0284c7" />
+                </div>
+                <div>
+                  <h3
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 700,
+                      color: "#0f172a",
+                      margin: 0,
+                    }}
+                  >
+                    Thêm Học Viên Mới
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#64748b",
+                      margin: "2px 0 0",
+                    }}
+                  >
+                    Ghi danh vào: <strong>{course?.title || "Khóa học"}</strong>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowAddStudentModal(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#64748b",
+                  padding: "4px",
+                  borderRadius: "50%",
+                  display: "flex",
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddStudentSubmit} style={{ padding: "24px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+              >
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#334155",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Họ và tên học viên{" "}
+                    <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newStudentForm.fullname}
+                    onChange={(e) =>
+                      setNewStudentForm({
+                        ...newStudentForm,
+                        fullname: e.target.value,
+                      })
+                    }
+                    placeholder="Ví dụ: Nguyễn Văn An"
+                    className="form-input"
+                    style={{ width: "100%", fontSize: "14px" }}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#334155",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Email học viên <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={newStudentForm.email}
+                    onChange={(e) =>
+                      setNewStudentForm({
+                        ...newStudentForm,
+                        email: e.target.value,
+                      })
+                    }
+                    placeholder="hocvien@example.com"
+                    className="form-input"
+                    style={{ width: "100%", fontSize: "14px" }}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#334155",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Số điện thoại
+                    </label>
+                    <input
+                      type="tel"
+                      value={newStudentForm.phone}
+                      onChange={(e) =>
+                        setNewStudentForm({
+                          ...newStudentForm,
+                          phone: e.target.value,
+                        })
+                      }
+                      placeholder="0912 345 678"
+                      className="form-input"
+                      style={{ width: "100%", fontSize: "14px" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#334155",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Số CCCD / Mã định danh
+                    </label>
+                    <input
+                      type="text"
+                      value={newStudentForm.cccd}
+                      onChange={(e) =>
+                        setNewStudentForm({
+                          ...newStudentForm,
+                          cccd: e.target.value,
+                        })
+                      }
+                      placeholder="00120000xxxx"
+                      className="form-input"
+                      style={{ width: "100%", fontSize: "14px" }}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#334155",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Phân loại học viên
+                    </label>
+                    <select
+                      value={newStudentForm.role}
+                      onChange={(e) =>
+                        setNewStudentForm({
+                          ...newStudentForm,
+                          role: e.target.value,
+                        })
+                      }
+                      className="form-input"
+                      style={{ width: "100%", fontSize: "13px" }}
+                    >
+                      <option value="Học viên chính thức">
+                        Học viên chính thức
+                      </option>
+                      <option value="Học viên dự thính">
+                        Học viên dự thính
+                      </option>
+                      <option value="Học viên học bổng">
+                        Học viên học bổng
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#334155",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Tiến độ ban đầu (%)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={newStudentForm.initialProgress}
+                      onChange={(e) =>
+                        setNewStudentForm({
+                          ...newStudentForm,
+                          initialProgress: Number(e.target.value),
+                        })
+                      }
+                      className="form-input"
+                      style={{ width: "100%", fontSize: "14px" }}
+                    />
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    background: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "12px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
+                >
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontSize: "12px",
+                      color: "#166534",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={newStudentForm.sendNotification}
+                      onChange={(e) =>
+                        setNewStudentForm({
+                          ...newStudentForm,
+                          sendNotification: e.target.checked,
+                        })
+                      }
+                    />
+                    <span>
+                      Gửi email thông báo kích hoạt khóa học và hướng dẫn đăng
+                      nhập
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "10px",
+                  marginTop: "24px",
+                  paddingTop: "16px",
+                  borderTop: "1px solid #e2e8f0",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowAddStudentModal(false)}
+                  style={{
+                    padding: "9px 18px",
+                    background: "#f1f5f9",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "var(--radius-sm)",
+                    color: "#475569",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    padding: "9px 20px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <UserPlus size={16} />
+                  <span>Xác nhận thêm học viên</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

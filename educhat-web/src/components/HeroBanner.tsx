@@ -17,6 +17,7 @@ interface HeroBannerProps {
     teachers: number;
     courses: number;
     documents: number;
+    totalDownloads?: number;
   };
 }
 
@@ -25,18 +26,18 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   onJoinClick,
   stats,
 }) => {
-  const members = stats
-    ? stats.members >= 1000
-      ? `${(stats.members / 1000).toFixed(0)}K+`
-      : stats.members.toString()
-    : "120K+";
-  const teachers = stats ? stats.teachers.toLocaleString() + "+" : "1.500+";
-  const courses = stats ? stats.courses.toLocaleString() + "+" : "450+";
-  const documents = stats
-    ? stats.documents >= 1000
-      ? `${(stats.documents / 1000).toFixed(0)}K+`
-      : stats.documents.toString()
-    : "15K+";
+  const formatStat = (num?: number) => {
+    if (num === undefined || num === null) return "0";
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M+`;
+    if (num >= 10000) return `${(num / 1000).toFixed(0)}K+`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K+`;
+    return num.toLocaleString("vi-VN");
+  };
+
+  const members = formatStat(stats?.members);
+  const teachers = formatStat(stats?.teachers);
+  const courses = formatStat(stats?.courses);
+  const documents = formatStat(stats?.documents);
   return (
     <section
       style={{
@@ -282,7 +283,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
                     color: "rgba(255, 255, 255, 0.7)",
                   }}
                 >
-                  Tài liệu tải xuống
+                  Tài liệu học tập
                 </div>
               </div>
             </div>

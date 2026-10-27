@@ -23,15 +23,21 @@ statsRouter.get("/", (_req: Request, res: Response): any => {
     const docCount = (
       db.prepare("SELECT count(*) as c FROM documents").get() as any
     ).c;
+    const docDownloads = (
+      db
+        .prepare("SELECT COALESCE(sum(downloads_count), 0) as c FROM documents")
+        .get() as any
+    ).c;
 
     return res.json({
       success: true,
       stats: {
-        members: 120500 + userCount,
-        teachers: 1520 + teacherCount,
-        courses: 450 + courseCount,
+        members: userCount,
+        teachers: teacherCount,
+        courses: courseCount,
         articles: articleCount,
-        documents: 15800 + docCount,
+        documents: docCount,
+        totalDownloads: docDownloads,
       },
     });
   } catch (err: any) {

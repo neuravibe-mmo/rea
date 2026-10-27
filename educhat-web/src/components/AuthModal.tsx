@@ -339,6 +339,84 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </a>
               </div>
 
+              <div
+                style={{
+                  background: "#f0f9ff",
+                  border: "1px dashed #7dd3fc",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "10px 12px",
+                  marginTop: "4px",
+                  fontSize: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: "#0369a1",
+                    marginBottom: "6px",
+                  }}
+                >
+                  💡 Chọn nhanh tài khoản Giáo viên:
+                </div>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("kien@educhat.vn");
+                      setPassword("password123");
+                    }}
+                    style={{
+                      background: "#e0f2fe",
+                      color: "#0284c7",
+                      border: "1px solid #bae6fd",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                    }}
+                  >
+                    👨‍🏫 Nguyễn Hoàng Kiên
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("nguyenvana@educhat.vn");
+                      setPassword("password123");
+                    }}
+                    style={{
+                      background: "#fff",
+                      color: "#334155",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    TS. Nguyễn Văn An
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("tranthimai@educhat.vn");
+                      setPassword("password123");
+                    }}
+                    style={{
+                      background: "#fff",
+                      color: "#334155",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    ThS. Trần Thị Mai
+                  </button>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="btn btn-primary"

@@ -46,7 +46,13 @@ export function App() {
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [shorts, setShorts] = useState<VideoShort[]>([]);
   const [stats, setStats] = useState<
-    | { members: number; teachers: number; courses: number; documents: number }
+    | {
+        members: number;
+        teachers: number;
+        courses: number;
+        documents: number;
+        totalDownloads?: number;
+      }
     | undefined
   >(undefined);
 
