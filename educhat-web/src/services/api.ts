@@ -261,6 +261,31 @@ export const api = {
     return json.data;
   },
 
+  async getCourseReviews(courseId: string) {
+    const res = await fetch(`${API_BASE}/courses/${courseId}/reviews`);
+    if (!res.ok) throw new Error(`Lỗi tải đánh giá khóa học (${res.status})`);
+    const json = await res.json();
+    return json.data || { reviews: [], total: 0, averageRating: 5.0 };
+  },
+
+  async addCourseReview(
+    courseId: string,
+    review: {
+      author_name?: string;
+      author_avatar?: string;
+      rating: number;
+      content: string;
+      user_id?: string;
+    },
+  ) {
+    const res = await fetch(`${API_BASE}/courses/${courseId}/reviews`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(review),
+    });
+    return await res.json();
+  },
+
   async getCourseStudents(courseId: string) {
     const res = await fetch(
       `${API_BASE}/teacher/courses/${courseId}/students`,

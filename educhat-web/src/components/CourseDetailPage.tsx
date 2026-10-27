@@ -51,30 +51,10 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
   // Preview video state
   const [previewVideoUrl, setPreviewVideoUrl] = useState<string | null>(null);
 
-  // Reviews list
-  const [reviews, setReviews] = useState([
-    {
-      id: "rev_1",
-      name: "ThS. Hoàng Thị Lan",
-      avatar:
-        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=120",
-      rating: 5,
-      date: "3 ngày trước",
-      comment:
-        "Khóa học rất thực chiến, các tài liệu hướng dẫn xây dựng bài giảng SCORM theo chuẩn Công văn 5512 áp dụng được ngay vào giảng dạy tại trường.",
-    },
-    {
-      id: "rev_2",
-      name: "Thầy Đỗ Minh Tuấn",
-      avatar:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=120",
-      rating: 5,
-      date: "1 tuần trước",
-      comment:
-        "Nội dung bài giảng chỉn chu, thầy giảng giải trực quan và nhiệt tình giải đáp thắc mắc của giáo viên trong diễn đàn.",
-    },
-  ]);
+  // Reviews list from SQLite
+  const [reviews, setReviews] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     if (!course) return;
@@ -92,6 +72,23 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
         const res = await api.getCourseDetail(course.id);
         if (res) {
           setCourseData(res);
+          if (res.reviews && Array.isArray(res.reviews)) {
+            setReviews(
+              res.reviews.map((r: any) => ({
+                id: r.id,
+                name: r.author_name || r.name || "Học viên EduChat",
+                avatar:
+                  r.author_avatar ||
+                  r.avatar ||
+                  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=120",
+                rating: r.rating || 5,
+                date: r.created_at
+                  ? new Date(r.created_at).toLocaleDateString("vi-VN")
+                  : r.date || "Gần đây",
+                comment: r.content || r.comment || "",
+              })),
+            );
+          }
         }
       } catch (e) {
         console.error("Lỗi nạp chi tiết khóa học:", e);
@@ -146,21 +143,50 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
     }
   };
 
-  const handleAddReview = (e: React.FormEvent) => {
+  const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
-    const rev = {
-      id: "rev_" + Date.now(),
-      name: currentUser ? currentUser.fullname : "Học viên EduChat",
-      avatar:
-        currentUser?.avatar ||
-        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=120",
-      rating: 5,
-      date: "Vừa xong",
-      comment: newComment.trim(),
-    };
-    setReviews([rev, ...reviews]);
-    setNewComment("");
+    if (!newComment.trim() || submittingReview) return;
+    try {
+      setSubmittingReview(true);
+      const res = await api.addCourseReview(course.id, {
+        author_name: currentUser ? currentUser.fullname : "Học viên EduChat",
+        author_avatar:
+          currentUser?.avatar ||
+          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=120",
+        rating: 5,
+        content: newComment.trim(),
+        user_id: currentUser?.id,
+      });
+      if (res && res.success) {
+        setNewComment("");
+        // Reload course detail and reviews from database
+        const updatedDetail = await api.getCourseDetail(course.id);
+        if (updatedDetail) {
+          setCourseData(updatedDetail);
+          if (updatedDetail.reviews && Array.isArray(updatedDetail.reviews)) {
+            setReviews(
+              updatedDetail.reviews.map((r: any) => ({
+                id: r.id,
+                name: r.author_name || r.name || "Học viên EduChat",
+                avatar:
+                  r.author_avatar ||
+                  r.avatar ||
+                  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=120",
+                rating: r.rating || 5,
+                date: r.created_at
+                  ? new Date(r.created_at).toLocaleDateString("vi-VN")
+                  : "Vừa xong",
+                comment: r.content || r.comment || "",
+              })),
+            );
+          }
+        }
+      }
+    } catch (err: any) {
+      alert("Lỗi gửi đánh giá: " + err.message);
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const lessons = courseData?.lessons || [
@@ -230,7 +256,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
         }}
       >
         <div
-          className="container"
+          className="container-wide"
           style={{
             display: "flex",
             alignItems: "center",
@@ -274,30 +300,6 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
               {course.title}
             </span>
           </div>
-
-          {/* Teacher Quick Button on Header */}
-          {isTeacher && onOpenTeacherWorkspace && (
-            <button
-              onClick={() => onOpenTeacherWorkspace(course)}
-              className="btn"
-              style={{
-                background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-                color: "#0f172a",
-                fontWeight: 800,
-                fontSize: "12px",
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "none",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                boxShadow: "0 2px 8px rgba(245, 158, 11, 0.3)",
-              }}
-            >
-              <Settings size={15} />
-              <span>⚙️ Bảng Quản trị & Biên tập LMS (Hướng 2)</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -311,8 +313,8 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
           borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <div className="container">
-          <div style={{ maxWidth: "860px" }}>
+        <div className="container-wide">
+          <div style={{ maxWidth: "1080px" }}>
             <div
               style={{
                 display: "flex",
@@ -438,10 +440,14 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
               >
                 <Star size={16} fill="#fbbf24" />
                 <strong style={{ color: "#fff", fontSize: "15px" }}>
-                  {course.rating || 4.9}
+                  {courseData?.rating
+                    ? courseData.rating.toFixed(1)
+                    : course.rating
+                      ? Number(course.rating).toFixed(1)
+                      : "5.0"}
                 </strong>
                 <span style={{ color: "rgba(255, 255, 255, 0.6)" }}>
-                  (120+ nhận xét)
+                  ({reviews.length} nhận xét)
                 </span>
               </div>
 
@@ -451,9 +457,12 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 <Users size={16} color="#38bdf8" />
                 <span>
                   <strong>
-                    {course.students_count
-                      ? Number(course.students_count).toLocaleString("vi-VN")
-                      : course.studentsCount || "1.840"}
+                    {(courseData?.students_count !== undefined
+                      ? Number(courseData.students_count)
+                      : course.students_count
+                        ? Number(course.students_count)
+                        : 0
+                    ).toLocaleString("vi-VN")}
                   </strong>{" "}
                   học viên
                 </span>
@@ -482,12 +491,12 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
       </div>
 
       {/* Main Content Body */}
-      <div className="container" style={{ marginTop: "32px" }}>
+      <div className="container-wide" style={{ marginTop: "32px" }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 340px",
-            gap: "32px",
+            gridTemplateColumns: "1fr 380px",
+            gap: "36px",
             alignItems: "start",
           }}
         >
@@ -972,10 +981,11 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                   />
                   <button
                     type="submit"
+                    disabled={submittingReview}
                     className="btn btn-primary"
                     style={{ flexShrink: 0 }}
                   >
-                    Gửi nhận xét
+                    {submittingReview ? "Đang gửi..." : "Gửi nhận xét"}
                   </button>
                 </form>
 
@@ -1251,9 +1261,7 @@ export const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                           }}
                         >
                           <Settings size={18} />
-                          <span>
-                            ⚙️ Vào Bảng Quản trị & Biên tập LMS (Hướng 2)
-                          </span>
+                          <span>Vào Bảng Quản trị & Biên tập LMS</span>
                         </button>
                       )}
                     </div>

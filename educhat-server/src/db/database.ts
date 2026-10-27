@@ -158,5 +158,17 @@ export function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (course_id) REFERENCES courses(id)
     );
+
+    CREATE TABLE IF NOT EXISTS course_reviews (
+      id TEXT PRIMARY KEY,
+      course_id TEXT NOT NULL,
+      user_id TEXT,
+      author_name TEXT NOT NULL,
+      author_avatar TEXT,
+      rating INTEGER DEFAULT 5,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (course_id) REFERENCES courses(id)
+    );
   `);
 }

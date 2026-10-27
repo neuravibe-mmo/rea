@@ -36,6 +36,9 @@ export const TeacherCourseWorkspacePage: React.FC<
   >("curriculum");
   const [lessons, setLessons] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [courseRating, setCourseRating] = useState<number>(
+    course?.rating || 5.0,
+  );
   const [loading, setLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
 
@@ -66,8 +69,9 @@ export const TeacherCourseWorkspacePage: React.FC<
       setLoading(true);
       // 1. Fetch Course details & lessons
       const courseRes = await api.getCourseDetail(course.id);
-      if (courseRes && courseRes.lessons) {
-        setLessons(courseRes.lessons);
+      if (courseRes) {
+        if (courseRes.rating) setCourseRating(courseRes.rating);
+        if (courseRes.lessons) setLessons(courseRes.lessons);
         setSettingsTitle(courseRes.title || course.title);
         setSettingsPrice(courseRes.price || 399000);
         setSettingsDuration(courseRes.duration || "18 giờ");
@@ -77,7 +81,9 @@ export const TeacherCourseWorkspacePage: React.FC<
 
       // 2. Fetch Students enrolled
       const studentsRes = await api.getCourseStudents(course.id);
-      if (studentsRes && studentsRes.students) {
+      if (Array.isArray(studentsRes)) {
+        setStudents(studentsRes);
+      } else if (studentsRes && studentsRes.students) {
         setStudents(studentsRes.students);
       }
     } catch (e) {
@@ -199,7 +205,7 @@ export const TeacherCourseWorkspacePage: React.FC<
         }}
       >
         <div
-          className="container"
+          className="container-wide"
           style={{
             display: "flex",
             alignItems: "center",
@@ -262,7 +268,7 @@ export const TeacherCourseWorkspacePage: React.FC<
               }}
             >
               <Eye size={15} />
-              <span>← Xem trang Giới thiệu (Hướng 1)</span>
+              <span>← Xem trang Giới thiệu khóa học</span>
             </button>
 
             <button
@@ -291,7 +297,7 @@ export const TeacherCourseWorkspacePage: React.FC<
           borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <div className="container">
+        <div className="container-wide">
           <div
             style={{
               display: "flex",
@@ -301,7 +307,7 @@ export const TeacherCourseWorkspacePage: React.FC<
               gap: "20px",
             }}
           >
-            <div style={{ maxWidth: "800px" }}>
+            <div style={{ maxWidth: "1040px" }}>
               <div
                 style={{
                   display: "flex",
@@ -412,9 +418,7 @@ export const TeacherCourseWorkspacePage: React.FC<
                   Học viên
                 </span>
                 <strong style={{ fontSize: "20px", color: "#34d399" }}>
-                  {students.length > 0
-                    ? students.length.toLocaleString("vi-VN")
-                    : "1.840"}
+                  {students.length.toLocaleString("vi-VN")}
                 </strong>
               </div>
               <div style={{ textAlign: "center", padding: "0 12px" }}>
@@ -428,7 +432,7 @@ export const TeacherCourseWorkspacePage: React.FC<
                   Đánh giá
                 </span>
                 <strong style={{ fontSize: "20px", color: "#fbbf24" }}>
-                  4.9 ★
+                  {courseRating.toFixed(1)} ★
                 </strong>
               </div>
             </div>
@@ -437,7 +441,7 @@ export const TeacherCourseWorkspacePage: React.FC<
       </div>
 
       {/* Main Workspace Body */}
-      <div className="container" style={{ marginTop: "28px" }}>
+      <div className="container-wide" style={{ marginTop: "28px" }}>
         {/* Notification Toast */}
         {notification && (
           <div
@@ -977,7 +981,7 @@ export const TeacherCourseWorkspacePage: React.FC<
                   ) : (
                     filteredStudents.map((st) => (
                       <tr
-                        key={st.id}
+                        key={st.enrollment_id || st.id || st.user_id}
                         style={{ borderBottom: "1px solid #f1f5f9" }}
                       >
                         <td style={{ padding: "14px 16px" }}>

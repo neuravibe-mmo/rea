@@ -377,7 +377,216 @@ export function seedData() {
     0,
   );
 
-  console.log("Seed completed successfully!");
+  // Seed Real Students
+  const insertStudent = db.prepare(`
+    INSERT OR REPLACE INTO users (id, email, password, fullname, phone, cccd, role, avatar, bio)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  insertStudent.run(
+    "usr_student_1",
+    "student@educhat.vn",
+    "password123",
+    "Lê Hoàng Long",
+    "0909123456",
+    "001200009999",
+    "student",
+    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200",
+    "Học viên đam mê công nghệ EdTech và lập trình ứng dụng.",
+  );
+
+  insertStudent.run(
+    "usr_student_2",
+    "thao.nguyen@gmail.com",
+    "password123",
+    "Nguyễn Thị Phương Thảo",
+    "0918765432",
+    "001200008888",
+    "student",
+    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200",
+    "Giáo viên THCS Chu Văn An, đam mê đổi mới bài giảng số.",
+  );
+
+  insertStudent.run(
+    "usr_student_3",
+    "tuananh.edu@outlook.com",
+    "password123",
+    "Phạm Tuấn Anh",
+    "0922334455",
+    "001200007777",
+    "student",
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200",
+    "Giảng viên thực hành STEM và thiết kế học liệu tương tác.",
+  );
+
+  insertStudent.run(
+    "usr_student_4",
+    "thuha.teacher@gmail.com",
+    "password123",
+    "Đỗ Thu Hà",
+    "0933445566",
+    "001200006666",
+    "student",
+    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200",
+    "Tổ trưởng chuyên môn Ngoại ngữ, THPT Chuyên Hà Nội - Amsterdam.",
+  );
+
+  insertStudent.run(
+    "usr_student_5",
+    "baotran.stem@yahoo.com",
+    "password123",
+    "Trần Quốc Bảo",
+    "0944556677",
+    "001200005555",
+    "student",
+    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200",
+    "Chuyên viên công nghệ đào tạo, trung tâm bồi dưỡng sư phạm.",
+  );
+
+  insertStudent.run(
+    "usr_student_6",
+    "mailinh.edtech@gmail.com",
+    "password123",
+    "Vũ Mai Linh",
+    "0955667788",
+    "001200004444",
+    "student",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200",
+    "Sinh viên năm cuối ĐH Sư Phạm Hà Nội.",
+  );
+
+  // Seed Enrollments for Course crs_1
+  const insertCourseEnrollment = db.prepare(`
+    INSERT OR REPLACE INTO enrollments (id, user_id, course_id, progress_percent, status, enrolled_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+
+  insertCourseEnrollment.run(
+    "enr_1",
+    "usr_student_1",
+    "crs_1",
+    85,
+    "active",
+    "2026-10-20 09:30:00",
+  );
+  insertCourseEnrollment.run(
+    "enr_2",
+    "usr_student_2",
+    "crs_1",
+    100,
+    "completed",
+    "2026-10-21 14:15:00",
+  );
+  insertCourseEnrollment.run(
+    "enr_3",
+    "usr_student_3",
+    "crs_1",
+    60,
+    "active",
+    "2026-10-22 10:00:00",
+  );
+  insertCourseEnrollment.run(
+    "enr_4",
+    "usr_student_4",
+    "crs_1",
+    45,
+    "active",
+    "2026-10-23 16:45:00",
+  );
+  insertCourseEnrollment.run(
+    "enr_5",
+    "usr_student_5",
+    "crs_1",
+    92,
+    "active",
+    "2026-10-24 11:20:00",
+  );
+  insertCourseEnrollment.run(
+    "enr_6",
+    "usr_student_6",
+    "crs_1",
+    25,
+    "active",
+    "2026-10-25 08:10:00",
+  );
+
+  // Seed Reviews for Course crs_1
+  const insertReview = db.prepare(`
+    INSERT OR REPLACE INTO course_reviews (id, course_id, user_id, author_name, author_avatar, rating, content, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  insertReview.run(
+    "rev_1",
+    "crs_1",
+    "usr_student_2",
+    "ThS. Hoàng Thị Lan",
+    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=120",
+    5,
+    "Khóa học rất thực chiến, các tài liệu hướng dẫn xây dựng bài giảng SCORM theo chuẩn Công văn 5512 áp dụng được ngay vào giảng dạy tại trường.",
+    "2026-10-22 15:30:00",
+  );
+
+  insertReview.run(
+    "rev_2",
+    "crs_1",
+    "usr_student_3",
+    "Thầy Đỗ Minh Tuấn",
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=120",
+    5,
+    "Nội dung bài giảng chỉn chu, thầy An giảng giải trực quan và nhiệt tình giải đáp thắc mắc của giáo viên trong diễn đàn.",
+    "2026-10-23 09:20:00",
+  );
+
+  insertReview.run(
+    "rev_3",
+    "crs_1",
+    "usr_student_4",
+    "Cô Nguyễn Thị Bích Ngọc",
+    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=120",
+    5,
+    "Phần hướng dẫn đóng gói bài giảng điện tử tương thích với LMS EduChat rất chi tiết, tôi đã xuất bản thành công bài giảng đầu tiên.",
+    "2026-10-24 18:45:00",
+  );
+
+  insertReview.run(
+    "rev_4",
+    "crs_1",
+    "usr_student_5",
+    "Thầy Phan Thanh Sơn",
+    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=120",
+    4,
+    "Kiến thức cập nhật xu hướng 2026 rất hay, mong thầy bổ sung thêm các template mẫu cho môn Toán và Vật lý.",
+    "2026-10-25 10:15:00",
+  );
+
+  insertReview.run(
+    "rev_5",
+    "crs_1",
+    "usr_student_6",
+    "Cô Lê Thu Hằng",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=120",
+    5,
+    "Bộ công cụ H5P được thầy hướng dẫn ứng dụng cực kỳ sinh động, học sinh lớp tôi rất thích thú khi làm bài tập.",
+    "2026-10-26 14:00:00",
+  );
+
+  // Sync courses table stats with real count from database
+  const countRes = db
+    .prepare(
+      "SELECT count(*) as count FROM enrollments WHERE course_id = 'crs_1'",
+    )
+    .get() as { count: number };
+  const avgReview = db
+    .prepare(
+      "SELECT avg(rating) as avg FROM course_reviews WHERE course_id = 'crs_1'",
+    )
+    .get() as { avg: number };
+  db.prepare(
+    "UPDATE courses SET students_count = ?, rating = ? WHERE id = 'crs_1'",
+  ).run(countRes.count, Number(avgReview.avg.toFixed(1)));
+
+  console.log("Seed completed successfully with real students and reviews!");
 }
 
 if (process.argv[1] && process.argv[1].endsWith("seed.ts")) {

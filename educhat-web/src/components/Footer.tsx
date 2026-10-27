@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
         position: "relative",
       }}
     >
-      <div className="container">
+      <div className="container-wide">
         <div
           style={{
             display: "grid",

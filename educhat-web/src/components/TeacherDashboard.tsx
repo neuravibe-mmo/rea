@@ -712,7 +712,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                             borderRadius: "8px",
                           }}
                         >
-                          👁️ Tổng quan (H.1)
+                          👁️ Xem chi tiết
                         </button>
                         <button
                           type="button"
@@ -738,7 +738,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                             boxShadow: "0 2px 8px rgba(245, 158, 11, 0.25)",
                           }}
                         >
-                          ⚙️ Quản trị (H.2)
+                          ⚙️ Quản trị LMS
                         </button>
                       </div>
                     </div>

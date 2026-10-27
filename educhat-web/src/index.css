@@ -84,9 +84,17 @@ body {
 
 /* Container */
 .container {
-  max-width: 1240px;
+  max-width: 1520px;
+  width: 95%;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 24px;
+}
+
+.container-wide {
+  max-width: 1760px;
+  width: 96%;
+  margin: 0 auto;
+  padding: 0 24px;
 }
 
 /* Buttons */

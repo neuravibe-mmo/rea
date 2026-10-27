@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
         }}
       >
         <div
-          className="container"
+          className="container-wide"
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -109,7 +109,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Main Nav Bar */}
       <div
-        className="container"
+        className="container-wide"
         style={{
           display: "flex",
           alignItems: "center",
