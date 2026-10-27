@@ -7,8 +7,7 @@ import { ProviderCleanupError } from "../domain/providerCleanupError.js";
 import { projectAnalysisError } from "../domain/analysisErrorProjection.js";
 import type {
   AnalysisClient,
-  ExecutionOptions,
-  FileCloseResourceOwner,
+  RetainedResourceScope,
 } from "../application/AnalysisProvider.js";
 import { AnalysisError } from "../domain/analysisErrorBase.js";
 import { AnalysisCancelledError } from "../domain/analysisErrorCore.js";
@@ -21,7 +20,7 @@ import { closeAnalysisClient } from "./AnalysisClientCleanup.js";
 /** Own deferred client creation while callers wait independently and close joins it. */
 export class AnalysisClientCreation {
   readonly #inspectionResources = new ArtifactResourceScope();
-  readonly #inspectionOwner: FileCloseResourceOwner = {
+  readonly #inspectionOwner: RetainedResourceScope = {
     retain: (owner, resource) =>
       this.#inspectionResources.retain({
         kind: "lease",
@@ -44,7 +43,7 @@ export class AnalysisClientCreation {
     private readonly providerId: string,
     private readonly create: (
       signal: AbortSignal,
-      resourceOwner: FileCloseResourceOwner,
+      resourceOwner: RetainedResourceScope,
     ) => Promise<AnalysisClient>,
   ) {}
 
@@ -206,9 +205,7 @@ export class AnalysisClientCreation {
   }
 
   close(
-    options?: Pick<ExecutionOptions, "progress"> & {
-      readonly retainDocument?: boolean;
-    },
+    options?: Parameters<AnalysisClient["close"]>[0],
   ): Promise<Result<null, AnalysisError>> {
     this.#closed = true;
     this.#closeOptions = options;
