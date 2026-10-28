@@ -13,6 +13,11 @@ import {
   TrendingUp,
   X,
   FileText,
+  CreditCard,
+  QrCode,
+  ShieldCheck,
+  Bell,
+  Wallet,
 } from "lucide-react";
 import { api } from "../services/api";
 import type { StudentOverviewData, Quiz } from "../types";
@@ -44,6 +49,29 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
   const [notification, setNotification] = useState<string | null>(null);
 
+  // Student course invitations state
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [loadingInvitations, setLoadingInvitations] = useState(false);
+  const [selectedInviteForPayment, setSelectedInviteForPayment] = useState<
+    any | null
+  >(null);
+  const [paymentConfirmed, setPaymentConfirmed] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  const fetchInvitations = async () => {
+    try {
+      setLoadingInvitations(true);
+      const res = await api.getStudentInvitations();
+      if (res.success) {
+        setInvitations(res.data || []);
+      }
+    } catch (e) {
+      console.error("Lỗi nạp danh sách lời mời khóa học:", e);
+    } finally {
+      setLoadingInvitations(false);
+    }
+  };
+
   const fetchOverview = async () => {
     try {
       setLoading(true);
@@ -59,7 +87,65 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
   useEffect(() => {
     fetchOverview();
+    fetchInvitations();
   }, []);
+
+  const handleAcceptFreeInvitation = async (invite: any) => {
+    try {
+      const res = await api.respondCourseInvitation(invite.id, "accept");
+      if (res.success) {
+        setNotification(
+          `Đã tham gia khóa học "${invite.course_title}" thành công!`,
+        );
+        fetchOverview();
+        fetchInvitations();
+      } else {
+        alert(res.error || "Không thể tham gia khóa học");
+      }
+    } catch (e: any) {
+      alert(e.message || "Lỗi kết nối máy chủ");
+    }
+  };
+
+  const handleDeclineInvitation = async (inviteId: string) => {
+    if (!confirm("Bạn có chắc chắn muốn từ chối lời mời này không?")) return;
+    try {
+      const res = await api.respondCourseInvitation(inviteId, "decline");
+      if (res.success) {
+        setNotification("Đã từ chối lời mời khóa học.");
+        fetchInvitations();
+      }
+    } catch (e: any) {
+      alert(e.message || "Lỗi kết nối");
+    }
+  };
+
+  const handleConfirmPaidEnrollment = async () => {
+    if (!selectedInviteForPayment) return;
+    setProcessingPayment(true);
+    try {
+      const res = await api.respondCourseInvitation(
+        selectedInviteForPayment.id,
+        "accept",
+        { confirmed: true, method: "VietQR" },
+      );
+      if (res.success) {
+        setNotification(
+          `Thanh toán thành công! Khóa học "${selectedInviteForPayment.course_title}" đã sẵn sàng trong góc học tập của bạn.`,
+        );
+        setSelectedInviteForPayment(null);
+        setPaymentConfirmed(false);
+        fetchOverview();
+        fetchInvitations();
+      } else {
+        alert(res.error || "Lỗi xử lý thanh toán");
+      }
+    } catch (e: any) {
+      alert(e.message || "Lỗi kết nối máy chủ");
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
 
   const handleStartQuiz = (quiz: Quiz) => {
     setSelectedQuiz(quiz);
@@ -395,6 +481,248 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           <div className="alert-success-box">
             <CheckCircle2 size={18} color="#059669" />
             <span>{notification}</span>
+          </div>
+        )}
+
+        {/* Khối Lời mời Khóa học từ Giảng viên */}
+        {invitations.length > 0 && (
+          <div
+            style={{
+              background: "linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)",
+              border: "1.5px solid #7dd3fc",
+              borderRadius: "var(--radius-md)",
+              padding: "20px 24px",
+              marginBottom: "24px",
+              boxShadow: "0 4px 16px rgba(14, 165, 233, 0.08)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "14px",
+                flexWrap: "wrap",
+                gap: "10px",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+              >
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "10px",
+                    background: "#0284c7",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Bell size={18} />
+                </div>
+                <div>
+                  <h3
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 800,
+                      color: "#0f172a",
+                      margin: 0,
+                    }}
+                  >
+                    Bạn có {invitations.length} lời mời tham gia khóa học từ
+                    Giảng viên!
+                  </h3>
+                  <span style={{ fontSize: "12px", color: "#475569" }}>
+                    Vui lòng xác nhận để được ghi danh vào lớp học chính thức
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+            >
+              {invitations.map((inv) => {
+                const isFree = (inv.course_price || 0) === 0;
+
+                return (
+                  <div
+                    key={inv.id}
+                    style={{
+                      background: "#ffffff",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "16px 20px",
+                      border: "1px solid #cbd5e1",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "16px",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "14px",
+                        flex: 1,
+                        minWidth: "280px",
+                      }}
+                    >
+                      <img
+                        src={
+                          inv.course_thumbnail ||
+                          "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=300"
+                        }
+                        alt={inv.course_title}
+                        style={{
+                          width: "72px",
+                          height: "52px",
+                          borderRadius: "6px",
+                          objectFit: "cover",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      />
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: "14px",
+                            color: "#0f172a",
+                            marginBottom: "4px",
+                          }}
+                        >
+                          {inv.course_title}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            fontSize: "12px",
+                            color: "#64748b",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <span>
+                            Giảng viên: <strong>{inv.teacher_name}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>Chuyên mục: {inv.category}</span>
+                          <span>•</span>
+                          <span
+                            style={{
+                              padding: "2px 8px",
+                              borderRadius: "10px",
+                              fontWeight: 700,
+                              fontSize: "11px",
+                              background: isFree ? "#ecfdf5" : "#fff7ed",
+                              color: isFree ? "#059669" : "#ea580c",
+                              border: isFree
+                                ? "1px solid #a7f3d0"
+                                : "1px solid #fed7aa",
+                            }}
+                          >
+                            {isFree
+                              ? "Khóa Miễn phí"
+                              : `Học phí: ${(inv.course_price || 0).toLocaleString("vi-VN")} đ`}
+                          </span>
+                        </div>
+                        {inv.message && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#0284c7",
+                              marginTop: "4px",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            💬 "{inv.message}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleDeclineInvitation(inv.id)}
+                        style={{
+                          padding: "8px 14px",
+                          borderRadius: "var(--radius-sm)",
+                          border: "1px solid #cbd5e1",
+                          background: "#fff",
+                          color: "#64748b",
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Từ chối
+                      </button>
+
+                      {isFree ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptFreeInvitation(inv)}
+                          className="btn"
+                          style={{
+                            background: "#059669",
+                            color: "#fff",
+                            padding: "8px 18px",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            boxShadow: "0 2px 6px rgba(5, 150, 105, 0.25)",
+                          }}
+                        >
+                          <CheckCircle2 size={16} />
+                          <span>Đồng ý tham gia</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedInviteForPayment(inv);
+                            setPaymentConfirmed(false);
+                          }}
+                          className="btn"
+                          style={{
+                            background: "#d97706",
+                            color: "#fff",
+                            padding: "8px 18px",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            boxShadow: "0 2px 6px rgba(217, 119, 6, 0.3)",
+                          }}
+                        >
+                          <CreditCard size={16} />
+                          <span>
+                            Thanh toán & Tham gia (
+                            {(inv.course_price || 0).toLocaleString("vi-VN")} đ)
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -1494,6 +1822,315 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* Modal Thanh Toán Học Phí (Khóa học có phí) */}
+      {selectedInviteForPayment && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.75)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1200,
+            padding: "16px",
+          }}
+          onClick={() => setSelectedInviteForPayment(null)}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              width: "100%",
+              maxWidth: "520px",
+              borderRadius: "var(--radius-lg)",
+              overflow: "hidden",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              border: "1px solid #e2e8f0",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: "18px 24px",
+                borderBottom: "1px solid #e2e8f0",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "#f8fafc",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px" }}
+              >
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "10px",
+                    background: "rgba(217, 119, 6, 0.12)",
+                    color: "#d97706",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <CreditCard size={20} />
+                </div>
+                <div>
+                  <h3
+                    style={{
+                      fontSize: "16px",
+                      fontWeight: 800,
+                      color: "#0f172a",
+                      margin: 0,
+                    }}
+                  >
+                    Thanh toán Học phí Khóa học
+                  </h3>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                    Hoàn tất chuyển khoản để kích hoạt quyền vào lớp
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedInviteForPayment(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#64748b",
+                  padding: "4px",
+                  borderRadius: "50%",
+                  display: "flex",
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: "20px 24px" }}>
+              {/* Chi tiết khóa học & Số tiền */}
+              <div
+                style={{
+                  background: "#fffbeb",
+                  border: "1px solid #fef3c7",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "14px 18px",
+                  marginBottom: "20px",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: "13px",
+                    color: "#92400e",
+                    fontWeight: 600,
+                    marginBottom: "4px",
+                  }}
+                >
+                  Khóa học: {selectedInviteForPayment.course_title}
+                </div>
+                <div
+                  style={{
+                    fontSize: "12px",
+                    color: "#b45309",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Giảng viên phụ trách: {selectedInviteForPayment.teacher_name}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderTop: "1px dashed #fde68a",
+                    paddingTop: "8px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: "#78350f",
+                    }}
+                  >
+                    Số tiền thanh toán:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "20px",
+                      fontWeight: 800,
+                      color: "#b45309",
+                    }}
+                  >
+                    {(
+                      selectedInviteForPayment.course_price || 0
+                    ).toLocaleString("vi-VN")}{" "}
+                    đ
+                  </span>
+                </div>
+              </div>
+
+              {/* Thông tin chuyển khoản VietQR */}
+              <div
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "16px",
+                  marginBottom: "18px",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "13px",
+                    color: "#0f172a",
+                    marginBottom: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <QrCode size={16} color="#0284c7" />
+                  <span>Chuyển khoản liên ngân hàng 24/7 (VietQR)</span>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "110px 1fr",
+                    rowGap: "8px",
+                    fontSize: "13px",
+                    color: "#334155",
+                  }}
+                >
+                  <span style={{ color: "#64748b" }}>Ngân hàng:</span>
+                  <strong>Vietcombank (Sở giao dịch)</strong>
+
+                  <span style={{ color: "#64748b" }}>Số tài khoản:</span>
+                  <strong style={{ color: "#0284c7", fontSize: "14px" }}>
+                    0011 0045 67890
+                  </strong>
+
+                  <span style={{ color: "#64748b" }}>Chủ tài khoản:</span>
+                  <strong>EDUCHAT VN - CONG DONG GIAO DUC</strong>
+
+                  <span style={{ color: "#64748b" }}>Nội dung CK:</span>
+                  <strong
+                    style={{
+                      background: "#e0f2fe",
+                      padding: "2px 6px",
+                      borderRadius: "4px",
+                      color: "#0369a1",
+                    }}
+                  >
+                    EDUCHAT HP{" "}
+                    {selectedInviteForPayment.id.substring(4, 12).toUpperCase()}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Checkbox xác nhận */}
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                  fontSize: "12px",
+                  color: "#334155",
+                  cursor: "pointer",
+                  padding: "8px 0",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  style={{ marginTop: "2px" }}
+                  checked={paymentConfirmed}
+                  onChange={(e) => setPaymentConfirmed(e.target.checked)}
+                />
+                <span>
+                  Tôi xác nhận đã hoàn tất chuyển khoản chính xác số tiền{" "}
+                  <strong>
+                    {(
+                      selectedInviteForPayment.course_price || 0
+                    ).toLocaleString("vi-VN")}{" "}
+                    đ
+                  </strong>{" "}
+                  theo thông tin ở trên.
+                </span>
+              </label>
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: "16px 24px",
+                borderTop: "1px solid #e2e8f0",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+                background: "#f8fafc",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedInviteForPayment(null)}
+                style={{
+                  padding: "9px 18px",
+                  background: "#fff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "var(--radius-sm)",
+                  color: "#64748b",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Đóng
+              </button>
+
+              <button
+                type="button"
+                disabled={!paymentConfirmed || processingPayment}
+                onClick={handleConfirmPaidEnrollment}
+                className="btn"
+                style={{
+                  background: paymentConfirmed ? "#059669" : "#94a3b8",
+                  color: "#fff",
+                  padding: "9px 20px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor:
+                    !paymentConfirmed || processingPayment
+                      ? "not-allowed"
+                      : "pointer",
+                  boxShadow: paymentConfirmed
+                    ? "0 4px 12px rgba(5, 150, 105, 0.3)"
+                    : "none",
+                }}
+              >
+                {processingPayment ? (
+                  <span>Đang xử lý kích hoạt...</span>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} />
+                    <span>Xác nhận & Kích hoạt vào lớp</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -170,5 +170,33 @@ export function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (course_id) REFERENCES courses(id)
     );
+
+    CREATE TABLE IF NOT EXISTS course_invitations (
+      id TEXT PRIMARY KEY,
+      course_id TEXT NOT NULL,
+      teacher_id TEXT NOT NULL,
+      student_id TEXT NOT NULL,
+      course_price INTEGER DEFAULT 0,
+      status TEXT CHECK(status IN ('pending', 'accepted', 'declined', 'cancelled')) DEFAULT 'pending',
+      message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      responded_at DATETIME,
+      FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE,
+      FOREIGN KEY (teacher_id) REFERENCES users(id),
+      FOREIGN KEY (student_id) REFERENCES users(id),
+      UNIQUE(course_id, student_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      data TEXT,
+      is_read INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 }

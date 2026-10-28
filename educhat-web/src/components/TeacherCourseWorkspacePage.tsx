@@ -20,6 +20,8 @@ import {
   Sparkles,
   UserPlus,
   X,
+  Send,
+  RefreshCw,
 } from "lucide-react";
 import { api } from "../services/api";
 
@@ -44,22 +46,106 @@ export const TeacherCourseWorkspacePage: React.FC<
   const [loading, setLoading] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
 
-  // Add Student modal UI state
-  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
-  const [newStudentForm, setNewStudentForm] = useState({
-    fullname: "",
-    email: "",
-    phone: "",
-    cccd: "",
-    role: "Học viên chính thức",
-    initialProgress: 0,
-    sendNotification: true,
-  });
+  // Course Invitation state
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [eligibleStudents, setEligibleStudents] = useState<any[]>([]);
+  const [searchingEligible, setSearchingEligible] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
+  const [inviteFeedback, setInviteFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [courseInvitations, setCourseInvitations] = useState<any[]>([]);
+  const [invitationsTab, setInvitationsTab] = useState<"search" | "pending">(
+    "search",
+  );
 
-  const handleAddStudentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // UI sẵn sàng. Logic ghi danh / gọi API backend sẽ được bạn tự code xử lý sau.
-    setShowAddStudentModal(false);
+  const loadEligibleStudents = async (query = "") => {
+    if (!course?.id) return;
+    setSearchingEligible(true);
+    try {
+      const res = await api.getEligibleStudents(course.id, query);
+      if (res.success) {
+        setEligibleStudents(res.data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSearchingEligible(false);
+    }
+  };
+
+  const loadCourseInvitations = async () => {
+    if (!course?.id) return;
+    try {
+      const res = await api.getCourseInvitations(course.id);
+      if (res.success) {
+        setCourseInvitations(res.data || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOpenInviteModal = () => {
+    setShowInviteModal(true);
+    setInviteFeedback(null);
+    setInviteSearch("");
+    setInvitationsTab("search");
+    loadEligibleStudents("");
+    loadCourseInvitations();
+  };
+
+  const handleSendInvite = async (studentId: string) => {
+    if (!course?.id) return;
+    setSendingInviteId(studentId);
+    setInviteFeedback(null);
+    try {
+      const res = await api.sendCourseInvitation(
+        course.id,
+        studentId,
+        inviteMessage,
+      );
+      if (res.success) {
+        setInviteFeedback({
+          type: "success",
+          text: res.message || "Đã gửi lời mời tham gia khóa học thành công!",
+        });
+        loadEligibleStudents(inviteSearch);
+        loadCourseInvitations();
+      } else {
+        setInviteFeedback({
+          type: "error",
+          text: res.error || "Không thể gửi lời mời",
+        });
+      }
+    } catch (err: any) {
+      setInviteFeedback({
+        type: "error",
+        text: err.message || "Lỗi kết nối máy chủ",
+      });
+    } finally {
+      setSendingInviteId(null);
+    }
+  };
+
+  const handleCancelInvite = async (invitationId: string) => {
+    if (!course?.id) return;
+    try {
+      const res = await api.cancelCourseInvitation(course.id, invitationId);
+      if (res.success) {
+        setInviteFeedback({
+          type: "success",
+          text: "Đã thu hồi lời mời thành công!",
+        });
+        loadEligibleStudents(inviteSearch);
+        loadCourseInvitations();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   // New Lesson form
@@ -962,7 +1048,7 @@ export const TeacherCourseWorkspacePage: React.FC<
 
                 <button
                   type="button"
-                  onClick={() => setShowAddStudentModal(true)}
+                  onClick={handleOpenInviteModal}
                   className="btn btn-primary"
                   style={{
                     display: "flex",
@@ -978,7 +1064,7 @@ export const TeacherCourseWorkspacePage: React.FC<
                   }}
                 >
                   <UserPlus size={16} />
-                  <span>Thêm học viên mới</span>
+                  <span>Mời học viên tham gia</span>
                 </button>
               </div>
             </div>
@@ -1347,8 +1433,8 @@ export const TeacherCourseWorkspacePage: React.FC<
         )}
       </div>
 
-      {/* Modal Thêm Học Viên Mới (Giao diện dựng sẵn) */}
-      {showAddStudentModal && (
+      {/* Modal Mời Học Viên Tham Gia Khóa Học */}
+      {showInviteModal && (
         <div
           style={{
             position: "fixed",
@@ -1361,17 +1447,20 @@ export const TeacherCourseWorkspacePage: React.FC<
             zIndex: 1000,
             padding: "16px",
           }}
-          onClick={() => setShowAddStudentModal(false)}
+          onClick={() => setShowInviteModal(false)}
         >
           <div
             style={{
               background: "#ffffff",
               width: "100%",
-              maxWidth: "540px",
+              maxWidth: "620px",
               borderRadius: "var(--radius-lg)",
               overflow: "hidden",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
               border: "1px solid #e2e8f0",
+              maxHeight: "88vh",
+              display: "flex",
+              flexDirection: "column",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1391,8 +1480,8 @@ export const TeacherCourseWorkspacePage: React.FC<
               >
                 <div
                   style={{
-                    width: "36px",
-                    height: "36px",
+                    width: "38px",
+                    height: "38px",
                     borderRadius: "10px",
                     background: "rgba(14, 165, 233, 0.12)",
                     display: "flex",
@@ -1411,24 +1500,46 @@ export const TeacherCourseWorkspacePage: React.FC<
                       margin: 0,
                     }}
                   >
-                    Thêm Học Viên Mới
+                    Mời học viên tham gia khóa học
                   </h3>
-                  <p
+                  <div
                     style={{
-                      fontSize: "12px",
-                      color: "#64748b",
-                      margin: "2px 0 0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginTop: "3px",
                     }}
                   >
-                    Ghi danh vào khóa:{" "}
-                    <strong>{course?.title || "Khóa học"}</strong>
-                  </p>
+                    <span style={{ fontSize: "12px", color: "#64748b" }}>
+                      Khóa: <strong>{course?.title}</strong>
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        padding: "2px 8px",
+                        borderRadius: "10px",
+                        fontWeight: 600,
+                        background:
+                          (course?.price || 0) === 0 ? "#ecfdf5" : "#fff7ed",
+                        color:
+                          (course?.price || 0) === 0 ? "#059669" : "#d97706",
+                        border:
+                          (course?.price || 0) === 0
+                            ? "1px solid #a7f3d0"
+                            : "1px solid #fed7aa",
+                      }}
+                    >
+                      {(course?.price || 0) === 0
+                        ? "Miễn phí (Học viên duyệt để vào)"
+                        : `Có phí: ${(course?.price || 0).toLocaleString("vi-VN")} đ (Yêu cầu thanh toán)`}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setShowAddStudentModal(false)}
+                onClick={() => setShowInviteModal(false)}
                 style={{
                   background: "none",
                   border: "none",
@@ -1443,289 +1554,521 @@ export const TeacherCourseWorkspacePage: React.FC<
               </button>
             </div>
 
-            {/* Modal Body / Form */}
-            <form onSubmit={handleAddStudentSubmit} style={{ padding: "24px" }}>
-              <div
+            {/* Sub-tabs: Tìm học viên vs Lời mời đang chờ */}
+            <div
+              style={{
+                display: "flex",
+                borderBottom: "1px solid #e2e8f0",
+                background: "#ffffff",
+                padding: "0 24px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setInvitationsTab("search")}
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "16px",
+                  padding: "12px 16px",
+                  border: "none",
+                  background: "none",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  color:
+                    invitationsTab === "search" ? "var(--primary)" : "#64748b",
+                  borderBottom:
+                    invitationsTab === "search"
+                      ? "2px solid var(--primary)"
+                      : "2px solid transparent",
                 }}
               >
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: "#334155",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    Họ và tên học viên{" "}
-                    <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newStudentForm.fullname}
-                    onChange={(e) =>
-                      setNewStudentForm({
-                        ...newStudentForm,
-                        fullname: e.target.value,
-                      })
-                    }
-                    placeholder="Ví dụ: Nguyễn Văn An"
-                    className="form-input"
-                    style={{ width: "100%", fontSize: "14px" }}
-                  />
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: "block",
-                      fontSize: "13px",
-                      fontWeight: 600,
-                      color: "#334155",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    Email học viên <span style={{ color: "#ef4444" }}>*</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={newStudentForm.email}
-                    onChange={(e) =>
-                      setNewStudentForm({
-                        ...newStudentForm,
-                        email: e.target.value,
-                      })
-                    }
-                    placeholder="hocvien@example.com"
-                    className="form-input"
-                    style={{ width: "100%", fontSize: "14px" }}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "12px",
-                  }}
-                >
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#334155",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Số điện thoại
-                    </label>
-                    <input
-                      type="tel"
-                      value={newStudentForm.phone}
-                      onChange={(e) =>
-                        setNewStudentForm({
-                          ...newStudentForm,
-                          phone: e.target.value,
-                        })
-                      }
-                      placeholder="0912 345 678"
-                      className="form-input"
-                      style={{ width: "100%", fontSize: "14px" }}
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#334155",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Số CCCD / Mã định danh
-                    </label>
-                    <input
-                      type="text"
-                      value={newStudentForm.cccd}
-                      onChange={(e) =>
-                        setNewStudentForm({
-                          ...newStudentForm,
-                          cccd: e.target.value,
-                        })
-                      }
-                      placeholder="00120000xxxx"
-                      className="form-input"
-                      style={{ width: "100%", fontSize: "14px" }}
-                    />
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "12px",
-                  }}
-                >
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#334155",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Phân loại học viên
-                    </label>
-                    <select
-                      value={newStudentForm.role}
-                      onChange={(e) =>
-                        setNewStudentForm({
-                          ...newStudentForm,
-                          role: e.target.value,
-                        })
-                      }
-                      className="form-input"
-                      style={{ width: "100%", fontSize: "13px" }}
-                    >
-                      <option value="Học viên chính thức">
-                        Học viên chính thức
-                      </option>
-                      <option value="Học viên dự thính">
-                        Học viên dự thính
-                      </option>
-                      <option value="Học viên học bổng">
-                        Học viên học bổng
-                      </option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label
-                      style={{
-                        display: "block",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: "#334155",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      Tiến độ ban đầu (%)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={newStudentForm.initialProgress}
-                      onChange={(e) =>
-                        setNewStudentForm({
-                          ...newStudentForm,
-                          initialProgress: Number(e.target.value),
-                        })
-                      }
-                      className="form-input"
-                      style={{ width: "100%", fontSize: "14px" }}
-                    />
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: "var(--radius-sm)",
-                    padding: "12px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "8px",
-                  }}
-                >
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      fontSize: "12px",
-                      color: "#166534",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={newStudentForm.sendNotification}
-                      onChange={(e) =>
-                        setNewStudentForm({
-                          ...newStudentForm,
-                          sendNotification: e.target.checked,
-                        })
-                      }
-                    />
-                    <span>
-                      Gửi email thông báo kích hoạt khóa học và hướng dẫn đăng
-                      nhập
-                    </span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Modal Footer */}
-              <div
+                Tìm & Mời học viên
+              </button>
+              <button
+                type="button"
+                onClick={() => setInvitationsTab("pending")}
                 style={{
+                  padding: "12px 16px",
+                  border: "none",
+                  background: "none",
+                  fontWeight: 600,
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  color:
+                    invitationsTab === "pending" ? "var(--primary)" : "#64748b",
+                  borderBottom:
+                    invitationsTab === "pending"
+                      ? "2px solid var(--primary)"
+                      : "2px solid transparent",
                   display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "10px",
-                  marginTop: "24px",
-                  paddingTop: "16px",
-                  borderTop: "1px solid #e2e8f0",
+                  alignItems: "center",
+                  gap: "6px",
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setShowAddStudentModal(false)}
+                <span>Lời mời đang chờ</span>
+                {courseInvitations.filter((i) => i.status === "pending")
+                  .length > 0 && (
+                  <span
+                    style={{
+                      background: "#ef4444",
+                      color: "#fff",
+                      fontSize: "10px",
+                      padding: "1px 6px",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    {
+                      courseInvitations.filter((i) => i.status === "pending")
+                        .length
+                    }
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div
+              style={{
+                padding: "20px 24px",
+                overflowY: "auto",
+                flex: 1,
+              }}
+            >
+              {/* Feedback Alert */}
+              {inviteFeedback && (
+                <div
                   style={{
-                    padding: "9px 18px",
-                    background: "#f1f5f9",
-                    border: "1px solid #cbd5e1",
+                    padding: "10px 14px",
                     borderRadius: "var(--radius-sm)",
-                    color: "#475569",
+                    marginBottom: "16px",
                     fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{
-                    padding: "9px 20px",
-                    fontSize: "13px",
-                    fontWeight: 600,
                     display: "flex",
                     alignItems: "center",
-                    gap: "6px",
-                    cursor: "pointer",
+                    justifyContent: "space-between",
+                    background:
+                      inviteFeedback.type === "success" ? "#f0fdf4" : "#fef2f2",
+                    color:
+                      inviteFeedback.type === "success" ? "#166534" : "#991b1b",
+                    border:
+                      inviteFeedback.type === "success"
+                        ? "1px solid #bbf7d0"
+                        : "1px solid #fecaca",
                   }}
                 >
-                  <UserPlus size={16} />
-                  <span>Xác nhận thêm học viên</span>
-                </button>
-              </div>
-            </form>
+                  <span>{inviteFeedback.text}</span>
+                  <button
+                    type="button"
+                    onClick={() => setInviteFeedback(null)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 0,
+                      color: "inherit",
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
+
+              {invitationsTab === "search" ? (
+                <>
+                  {/* Hướng dẫn nghiệp vụ */}
+                  <div
+                    style={{
+                      background: "#f0f9ff",
+                      border: "1px solid #bae6fd",
+                      borderRadius: "var(--radius-sm)",
+                      padding: "10px 14px",
+                      fontSize: "12px",
+                      color: "#0369a1",
+                      marginBottom: "16px",
+                    }}
+                  >
+                    💡 <strong>Lưu ý:</strong> Hệ thống chỉ gửi lời mời tới
+                    những học viên <strong>đã có tài khoản</strong> trên
+                    EduChat. Nếu học viên chưa có tài khoản, học viên cần chủ
+                    động tạo tài khoản trước.
+                  </div>
+
+                  {/* Thanh tìm kiếm */}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      marginBottom: "16px",
+                    }}
+                  >
+                    <div style={{ position: "relative", flex: 1 }}>
+                      <Search
+                        size={15}
+                        color="#94a3b8"
+                        style={{
+                          position: "absolute",
+                          left: "12px",
+                          top: "13px",
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={inviteSearch}
+                        onChange={(e) => {
+                          setInviteSearch(e.target.value);
+                          loadEligibleStudents(e.target.value);
+                        }}
+                        placeholder="Nhập họ tên hoặc email học viên trong hệ thống..."
+                        className="form-input"
+                        style={{
+                          width: "100%",
+                          paddingLeft: "36px",
+                          fontSize: "13px",
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => loadEligibleStudents(inviteSearch)}
+                      className="btn"
+                      style={{
+                        padding: "0 14px",
+                        fontSize: "13px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <RefreshCw size={14} />
+                      <span>Làm mới</span>
+                    </button>
+                  </div>
+
+                  {/* Lời nhắn kèm theo (tùy chọn) */}
+                  <div style={{ marginBottom: "16px" }}>
+                    <input
+                      type="text"
+                      value={inviteMessage}
+                      onChange={(e) => setInviteMessage(e.target.value)}
+                      placeholder="Lời nhắn kèm theo (Ví dụ: Thầy mời bạn tham gia khóa chuyên đề này...)"
+                      className="form-input"
+                      style={{ width: "100%", fontSize: "12px" }}
+                    />
+                  </div>
+
+                  {/* Danh sách học viên khả dụng */}
+                  {searchingEligible ? (
+                    <div
+                      style={{
+                        padding: "30px",
+                        textAlign: "center",
+                        color: "#64748b",
+                        fontSize: "13px",
+                      }}
+                    >
+                      Đang tìm kiếm học viên trong hệ thống...
+                    </div>
+                  ) : eligibleStudents.length === 0 ? (
+                    <div
+                      style={{
+                        padding: "36px 20px",
+                        textAlign: "center",
+                        background: "#f8fafc",
+                        borderRadius: "var(--radius-md)",
+                        border: "1px dashed #cbd5e1",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          color: "#334155",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        Không tìm thấy học viên phù hợp
+                      </div>
+                      <p
+                        style={{
+                          fontSize: "12px",
+                          color: "#64748b",
+                          maxWidth: "400px",
+                          margin: "0 auto",
+                        }}
+                      >
+                        {inviteSearch
+                          ? `Không có học viên nào khớp với "${inviteSearch}". Học viên cần chủ động tạo tài khoản trên EduChat trước khi có thể nhận lời mời.`
+                          : "Tất cả học viên trong hệ thống đã tham gia khóa học này hoặc chưa có học viên nào mới."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: "#64748b",
+                        }}
+                      >
+                        Học viên có thể mời ({eligibleStudents.length}):
+                      </div>
+                      {eligibleStudents.map((st) => {
+                        const isPending = st.invitation_status === "pending";
+                        const isSending = sendingInviteId === st.id;
+
+                        return (
+                          <div
+                            key={st.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "12px 14px",
+                              background: "#f8fafc",
+                              borderRadius: "var(--radius-sm)",
+                              border: "1px solid #e2e8f0",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "10px",
+                              }}
+                            >
+                              <img
+                                src={
+                                  st.avatar ||
+                                  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=120"
+                                }
+                                alt={st.fullname}
+                                style={{
+                                  width: "36px",
+                                  height: "36px",
+                                  borderRadius: "50%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                              <div>
+                                <div
+                                  style={{
+                                    fontWeight: 700,
+                                    fontSize: "13px",
+                                    color: "#0f172a",
+                                  }}
+                                >
+                                  {st.fullname}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#64748b",
+                                  }}
+                                >
+                                  {st.email} {st.phone ? `• ${st.phone}` : ""}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              {isPending ? (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      color: "#d97706",
+                                      background: "#fffbeb",
+                                      padding: "3px 8px",
+                                      borderRadius: "6px",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Đã gửi lời mời (Chờ duyệt)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleCancelInvite(st.invitation_id)
+                                    }
+                                    style={{
+                                      padding: "4px 8px",
+                                      fontSize: "11px",
+                                      color: "#ef4444",
+                                      background: "none",
+                                      border: "1px solid #fca5a5",
+                                      borderRadius: "4px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Thu hồi
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={isSending}
+                                  onClick={() => handleSendInvite(st.id)}
+                                  className="btn btn-primary"
+                                  style={{
+                                    padding: "6px 14px",
+                                    fontSize: "12px",
+                                    fontWeight: 600,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                    cursor: isSending
+                                      ? "not-allowed"
+                                      : "pointer",
+                                  }}
+                                >
+                                  <Send size={13} />
+                                  <span>
+                                    {isSending ? "Đang gửi..." : "Gửi lời mời"}
+                                  </span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Tab: Danh sách lời mời đang chờ */
+                <div>
+                  {courseInvitations.filter((i) => i.status === "pending")
+                    .length === 0 ? (
+                    <div
+                      style={{
+                        padding: "36px",
+                        textAlign: "center",
+                        color: "#64748b",
+                        fontSize: "13px",
+                      }}
+                    >
+                      Hiện không có lời mời nào đang chờ phản hồi.
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "10px",
+                      }}
+                    >
+                      {courseInvitations
+                        .filter((i) => i.status === "pending")
+                        .map((inv) => (
+                          <div
+                            key={inv.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "12px 14px",
+                              background: "#f8fafc",
+                              borderRadius: "var(--radius-sm)",
+                              border: "1px solid #e2e8f0",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "10px",
+                              }}
+                            >
+                              <img
+                                src={
+                                  inv.student_avatar ||
+                                  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=120"
+                                }
+                                alt={inv.student_name}
+                                style={{
+                                  width: "36px",
+                                  height: "36px",
+                                  borderRadius: "50%",
+                                  objectFit: "cover",
+                                }}
+                              />
+                              <div>
+                                <div
+                                  style={{
+                                    fontWeight: 700,
+                                    fontSize: "13px",
+                                    color: "#0f172a",
+                                  }}
+                                >
+                                  {inv.student_name}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#64748b",
+                                  }}
+                                >
+                                  {inv.student_email} • Gửi lúc:{" "}
+                                  {new Date(inv.created_at).toLocaleDateString(
+                                    "vi-VN",
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleCancelInvite(inv.id)}
+                              style={{
+                                padding: "6px 12px",
+                                fontSize: "12px",
+                                color: "#ef4444",
+                                background: "#fff",
+                                border: "1px solid #fca5a5",
+                                borderRadius: "4px",
+                                cursor: "pointer",
+                                fontWeight: 600,
+                              }}
+                            >
+                              Thu hồi lời mời
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div
+              style={{
+                padding: "14px 24px",
+                borderTop: "1px solid #e2e8f0",
+                display: "flex",
+                justifyContent: "flex-end",
+                background: "#f8fafc",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowInviteModal(false)}
+                className="btn"
+                style={{ padding: "8px 18px", fontSize: "13px" }}
+              >
+                Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}

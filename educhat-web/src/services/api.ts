@@ -343,4 +343,92 @@ export const api = {
     });
     return await res.json();
   },
+
+  // Teacher Course Invitations
+  async getEligibleStudents(courseId: string, query?: string) {
+    const q = query ? `?q=${encodeURIComponent(query)}` : "";
+    const res = await fetch(
+      `${API_BASE}/teacher/courses/${courseId}/eligible-students${q}`,
+      { headers: this.getAuthHeaders() },
+    );
+    return await res.json();
+  },
+
+  async sendCourseInvitation(
+    courseId: string,
+    studentId: string,
+    message?: string,
+  ) {
+    const res = await fetch(
+      `${API_BASE}/teacher/courses/${courseId}/invitations`,
+      {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ studentId, message }),
+      },
+    );
+    return await res.json();
+  },
+
+  async getCourseInvitations(courseId: string) {
+    const res = await fetch(
+      `${API_BASE}/teacher/courses/${courseId}/invitations`,
+      { headers: this.getAuthHeaders() },
+    );
+    return await res.json();
+  },
+
+  async cancelCourseInvitation(courseId: string, invitationId: string) {
+    const res = await fetch(
+      `${API_BASE}/teacher/courses/${courseId}/invitations/${invitationId}`,
+      {
+        method: "DELETE",
+        headers: this.getAuthHeaders(),
+      },
+    );
+    return await res.json();
+  },
+
+  // Student Course Invitations & Notifications
+  async getStudentInvitations() {
+    const res = await fetch(`${API_BASE}/student/invitations`, {
+      headers: this.getAuthHeaders(),
+    });
+    return await res.json();
+  },
+
+  async respondCourseInvitation(
+    invitationId: string,
+    action: "accept" | "decline",
+    paymentDetails?: {
+      confirmed: boolean;
+      method?: string;
+      transactionId?: string;
+    },
+  ) {
+    const res = await fetch(
+      `${API_BASE}/student/invitations/${invitationId}/respond`,
+      {
+        method: "POST",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ action, paymentDetails }),
+      },
+    );
+    return await res.json();
+  },
+
+  async getStudentNotifications() {
+    const res = await fetch(`${API_BASE}/student/notifications`, {
+      headers: this.getAuthHeaders(),
+    });
+    return await res.json();
+  },
+
+  async markAllNotificationsRead() {
+    const res = await fetch(`${API_BASE}/student/notifications/read-all`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+    });
+    return await res.json();
+  },
 };

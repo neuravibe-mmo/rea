@@ -354,3 +354,185 @@ teacherRouter.put(
     }
   },
 );
+
+// GET /api/teacher/courses/:id/eligible-students - Search students in system who haven't enrolled yet
+teacherRouter.get(
+  "/courses/:id/eligible-students",
+  (req: AuthenticatedRequest, res: Response): any => {
+    try {
+      const { id: courseId } = req.params;
+      const search = (req.query.q as string) || "";
+
+      let sql = `
+        SELECT u.id, u.fullname, u.email, u.avatar, u.phone, u.cccd,
+               ci.id as invitation_id, ci.status as invitation_status, ci.created_at as invited_at
+        FROM users u
+        LEFT JOIN course_invitations ci ON ci.student_id = u.id AND ci.course_id = ? AND ci.status = 'pending'
+        WHERE u.role = 'student'
+          AND u.id NOT IN (
+            SELECT user_id FROM enrollments WHERE course_id = ?
+          )
+      `;
+      const params: any[] = [courseId, courseId];
+
+      if (search.trim()) {
+        sql += ` AND (u.fullname LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)`;
+        const term = `%${search.trim()}%`;
+        params.push(term, term, term);
+      }
+
+      sql += ` ORDER BY u.fullname ASC LIMIT 20`;
+      const eligibleStudents = db.prepare(sql).all(...params);
+
+      return res.json({ success: true, data: eligibleStudents });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+// POST /api/teacher/courses/:id/invitations - Send invitation to an existing student
+teacherRouter.post(
+  "/courses/:id/invitations",
+  (req: AuthenticatedRequest, res: Response): any => {
+    try {
+      const { id: courseId } = req.params;
+      const { studentId, message } = req.body;
+      const teacherId = req.user!.id;
+      const teacherName = req.user!.fullname;
+
+      if (!studentId) {
+        return res
+          .status(400)
+          .json({ success: false, error: "Vui lòng chọn học viên" });
+      }
+
+      // 1. Kiểm tra học viên có tài khoản student trong hệ thống không
+      const student = db
+        .prepare("SELECT * FROM users WHERE id = ? AND role = 'student'")
+        .get(studentId) as any;
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          error:
+            "Không tìm thấy học viên trong hệ thống EduChat. Học viên cần chủ động tạo tài khoản trước.",
+        });
+      }
+
+      // 2. Kiểm tra khóa học
+      const course = db
+        .prepare("SELECT * FROM courses WHERE id = ?")
+        .get(courseId) as any;
+      if (!course) {
+        return res
+          .status(404)
+          .json({ success: false, error: "Khóa học không tồn tại" });
+      }
+
+      // 3. Kiểm tra đã tham gia chưa
+      const enrolled = db
+        .prepare(
+          "SELECT id FROM enrollments WHERE course_id = ? AND user_id = ?",
+        )
+        .get(courseId, studentId);
+      if (enrolled) {
+        return res.status(400).json({
+          success: false,
+          error: "Học viên này đã tham gia khóa học rồi",
+        });
+      }
+
+      // 4. Tạo hoặc cập nhật lời mời (pending)
+      const invId = `inv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const price = course.price || 0;
+
+      db.prepare(`
+        INSERT INTO course_invitations (id, course_id, teacher_id, student_id, course_price, status, message, created_at)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(course_id, student_id) DO UPDATE SET
+          status = 'pending',
+          teacher_id = excluded.teacher_id,
+          course_price = excluded.course_price,
+          message = excluded.message,
+          created_at = CURRENT_TIMESTAMP
+      `).run(invId, courseId, teacherId, studentId, price, message || null);
+
+      // 5. Tạo thông báo cho học viên
+      const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const notifTitle =
+        price === 0
+          ? `Lời mời tham gia khóa học miễn phí: ${course.title}`
+          : `Lời mời tham gia khóa học: ${course.title}`;
+      const notifContent = `Giảng viên ${teacherName} đã gửi lời mời bạn tham gia khóa học "${course.title}". Học phí: ${
+        price === 0 ? "Miễn phí" : price.toLocaleString("vi-VN") + " đ"
+      }.`;
+
+      db.prepare(`
+        INSERT INTO notifications (id, user_id, type, title, content, data, is_read)
+        VALUES (?, ?, 'course_invitation', ?, ?, ?, 0)
+      `).run(
+        notifId,
+        studentId,
+        notifTitle,
+        notifContent,
+        JSON.stringify({
+          courseId,
+          courseTitle: course.title,
+          price,
+          teacherName,
+          invitationId: invId,
+        }),
+      );
+
+      return res.json({
+        success: true,
+        message: "Đã gửi lời mời tham gia khóa học thành công!",
+        data: { invitationId: invId, studentId, courseId, price },
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+// GET /api/teacher/courses/:id/invitations - Get invitations list for a course
+teacherRouter.get(
+  "/courses/:id/invitations",
+  (req: AuthenticatedRequest, res: Response): any => {
+    try {
+      const { id: courseId } = req.params;
+      const invitations = db
+        .prepare(`
+          SELECT ci.*, u.fullname as student_name, u.email as student_email, u.avatar as student_avatar, u.phone as student_phone
+          FROM course_invitations ci
+          JOIN users u ON ci.student_id = u.id
+          WHERE ci.course_id = ?
+          ORDER BY ci.created_at DESC
+        `)
+        .all(courseId);
+
+      return res.json({ success: true, data: invitations });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+// DELETE /api/teacher/courses/:id/invitations/:invitationId - Revoke an invitation
+teacherRouter.delete(
+  "/courses/:id/invitations/:invitationId",
+  (req: AuthenticatedRequest, res: Response): any => {
+    try {
+      const { invitationId } = req.params;
+      db.prepare(
+        "UPDATE course_invitations SET status = 'cancelled' WHERE id = ?",
+      ).run(invitationId);
+      return res.json({
+        success: true,
+        message: "Đã thu hồi lời mời thành công",
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
