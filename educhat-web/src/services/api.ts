@@ -404,6 +404,7 @@ export const api = {
       confirmed: boolean;
       method?: string;
       transactionId?: string;
+      receiptImage?: string | null;
     },
   ) {
     const res = await fetch(
@@ -426,6 +427,14 @@ export const api = {
 
   async markAllNotificationsRead() {
     const res = await fetch(`${API_BASE}/student/notifications/read-all`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+    });
+    return await res.json();
+  },
+
+  async markNotificationRead(id: string) {
+    const res = await fetch(`${API_BASE}/student/notifications/${id}/read`, {
       method: "POST",
       headers: this.getAuthHeaders(),
     });

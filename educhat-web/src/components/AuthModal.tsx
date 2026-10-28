@@ -366,14 +366,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       setPassword("password123");
                     }}
                     style={{
-                      background: "#e0f2fe",
-                      color: "#0284c7",
+                      background:
+                        email === "kien@educhat.vn" ? "#0284c7" : "#e0f2fe",
+                      color: email === "kien@educhat.vn" ? "#fff" : "#0284c7",
                       border: "1px solid #bae6fd",
                       borderRadius: "4px",
                       padding: "4px 8px",
                       fontSize: "12px",
                       cursor: "pointer",
                       fontWeight: 600,
+                      transition: "all 0.15s ease",
                     }}
                   >
                     👨‍🏫 Nguyễn Hoàng Kiên
@@ -385,13 +387,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       setPassword("password123");
                     }}
                     style={{
-                      background: "#fff",
-                      color: "#334155",
+                      background:
+                        email === "nguyenvana@educhat.vn" ? "#0284c7" : "#fff",
+                      color:
+                        email === "nguyenvana@educhat.vn" ? "#fff" : "#334155",
                       border: "1px solid #cbd5e1",
                       borderRadius: "4px",
                       padding: "4px 8px",
                       fontSize: "12px",
                       cursor: "pointer",
+                      fontWeight: email === "nguyenvana@educhat.vn" ? 600 : 400,
+                      transition: "all 0.15s ease",
                     }}
                   >
                     TS. Nguyễn Văn An
@@ -403,16 +409,142 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       setPassword("password123");
                     }}
                     style={{
-                      background: "#fff",
-                      color: "#334155",
+                      background:
+                        email === "tranthimai@educhat.vn" ? "#0284c7" : "#fff",
+                      color:
+                        email === "tranthimai@educhat.vn" ? "#fff" : "#334155",
                       border: "1px solid #cbd5e1",
                       borderRadius: "4px",
                       padding: "4px 8px",
                       fontSize: "12px",
                       cursor: "pointer",
+                      fontWeight: email === "tranthimai@educhat.vn" ? 600 : 400,
+                      transition: "all 0.15s ease",
                     }}
                   >
                     ThS. Trần Thị Mai
+                  </button>
+                </div>
+              </div>
+
+              {/* Khung Chọn nhanh tài khoản Học sinh / Sinh viên */}
+              <div
+                style={{
+                  background: "#f0fdf4",
+                  border: "1px dashed #86efac",
+                  borderRadius: "var(--radius-sm)",
+                  padding: "10px 12px",
+                  marginTop: "6px",
+                  fontSize: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: "#166534",
+                    marginBottom: "6px",
+                  }}
+                >
+                  🎓 Chọn nhanh tài khoản Học sinh / Sinh viên:
+                </div>
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("student@educhat.vn");
+                      setPassword("password123");
+                    }}
+                    style={{
+                      background:
+                        email === "student@educhat.vn" ? "#16a34a" : "#dcfce7",
+                      color:
+                        email === "student@educhat.vn" ? "#fff" : "#15803d",
+                      border: "1px solid #bbf7d0",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    🧑‍🎓 Lê Hoàng Long
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("thao.nguyen@gmail.com");
+                      setPassword("password123");
+                    }}
+                    style={{
+                      background:
+                        email === "thao.nguyen@gmail.com" ? "#16a34a" : "#fff",
+                      color:
+                        email === "thao.nguyen@gmail.com" ? "#fff" : "#334155",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontWeight: email === "thao.nguyen@gmail.com" ? 600 : 400,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    Phương Thảo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("tuananh.edu@outlook.com");
+                      setPassword("password123");
+                    }}
+                    style={{
+                      background:
+                        email === "tuananh.edu@outlook.com"
+                          ? "#16a34a"
+                          : "#fff",
+                      color:
+                        email === "tuananh.edu@outlook.com"
+                          ? "#fff"
+                          : "#334155",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontWeight:
+                        email === "tuananh.edu@outlook.com" ? 600 : 400,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    Phạm Tuấn Anh
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("mailinh.edtech@gmail.com");
+                      setPassword("password123");
+                    }}
+                    style={{
+                      background:
+                        email === "mailinh.edtech@gmail.com"
+                          ? "#16a34a"
+                          : "#fff",
+                      color:
+                        email === "mailinh.edtech@gmail.com"
+                          ? "#fff"
+                          : "#334155",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "4px",
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      fontWeight:
+                        email === "mailinh.edtech@gmail.com" ? 600 : 400,
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    Vũ Mai Linh
                   </button>
                 </div>
               </div>

@@ -286,6 +286,58 @@ studentRouter.get(
   (req: AuthenticatedRequest, res: Response): any => {
     try {
       const studentId = req.user!.id;
+
+      // Sync any pending course invitations to notifications table if not already present
+      const pendingInvites = db
+        .prepare(`
+          SELECT ci.*, c.title as course_title, u.fullname as teacher_name
+          FROM course_invitations ci
+          JOIN courses c ON ci.course_id = c.id
+          JOIN users u ON ci.teacher_id = u.id
+          WHERE ci.student_id = ? AND ci.status = 'pending'
+        `)
+        .all(studentId) as any[];
+
+      for (const inv of pendingInvites) {
+        const exists = db
+          .prepare(`
+            SELECT id FROM notifications 
+            WHERE user_id = ? AND type = 'course_invitation' AND data LIKE ?
+          `)
+          .get(studentId, `%"invitationId":"${inv.id}"%`);
+
+        if (!exists) {
+          const price = inv.course_price || 0;
+          const notifId = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+          const notifTitle =
+            price === 0
+              ? `Lời mời tham gia khóa học miễn phí: ${inv.course_title}`
+              : `Lời mời tham gia khóa học: ${inv.course_title}`;
+          const notifContent = `Giảng viên ${inv.teacher_name} đã gửi lời mời bạn tham gia khóa học "${inv.course_title}". Học phí: ${
+            price === 0 ? "Miễn phí" : price.toLocaleString("vi-VN") + " đ"
+          }.`;
+
+          db.prepare(`
+            INSERT INTO notifications (id, user_id, type, title, content, data, is_read, created_at)
+            VALUES (?, ?, 'course_invitation', ?, ?, ?, 0, ?)
+          `).run(
+            notifId,
+            studentId,
+            notifTitle,
+            notifContent,
+            JSON.stringify({
+              courseId: inv.course_id,
+              courseTitle: inv.course_title,
+              invitationId: inv.id,
+              teacherId: inv.teacher_id,
+              teacherName: inv.teacher_name,
+              price: inv.course_price,
+            }),
+            inv.created_at || new Date().toISOString(),
+          );
+        }
+      }
+
       const notifications = db
         .prepare(`
           SELECT * FROM notifications 
@@ -318,6 +370,23 @@ studentRouter.post(
       db.prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ?").run(
         studentId,
       );
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  },
+);
+
+// POST /api/student/notifications/:id/read - Mark single notification as read
+studentRouter.post(
+  "/notifications/:id/read",
+  (req: AuthenticatedRequest, res: Response): any => {
+    try {
+      const studentId = req.user!.id;
+      const { id } = req.params;
+      db.prepare(
+        "UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?",
+      ).run(id, studentId);
       return res.json({ success: true });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });

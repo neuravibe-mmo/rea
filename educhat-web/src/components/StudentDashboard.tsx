@@ -18,6 +18,9 @@ import {
   ShieldCheck,
   Bell,
   Wallet,
+  Camera,
+  UploadCloud,
+  Trash2,
 } from "lucide-react";
 import { api } from "../services/api";
 import type { StudentOverviewData, Quiz } from "../types";
@@ -57,6 +60,10 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   >(null);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [receiptFileName, setReceiptFileName] = useState<string | null>(null);
+  const [receiptFileSize, setReceiptFileSize] = useState<string | null>(null);
+  const [showFullImageModal, setShowFullImageModal] = useState(false);
 
   const fetchInvitations = async () => {
     try {
@@ -120,6 +127,43 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     }
   };
 
+  const handleReceiptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Vui lòng chọn một tệp hình ảnh (JPG, PNG, WebP...)");
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Kích thước tệp quá lớn. Vui lòng chọn ảnh dưới 10MB");
+      return;
+    }
+
+    setReceiptFileName(file.name);
+    setReceiptFileSize(
+      file.size < 1024 * 1024
+        ? `${Math.round(file.size / 1024)} KB`
+        : `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+    );
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setReceiptImage(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClosePaymentModal = () => {
+    setSelectedInviteForPayment(null);
+    setPaymentConfirmed(false);
+    setReceiptImage(null);
+    setReceiptFileName(null);
+    setReceiptFileSize(null);
+    setShowFullImageModal(false);
+  };
+
   const handleConfirmPaidEnrollment = async () => {
     if (!selectedInviteForPayment) return;
     setProcessingPayment(true);
@@ -127,14 +171,17 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
       const res = await api.respondCourseInvitation(
         selectedInviteForPayment.id,
         "accept",
-        { confirmed: true, method: "VietQR" },
+        {
+          confirmed: true,
+          method: "VietQR",
+          receiptImage: receiptImage || undefined,
+        },
       );
       if (res.success) {
         setNotification(
           `Thanh toán thành công! Khóa học "${selectedInviteForPayment.course_title}" đã sẵn sàng trong góc học tập của bạn.`,
         );
-        setSelectedInviteForPayment(null);
-        setPaymentConfirmed(false);
+        handleClosePaymentModal();
         fetchOverview();
         fetchInvitations();
       } else {
@@ -1986,7 +2033,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   border: "1px solid #e2e8f0",
                   borderRadius: "var(--radius-sm)",
                   padding: "16px",
-                  marginBottom: "18px",
+                  marginBottom: "16px",
                 }}
               >
                 <div
@@ -1994,7 +2041,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     fontWeight: 700,
                     fontSize: "13px",
                     color: "#0f172a",
-                    marginBottom: "10px",
+                    marginBottom: "12px",
                     display: "flex",
                     alignItems: "center",
                     gap: "6px",
@@ -2006,37 +2053,301 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
                 <div
                   style={{
-                    display: "grid",
-                    gridTemplateColumns: "110px 1fr",
-                    rowGap: "8px",
-                    fontSize: "13px",
-                    color: "#334155",
+                    display: "flex",
+                    gap: "16px",
+                    alignItems: "center",
+                    flexWrap: "wrap",
                   }}
                 >
-                  <span style={{ color: "#64748b" }}>Ngân hàng:</span>
-                  <strong>Vietcombank (Sở giao dịch)</strong>
-
-                  <span style={{ color: "#64748b" }}>Số tài khoản:</span>
-                  <strong style={{ color: "#0284c7", fontSize: "14px" }}>
-                    0011 0045 67890
-                  </strong>
-
-                  <span style={{ color: "#64748b" }}>Chủ tài khoản:</span>
-                  <strong>EDUCHAT VN - CONG DONG GIAO DUC</strong>
-
-                  <span style={{ color: "#64748b" }}>Nội dung CK:</span>
-                  <strong
+                  {/* Mã QR code tự động tạo theo thông tin khóa học */}
+                  <div
                     style={{
-                      background: "#e0f2fe",
-                      padding: "2px 6px",
-                      borderRadius: "4px",
-                      color: "#0369a1",
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      padding: "8px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.04)",
                     }}
                   >
-                    EDUCHAT HP{" "}
-                    {selectedInviteForPayment.id.substring(4, 12).toUpperCase()}
-                  </strong>
+                    <img
+                      src={`https://img.vietqr.io/image/970436-0011004567890-compact2.png?amount=${
+                        selectedInviteForPayment.course_price || 0
+                      }&addInfo=EDUCHAT%20HP%20${selectedInviteForPayment.id
+                        .substring(4, 12)
+                        .toUpperCase()}&accountName=EDUCHAT%20VN`}
+                      alt="VietQR Code"
+                      style={{
+                        width: "120px",
+                        height: "120px",
+                        objectFit: "contain",
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        color: "#64748b",
+                        marginTop: "4px",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Quét mã với App Bank
+                    </span>
+                  </div>
+
+                  {/* Thông tin tài khoản */}
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: "200px",
+                      display: "grid",
+                      gridTemplateColumns: "100px 1fr",
+                      rowGap: "8px",
+                      fontSize: "13px",
+                      color: "#334155",
+                    }}
+                  >
+                    <span style={{ color: "#64748b" }}>Ngân hàng:</span>
+                    <strong>Vietcombank (Sở giao dịch)</strong>
+
+                    <span style={{ color: "#64748b" }}>Số tài khoản:</span>
+                    <strong style={{ color: "#0284c7", fontSize: "14px" }}>
+                      0011 0045 67890
+                    </strong>
+
+                    <span style={{ color: "#64748b" }}>Chủ tài khoản:</span>
+                    <strong>EDUCHAT VN - CONG DONG GIAO DUC</strong>
+
+                    <span style={{ color: "#64748b" }}>Nội dung CK:</span>
+                    <strong
+                      style={{
+                        background: "#e0f2fe",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        color: "#0369a1",
+                        fontSize: "12px",
+                      }}
+                    >
+                      EDUCHAT HP{" "}
+                      {selectedInviteForPayment.id
+                        .substring(4, 12)
+                        .toUpperCase()}
+                    </strong>
+                  </div>
                 </div>
+              </div>
+
+              {/* KHUNG TẢI LÊN ẢNH CHỤP THANH TOÁN (ẢNH MINH CHỨNG) */}
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: receiptImage
+                    ? "1.5px solid #10b981"
+                    : "1.5px dashed #0284c7",
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                  marginBottom: "16px",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "10px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "13px",
+                      color: "#0f172a",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <Camera size={16} color="#0284c7" />
+                    <span>Ảnh chụp thanh toán / Biên lai chuyển khoản:</span>
+                  </div>
+                  {receiptImage && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        color: "#059669",
+                        background: "#ecfdf5",
+                        padding: "2px 8px",
+                        borderRadius: "10px",
+                        border: "1px solid #a7f3d0",
+                      }}
+                    >
+                      ✓ Đã đính kèm ảnh
+                    </span>
+                  )}
+                </div>
+
+                {receiptImage ? (
+                  /* Preview ảnh đã tải lên */
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      background: "#f0fdf4",
+                      border: "1px solid #bbf7d0",
+                      borderRadius: "8px",
+                      padding: "10px 14px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                      }}
+                    >
+                      <img
+                        src={receiptImage}
+                        alt="Ảnh chụp chuyển khoản"
+                        onClick={() => setShowFullImageModal(true)}
+                        style={{
+                          width: "56px",
+                          height: "56px",
+                          borderRadius: "6px",
+                          objectFit: "cover",
+                          border: "1px solid #86efac",
+                          boxShadow: "0 2px 4px rgba(0,0,0,0.06)",
+                          cursor: "pointer",
+                        }}
+                        title="Bấm để xem ảnh phóng to"
+                      />
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            color: "#166534",
+                            maxWidth: "230px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {receiptFileName || "anh-chup-thanh-toan.png"}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#15803d",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {receiptFileSize || "Đã tải lên"} •{" "}
+                          <span
+                            onClick={() => setShowFullImageModal(true)}
+                            style={{
+                              textDecoration: "underline",
+                              cursor: "pointer",
+                              color: "#0369a1",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Xem ảnh lớn
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReceiptImage(null);
+                        setReceiptFileName(null);
+                        setReceiptFileSize(null);
+                      }}
+                      style={{
+                        background: "#fee2e2",
+                        border: "1px solid #fecaca",
+                        color: "#dc2626",
+                        borderRadius: "6px",
+                        padding: "6px 12px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      <Trash2 size={13} />
+                      <span>Gỡ ảnh</span>
+                    </button>
+                  </div>
+                ) : (
+                  /* Nút tải ảnh lên */
+                  <div>
+                    <label
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: "18px 20px",
+                        borderRadius: "8px",
+                        background: "#f8fafc",
+                        cursor: "pointer",
+                        border: "1px dashed #cbd5e1",
+                        transition: "all 0.2s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "#f0f9ff";
+                        e.currentTarget.style.borderColor = "#38bdf8";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "#f8fafc";
+                        e.currentTarget.style.borderColor = "#cbd5e1";
+                      }}
+                    >
+                      <UploadCloud
+                        size={26}
+                        color="#0284c7"
+                        style={{ marginBottom: "6px" }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 700,
+                          color: "#0369a1",
+                        }}
+                      >
+                        Tải lên ảnh chụp màn hình thanh toán / Biên lai
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: "#64748b",
+                          marginTop: "2px",
+                        }}
+                      >
+                        Hỗ trợ ảnh chụp màn hình điện thoại (JPG, PNG, WebP)
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={handleReceiptFileChange}
+                      />
+                    </label>
+                  </div>
+                )}
               </div>
 
               {/* Checkbox xác nhận */}
@@ -2065,7 +2376,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                     ).toLocaleString("vi-VN")}{" "}
                     đ
                   </strong>{" "}
-                  theo thông tin ở trên.
+                  theo thông tin ở trên
+                  {receiptImage ? " (kèm ảnh minh chứng đính kèm)" : ""}.
                 </span>
               </label>
             </div>
@@ -2083,7 +2395,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
             >
               <button
                 type="button"
-                onClick={() => setSelectedInviteForPayment(null)}
+                onClick={handleClosePaymentModal}
                 style={{
                   padding: "9px 18px",
                   background: "#fff",
@@ -2095,7 +2407,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                   cursor: "pointer",
                 }}
               >
-                Đóng
+                Hủy
               </button>
 
               <button
@@ -2126,11 +2438,71 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 ) : (
                   <>
                     <ShieldCheck size={16} />
-                    <span>Xác nhận & Kích hoạt vào lớp</span>
+                    <span>Xác nhận đã chuyển khoản</span>
                   </>
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal để phóng to ảnh biên lai */}
+      {showFullImageModal && receiptImage && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
+            zIndex: 1400,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+          onClick={() => setShowFullImageModal(false)}
+        >
+          <div
+            style={{
+              position: "relative",
+              maxWidth: "90vw",
+              maxHeight: "90vh",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={receiptImage}
+              alt="Ảnh chụp phóng to"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "85vh",
+                borderRadius: "8px",
+                objectFit: "contain",
+                boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowFullImageModal(false)}
+              style={{
+                position: "absolute",
+                top: "-14px",
+                right: "-14px",
+                background: "#ef4444",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+              }}
+            >
+              <X size={18} />
+            </button>
           </div>
         </div>
       )}

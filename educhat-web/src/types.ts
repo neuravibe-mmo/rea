@@ -143,3 +143,14 @@ export interface StudentOverviewData {
   submissions: QuizSubmission[];
   groups: StudyGroup[];
 }
+
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  type: "course_invitation" | "invitation_accepted" | "system" | string;
+  title: string;
+  content: string;
+  data?: string;
+  is_read: number;
+  created_at: string;
+}

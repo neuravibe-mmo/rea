@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   User as UserIcon,
@@ -11,6 +11,7 @@ import {
   Home,
   Shield,
   Sparkles,
+  Bell,
 } from "lucide-react";
 import type { User } from "../types";
 
@@ -22,6 +23,8 @@ interface HeaderProps {
   onSelectTab: (tab: string) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  onOpenNotifications?: () => void;
+  unreadNotificationsCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,9 +35,42 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
   searchQuery,
   onSearchChange,
+  onOpenNotifications,
+  unreadNotificationsCount = 0,
 }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState("");
+
+  // Close dropdown on click outside or escape key
+  useEffect(() => {
+    if (!dropdownOpen) return;
+
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [dropdownOpen]);
 
   // Clock
   useEffect(() => {
@@ -300,204 +336,339 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </nav>
 
-        {/* User Auth Widget */}
-        <div style={{ position: "relative" }}>
-          {user ? (
-            <div
+        {/* User Auth & Notifications Widget */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {user && (
+            <button
+              type="button"
+              onClick={onOpenNotifications}
+              title="Thông báo"
               style={{
+                position: "relative",
+                background:
+                  activeTab === "notifications"
+                    ? "#0284c7"
+                    : unreadNotificationsCount > 0
+                      ? "rgba(239, 68, 68, 0.15)"
+                      : "rgba(255, 255, 255, 0.12)",
+                border:
+                  activeTab === "notifications"
+                    ? "1px solid #38bdf8"
+                    : unreadNotificationsCount > 0
+                      ? "1px solid rgba(239, 68, 68, 0.4)"
+                      : "1px solid rgba(255, 255, 255, 0.2)",
+                borderRadius: "50%",
+                width: "38px",
+                height: "38px",
                 display: "flex",
                 alignItems: "center",
-                gap: "10px",
-                padding: "4px 10px 4px 4px",
-                borderRadius: "var(--radius-full)",
-                background: "rgba(255, 255, 255, 0.1)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
+                justifyContent: "center",
                 cursor: "pointer",
+                color:
+                  activeTab === "notifications"
+                    ? "#ffffff"
+                    : unreadNotificationsCount > 0
+                      ? "#fca5a5"
+                      : "#ffffff",
+                boxShadow:
+                  activeTab === "notifications"
+                    ? "0 0 12px rgba(2, 132, 199, 0.6)"
+                    : "none",
+                transition: "all 0.2s ease",
               }}
-              onClick={() => setDropdownOpen(!dropdownOpen)}
+              onMouseEnter={(e) => {
+                if (activeTab !== "notifications") {
+                  e.currentTarget.style.background =
+                    "rgba(255, 255, 255, 0.22)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (activeTab !== "notifications") {
+                  e.currentTarget.style.background =
+                    unreadNotificationsCount > 0
+                      ? "rgba(239, 68, 68, 0.15)"
+                      : "rgba(255, 255, 255, 0.12)";
+                }
+              }}
             >
-              <img
-                src={user.avatar}
-                alt={user.fullname}
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                }}
-              />
-              <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+              <Bell size={18} />
+              {unreadNotificationsCount > 0 && (
                 <span
                   style={{
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "#fff",
-                    display: "block",
+                    position: "absolute",
+                    top: "-4px",
+                    right: "-4px",
+                    background: "#ef4444",
+                    color: "#ffffff",
+                    fontSize: "10px",
+                    fontWeight: 800,
+                    borderRadius: "10px",
+                    minWidth: "18px",
+                    height: "18px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 4px",
+                    boxShadow: "0 0 10px rgba(239, 68, 68, 0.8)",
+                    border: "2px solid #0f172a",
                   }}
                 >
-                  {user.fullname}
+                  {unreadNotificationsCount}
                 </span>
-                <span style={{ fontSize: "10px", color: "#38bdf8" }}>
-                  {user.role}
-                </span>
-              </div>
-              <ChevronDown size={14} color="#fff" />
-            </div>
-          ) : (
-            <button
-              onClick={onOpenAuth}
-              className="btn btn-primary"
-              style={{ padding: "8px 16px", fontSize: "13px" }}
-            >
-              <UserIcon size={15} />
-              <span>Đăng nhập / Đăng ký</span>
+              )}
             </button>
           )}
 
-          {/* User Dropdown */}
-          {user && dropdownOpen && (
-            <div
-              style={{
-                position: "absolute",
-                right: 0,
-                top: "48px",
-                width: "210px",
-                background: "#ffffff",
-                borderRadius: "var(--radius-md)",
-                boxShadow: "var(--shadow-lg)",
-                border: "1px solid var(--border-light)",
-                overflow: "hidden",
-                zIndex: 60,
-                animation: "scaleIn 0.2s ease-out",
-              }}
-            >
+          <div ref={dropdownRef} style={{ position: "relative" }}>
+            {user ? (
               <div
                 style={{
-                  padding: "12px",
-                  borderBottom: "1px solid var(--border-light)",
-                  background: "#f8fafc",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "4px 10px 4px 4px",
+                  borderRadius: "var(--radius-full)",
+                  background: "rgba(255, 255, 255, 0.1)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  cursor: "pointer",
+                }}
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+              >
+                <img
+                  src={user.avatar}
+                  alt={user.fullname}
+                  style={{
+                    width: "32px",
+                    height: "32px",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                  }}
+                />
+                <div style={{ textAlign: "left", lineHeight: 1.2 }}>
+                  <span
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "#fff",
+                      display: "block",
+                    }}
+                  >
+                    {user.fullname}
+                  </span>
+                  <span style={{ fontSize: "10px", color: "#38bdf8" }}>
+                    {user.role}
+                  </span>
+                </div>
+                <ChevronDown size={14} color="#fff" />
+              </div>
+            ) : (
+              <button
+                onClick={onOpenAuth}
+                className="btn btn-primary"
+                style={{ padding: "8px 16px", fontSize: "13px" }}
+              >
+                <UserIcon size={15} />
+                <span>Đăng nhập / Đăng ký</span>
+              </button>
+            )}
+
+            {/* User Dropdown */}
+            {user && dropdownOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: "48px",
+                  width: "210px",
+                  background: "#ffffff",
+                  borderRadius: "var(--radius-md)",
+                  boxShadow: "var(--shadow-lg)",
+                  border: "1px solid var(--border-light)",
+                  overflow: "hidden",
+                  zIndex: 60,
+                  animation: "scaleIn 0.2s ease-out",
                 }}
               >
                 <div
                   style={{
+                    padding: "12px",
+                    borderBottom: "1px solid var(--border-light)",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color: "var(--text-main)",
+                    }}
+                  >
+                    {user.fullname}
+                  </div>
+                  <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                    {user.email}
+                  </div>
+                  <span
+                    className="badge badge-emerald"
+                    style={{ marginTop: "6px", fontSize: "10px" }}
+                  >
+                    {user.role}
+                  </span>
+                </div>
+
+                {/* Thông báo item */}
+                <button
+                  onClick={() => {
+                    onOpenNotifications?.();
+                    setDropdownOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background:
+                      unreadNotificationsCount > 0
+                        ? "rgba(2, 132, 199, 0.08)"
+                        : "none",
+                    border: "none",
+                    borderBottom: "1px solid var(--border-light)",
+                    textAlign: "left",
                     fontSize: "13px",
-                    fontWeight: 700,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    color: "#0369a1",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <Bell size={14} color="#0284c7" />
+                    <span>Thông báo</span>
+                  </div>
+                  {unreadNotificationsCount > 0 && (
+                    <span
+                      style={{
+                        background: "#ef4444",
+                        color: "#fff",
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        padding: "1px 6px",
+                        borderRadius: "10px",
+                      }}
+                    >
+                      {unreadNotificationsCount} mới
+                    </span>
+                  )}
+                </button>
+
+                {(user.role === "teacher" ||
+                  user.role === "Giảng viên" ||
+                  user.role === "admin") && (
+                  <button
+                    onClick={() => {
+                      onSelectTab("teacher_console");
+                      setDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      background: "rgba(245, 158, 11, 0.08)",
+                      border: "none",
+                      borderBottom: "1px solid var(--border-light)",
+                      textAlign: "left",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      color: "#b45309",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <Sparkles size={14} color="#f59e0b" />
+                    <span>Bàn làm việc Giảng viên</span>
+                  </button>
+                )}
+                {(user.role === "student" || user.role === "Học viên") && (
+                  <button
+                    onClick={() => {
+                      onSelectTab("student_dashboard");
+                      setDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      background: "rgba(16, 185, 129, 0.08)",
+                      border: "none",
+                      borderBottom: "1px solid var(--border-light)",
+                      textAlign: "left",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      color: "#047857",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <GraduationCap size={14} color="#10b981" />
+                    <span>Góc học tập Học sinh</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    onSelectTab("profile");
+                    setDropdownOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "none",
+                    border: "none",
+                    textAlign: "left",
+                    fontSize: "13px",
+                    cursor: "pointer",
                     color: "var(--text-main)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
                   }}
                 >
-                  {user.fullname}
-                </div>
-                <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
-                  {user.email}
-                </div>
-                <span
-                  className="badge badge-emerald"
-                  style={{ marginTop: "6px", fontSize: "10px" }}
+                  <UserIcon size={14} />
+                  <span>Hồ sơ cá nhân</span>
+                </button>
+                <button
+                  onClick={() => {
+                    onLogout();
+                    setDropdownOpen(false);
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    background: "none",
+                    border: "none",
+                    borderTop: "1px solid var(--border-light)",
+                    textAlign: "left",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    color: "#dc2626",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
                 >
-                  {user.role}
-                </span>
+                  <LogOut size={14} />
+                  <span>Đăng xuất</span>
+                </button>
               </div>
-              {(user.role === "teacher" ||
-                user.role === "Giảng viên" ||
-                user.role === "admin") && (
-                <button
-                  onClick={() => {
-                    onSelectTab("teacher_console");
-                    setDropdownOpen(false);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    background: "rgba(245, 158, 11, 0.08)",
-                    border: "none",
-                    borderBottom: "1px solid var(--border-light)",
-                    textAlign: "left",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    color: "#b45309",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <Sparkles size={14} color="#f59e0b" />
-                  <span>Bàn làm việc Giảng viên</span>
-                </button>
-              )}
-              {(user.role === "student" || user.role === "Học viên") && (
-                <button
-                  onClick={() => {
-                    onSelectTab("student_dashboard");
-                    setDropdownOpen(false);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    background: "rgba(16, 185, 129, 0.08)",
-                    border: "none",
-                    borderBottom: "1px solid var(--border-light)",
-                    textAlign: "left",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    color: "#047857",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <GraduationCap size={14} color="#10b981" />
-                  <span>Góc học tập Học sinh</span>
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  onSelectTab("profile");
-                  setDropdownOpen(false);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  background: "none",
-                  border: "none",
-                  textAlign: "left",
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  color: "var(--text-main)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <UserIcon size={14} />
-                <span>Hồ sơ cá nhân</span>
-              </button>
-              <button
-                onClick={() => {
-                  onLogout();
-                  setDropdownOpen(false);
-                }}
-                style={{
-                  width: "100%",
-                  padding: "10px 14px",
-                  background: "none",
-                  border: "none",
-                  borderTop: "1px solid var(--border-light)",
-                  textAlign: "left",
-                  fontSize: "13px",
-                  cursor: "pointer",
-                  color: "#dc2626",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                }}
-              >
-                <LogOut size={14} />
-                <span>Đăng xuất</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </header>

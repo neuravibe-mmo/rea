@@ -9,6 +9,7 @@ import { TeacherDashboard } from "./components/TeacherDashboard";
 import { StudentDashboard } from "./components/StudentDashboard";
 import { CourseDetailPage } from "./components/CourseDetailPage";
 import { TeacherCourseWorkspacePage } from "./components/TeacherCourseWorkspacePage";
+import { NotificationPage } from "./components/NotificationPage";
 import type { Article, Course, VideoShort, DocumentItem, User } from "./types";
 import {
   BookOpen,
@@ -31,12 +32,15 @@ import {
   WifiOff,
   RefreshCw,
   AlertTriangle,
+  Bell,
 } from "lucide-react";
 import { api } from "./services/api";
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("home");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -221,11 +225,44 @@ export function App() {
     loadAllData();
   }, [loadAllData]);
 
+  // Fetch student notifications & pending invitations
+  const fetchNotificationsCount = useCallback(async () => {
+    const token =
+      localStorage.getItem("token") || localStorage.getItem("educhat_token");
+    if (!token) {
+      setUnreadNotificationsCount(0);
+      setPendingInvitations([]);
+      return;
+    }
+    try {
+      const [notifRes, invRes] = await Promise.all([
+        api.getStudentNotifications(),
+        api.getStudentInvitations().catch(() => ({ success: false, data: [] })),
+      ]);
+      if (notifRes.success) {
+        setUnreadNotificationsCount(notifRes.unreadCount || 0);
+      }
+      if (invRes.success) {
+        setPendingInvitations(invRes.data || []);
+      }
+    } catch (e) {
+      console.error("Lỗi cập nhật số thông báo:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotificationsCount();
+    const interval = setInterval(fetchNotificationsCount, 15000);
+    return () => clearInterval(interval);
+  }, [fetchNotificationsCount, user]);
+
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
     localStorage.removeItem("educhat_token");
     setUser(null);
+    setUnreadNotificationsCount(0);
+    setPendingInvitations([]);
     setActiveTab("home");
   };
 
@@ -312,6 +349,8 @@ export function App() {
         onSelectTab={setActiveTab}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        onOpenNotifications={() => setActiveTab("notifications")}
+        unreadNotificationsCount={unreadNotificationsCount}
       />
 
       {/* Backend Connection Error Alert Banner */}
@@ -401,6 +440,99 @@ export function App() {
 
       {/* Main Content Area */}
       <main style={{ flex: 1 }}>
+        {/* Pending Course Invitation Notice Banner */}
+        {user && pendingInvitations.length > 0 && activeTab === "home" && (
+          <div
+            style={{
+              background: "linear-gradient(90deg, #f0f9ff 0%, #ecfdf5 100%)",
+              borderBottom: "1px solid #bae6fd",
+              padding: "12px 24px",
+              boxShadow: "0 2px 8px rgba(2, 132, 199, 0.08)",
+            }}
+          >
+            <div
+              className="container"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "16px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "12px" }}
+              >
+                <div
+                  style={{
+                    width: "38px",
+                    height: "38px",
+                    borderRadius: "10px",
+                    background: "#0284c7",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 8px rgba(2, 132, 199, 0.35)",
+                    flexShrink: 0,
+                  }}
+                >
+                  <Bell size={20} />
+                </div>
+                <div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      color: "#0f172a",
+                    }}
+                  >
+                    Bạn có {pendingInvitations.length} lời mời tham gia khóa học
+                    mới từ Giảng viên!
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#475569",
+                      marginTop: "2px",
+                    }}
+                  >
+                    Khóa học:{" "}
+                    <strong style={{ color: "#0284c7" }}>
+                      "{pendingInvitations[0].course_title}"
+                    </strong>{" "}
+                    từ <strong>{pendingInvitations[0].teacher_name}</strong>
+                    {pendingInvitations.length > 1 &&
+                      ` và ${pendingInvitations.length - 1} lời mời khác`}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("notifications")}
+                style={{
+                  background: "#0284c7",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "6px",
+                  padding: "8px 18px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: "0 2px 6px rgba(2, 132, 199, 0.3)",
+                }}
+              >
+                <span>Xem thông báo & Tham gia ngay</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* TAB: TRANG CHỦ */}
         {activeTab === "home" && (
           <>
@@ -1546,6 +1678,18 @@ export function App() {
             onBackToDetail={handleOpenCourseDetail}
             onBackToTeacherConsole={() => setActiveTab("teacher_console")}
             onCourseUpdated={() => loadAllData()}
+          />
+        )}
+        {/* NOTIFICATIONS FULL-PAGE VIEW */}
+        {activeTab === "notifications" && (
+          <NotificationPage
+            user={user}
+            onNavigateHome={() => setActiveTab("home")}
+            onNavigateTab={(tab) => setActiveTab(tab)}
+            onNotificationsChanged={() => {
+              fetchNotificationsCount();
+              loadAllData();
+            }}
           />
         )}
       </main>
