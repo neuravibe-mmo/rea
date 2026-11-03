@@ -39,7 +39,58 @@ export class Campus {
   public colliders: CampusCollider[] = [];
   public seats: CushionSeat[] = [];
 
+  public roofMat: THREE.MeshStandardMaterial;
+  public woodMat: THREE.MeshStandardMaterial;
+
   constructor() {
+    const loader = new THREE.TextureLoader();
+
+    // 1. Texture ngói đất nung / ngói rêu phong chính thức RoofingTiles014
+    const roofColor = loader.load("./textures/roof/roof_tile_color.jpg");
+    roofColor.wrapS = THREE.RepeatWrapping;
+    roofColor.wrapT = THREE.RepeatWrapping;
+    roofColor.repeat.set(2, 2);
+
+    const roofNormal = loader.load("./textures/roof/roof_tile_normal.jpg");
+    roofNormal.wrapS = THREE.RepeatWrapping;
+    roofNormal.wrapT = THREE.RepeatWrapping;
+    roofNormal.repeat.set(2, 2);
+
+    const roofRoughness = loader.load(
+      "./textures/roof/roof_tile_roughness.jpg",
+    );
+    roofRoughness.wrapS = THREE.RepeatWrapping;
+    roofRoughness.wrapT = THREE.RepeatWrapping;
+    roofRoughness.repeat.set(2, 2);
+
+    this.roofMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      map: roofColor,
+      normalMap: roofNormal,
+      roughnessMap: roofRoughness,
+      roughness: 0.75,
+      metalness: 0.1,
+    });
+
+    // 2. Texture gỗ sẫm cột kèo chùa chính thức Wood067
+    const woodColor = loader.load("./textures/wood/wood_color.jpg");
+    woodColor.wrapS = THREE.RepeatWrapping;
+    woodColor.wrapT = THREE.RepeatWrapping;
+    woodColor.repeat.set(1, 4);
+
+    const woodNormal = loader.load("./textures/wood/wood_normal.jpg");
+    woodNormal.wrapS = THREE.RepeatWrapping;
+    woodNormal.wrapT = THREE.RepeatWrapping;
+    woodNormal.repeat.set(1, 4);
+
+    this.woodMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      map: woodColor,
+      normalMap: woodNormal,
+      roughness: 0.65,
+      metalness: 0.15,
+    });
+
     this.buildCourtyards();
     this.buildEnclosureWalls();
     this.buildTamQuanGate();
@@ -175,11 +226,7 @@ export class Campus {
 
     const geom = b.build();
     if (geom) {
-      const mat = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.7,
-      });
-      const mesh = new THREE.Mesh(geom, mat);
+      const mesh = new THREE.Mesh(geom, this.roofMat);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
@@ -345,12 +392,7 @@ export class Campus {
 
     const geom = b.build();
     if (geom) {
-      const mat = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.65,
-        metalness: 0.15,
-      });
-      const mesh = new THREE.Mesh(geom, mat);
+      const mesh = new THREE.Mesh(geom, this.roofMat);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
@@ -852,11 +894,7 @@ export class Campus {
 
     const geom = b.build();
     if (geom) {
-      const mat = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.6,
-      });
-      const mesh = new THREE.Mesh(geom, mat);
+      const mesh = new THREE.Mesh(geom, this.roofMat);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;

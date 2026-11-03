@@ -34,6 +34,67 @@ export class PlayerController {
   }
 
   /**
+   * Tạo Texture khuôn mặt hiền từ, mắt nhắm tịnh tâm và nụ cười nhẹ
+   */
+  private createFaceTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d")!;
+
+    // Nền da ấm
+    ctx.fillStyle = "#dfb18e";
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Mắt cong nhắm thiền tịnh
+    ctx.strokeStyle = "#3a2416";
+    ctx.lineWidth = 4.5;
+    ctx.lineCap = "round";
+
+    // Mắt trái
+    ctx.beginPath();
+    ctx.arc(88, 134, 16, 0.2 * Math.PI, 0.8 * Math.PI, false);
+    ctx.stroke();
+
+    // Mắt phải
+    ctx.beginPath();
+    ctx.arc(168, 134, 16, 0.2 * Math.PI, 0.8 * Math.PI, false);
+    ctx.stroke();
+
+    // Lông mày cong thanh tú
+    ctx.strokeStyle = "#4a3020";
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(88, 118, 20, 1.2 * Math.PI, 1.8 * Math.PI, false);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(168, 118, 20, 1.2 * Math.PI, 1.8 * Math.PI, false);
+    ctx.stroke();
+
+    // Nụ cười mỉm từ bi
+    ctx.strokeStyle = "#4a3020";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(128, 164, 14, 0.2 * Math.PI, 0.8 * Math.PI, false);
+    ctx.stroke();
+
+    // Má hồng nhẹ nhàng
+    ctx.fillStyle = "rgba(240, 142, 163, 0.4)";
+    ctx.beginPath();
+    ctx.ellipse(78, 150, 12, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.ellipse(178, 150, 12, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }
+
+  /**
    * Tạo hình nhân vật Phật tử mặc áo lam truyền thống với tay áo và chi tiết
    */
   private createAvatarMesh(): THREE.Group {
@@ -50,14 +111,17 @@ export class PlayerController {
     this.bodyMesh.castShadow = true;
     group.add(this.bodyMesh);
 
-    // Đầu (màu da ấm thanh thoát)
+    // Đầu (màu da ấm thanh thoát với vẽ nét mặt từ bi)
+    const faceTex = this.createFaceTexture();
     const headMat = new THREE.MeshStandardMaterial({
-      color: 0xdfb18e,
+      color: 0xffffff,
+      map: faceTex,
       roughness: 0.6,
     });
-    const headGeom = new THREE.SphereGeometry(0.18, 14, 14);
+    const headGeom = new THREE.SphereGeometry(0.18, 16, 16);
     this.headMesh = new THREE.Mesh(headGeom, headMat);
     this.headMesh.position.y = 1.25;
+    this.headMesh.rotation.y = -Math.PI / 2; // Xoay mặt về hướng trước
     this.headMesh.castShadow = true;
     group.add(this.headMesh);
 

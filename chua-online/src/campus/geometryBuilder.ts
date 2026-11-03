@@ -9,6 +9,7 @@ export class GeometryBuilder {
   private pos: number[] = [];
   private nor: number[] = [];
   private col: number[] = [];
+  private uvs: number[] = [];
   private idx: number[] = [];
 
   vert(
@@ -19,10 +20,13 @@ export class GeometryBuilder {
     ny: number,
     nz: number,
     color: THREE.Color,
+    u: number = 0,
+    v: number = 0,
   ): number {
     this.pos.push(x, y, z);
     this.nor.push(nx, ny, nz);
     this.col.push(color.r, color.g, color.b);
+    this.uvs.push(u, v);
     return this.pos.length / 3 - 1;
   }
 
@@ -71,45 +75,45 @@ export class GeometryBuilder {
   ): void {
     // Top (+Y)
     this.quad(
-      this.vert(x0, y1, z0, 0, 1, 0, color),
-      this.vert(x1, y1, z0, 0, 1, 0, color),
-      this.vert(x1, y1, z1, 0, 1, 0, color),
-      this.vert(x0, y1, z1, 0, 1, 0, color),
+      this.vert(x0, y1, z0, 0, 1, 0, color, 0, 0),
+      this.vert(x1, y1, z0, 0, 1, 0, color, 1, 0),
+      this.vert(x1, y1, z1, 0, 1, 0, color, 1, 1),
+      this.vert(x0, y1, z1, 0, 1, 0, color, 0, 1),
     );
     // Bottom (-Y)
     this.quad(
-      this.vert(x0, y0, z1, 0, -1, 0, color),
-      this.vert(x1, y0, z1, 0, -1, 0, color),
-      this.vert(x1, y0, z0, 0, -1, 0, color),
-      this.vert(x0, y0, z0, 0, -1, 0, color),
+      this.vert(x0, y0, z1, 0, -1, 0, color, 0, 0),
+      this.vert(x1, y0, z1, 0, -1, 0, color, 1, 0),
+      this.vert(x1, y0, z0, 0, -1, 0, color, 1, 1),
+      this.vert(x0, y0, z0, 0, -1, 0, color, 0, 1),
     );
     // Front (+Z)
     this.quad(
-      this.vert(x0, y0, z1, 0, 0, 1, color),
-      this.vert(x1, y0, z1, 0, 0, 1, color),
-      this.vert(x1, y1, z1, 0, 0, 1, color),
-      this.vert(x0, y1, z1, 0, 0, 1, color),
+      this.vert(x0, y0, z1, 0, 0, 1, color, 0, 0),
+      this.vert(x1, y0, z1, 0, 0, 1, color, 1, 0),
+      this.vert(x1, y1, z1, 0, 0, 1, color, 1, 1),
+      this.vert(x0, y1, z1, 0, 0, 1, color, 0, 1),
     );
     // Back (-Z)
     this.quad(
-      this.vert(x1, y0, z0, 0, 0, -1, color),
-      this.vert(x0, y0, z0, 0, 0, -1, color),
-      this.vert(x0, y1, z0, 0, 0, -1, color),
-      this.vert(x1, y1, z0, 0, 0, -1, color),
+      this.vert(x1, y0, z0, 0, 0, -1, color, 0, 0),
+      this.vert(x0, y0, z0, 0, 0, -1, color, 1, 0),
+      this.vert(x0, y1, z0, 0, 0, -1, color, 1, 1),
+      this.vert(x1, y1, z0, 0, 0, -1, color, 0, 1),
     );
     // Left (-X)
     this.quad(
-      this.vert(x0, y0, z0, -1, 0, 0, color),
-      this.vert(x0, y0, z1, -1, 0, 0, color),
-      this.vert(x0, y1, z1, -1, 0, 0, color),
-      this.vert(x0, y1, z0, -1, 0, 0, color),
+      this.vert(x0, y0, z0, -1, 0, 0, color, 0, 0),
+      this.vert(x0, y0, z1, -1, 0, 0, color, 1, 0),
+      this.vert(x0, y1, z1, -1, 0, 0, color, 1, 1),
+      this.vert(x0, y1, z0, -1, 0, 0, color, 0, 1),
     );
     // Right (+X)
     this.quad(
-      this.vert(x1, y0, z1, 1, 0, 0, color),
-      this.vert(x1, y0, z0, 1, 0, 0, color),
-      this.vert(x1, y1, z0, 1, 0, 0, color),
-      this.vert(x1, y1, z1, 1, 0, 0, color),
+      this.vert(x1, y0, z1, 1, 0, 0, color, 0, 0),
+      this.vert(x1, y0, z0, 1, 0, 0, color, 1, 0),
+      this.vert(x1, y1, z0, 1, 0, 0, color, 1, 1),
+      this.vert(x1, y1, z1, 1, 0, 0, color, 0, 1),
     );
   }
 
@@ -134,14 +138,15 @@ export class GeometryBuilder {
       const a = (i / segs) * Math.PI * 2;
       const cos = Math.cos(a);
       const sin = Math.sin(a);
+      const u = i / segs;
 
       const vx0 = cx + cos * r0;
       const vz0 = cz + sin * r0;
       const vx1 = cx + cos * r1;
       const vz1 = cz + sin * r1;
 
-      bottomVerts.push(this.vert(vx0, y0, vz0, cos, 0, sin, color));
-      topVerts.push(this.vert(vx1, y1, vz1, cos, 0, sin, color));
+      bottomVerts.push(this.vert(vx0, y0, vz0, cos, 0, sin, color, u, 0));
+      topVerts.push(this.vert(vx1, y1, vz1, cos, 0, sin, color, u, 1));
     }
 
     // Mặt bên
@@ -156,8 +161,8 @@ export class GeometryBuilder {
 
     // Đáy và nắp
     if (caps) {
-      const bottomCenter = this.vert(cx, y0, cz, 0, -1, 0, color);
-      const topCenter = this.vert(cx, y1, cz, 0, 1, 0, color);
+      const bottomCenter = this.vert(cx, y0, cz, 0, -1, 0, color, 0.5, 0.5);
+      const topCenter = this.vert(cx, y1, cz, 0, 1, 0, color, 0.5, 0.5);
       for (let i = 0; i < segs; i++) {
         this.tri(bottomCenter, bottomVerts[i + 1], bottomVerts[i]);
         this.tri(topCenter, topVerts[i], topVerts[i + 1]);
@@ -208,10 +213,16 @@ export class GeometryBuilder {
         const y11 = getRoofHeight(u1, v1);
         const y01 = getRoofHeight(u0, v1);
 
-        const v_00 = this.vert(x0, y00, z0, 0, 1, 0, color);
-        const v_10 = this.vert(x1, y10, z0, 0, 1, 0, color);
-        const v_11 = this.vert(x1, y11, z1, 0, 1, 0, color);
-        const v_01 = this.vert(x0, y01, z1, 0, 1, 0, color);
+        const tileScale = 3.0; // Tần suất rãnh ngói lặp lại
+        const s0 = (ix / steps) * tileScale;
+        const s1 = ((ix + 1) / steps) * tileScale;
+        const t0 = (iz / steps) * tileScale;
+        const t1 = ((iz + 1) / steps) * tileScale;
+
+        const v_00 = this.vert(x0, y00, z0, 0, 1, 0, color, s0, t0);
+        const v_10 = this.vert(x1, y10, z0, 0, 1, 0, color, s1, t0);
+        const v_11 = this.vert(x1, y11, z1, 0, 1, 0, color, s1, t1);
+        const v_01 = this.vert(x0, y01, z1, 0, 1, 0, color, s0, t1);
 
         this.quad(v_00, v_10, v_11, v_01);
       }
@@ -227,6 +238,7 @@ export class GeometryBuilder {
     );
     geom.setAttribute("normal", new THREE.Float32BufferAttribute(this.nor, 3));
     geom.setAttribute("color", new THREE.Float32BufferAttribute(this.col, 3));
+    geom.setAttribute("uv", new THREE.Float32BufferAttribute(this.uvs, 2));
     geom.setIndex(this.idx);
     return geom;
   }
