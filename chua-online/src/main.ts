@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import { initViewport } from "./core/viewport.ts";
 import { Engine } from "./core/engine.ts";
-import { AudioManager, triggerHaptic } from "./audio/audioManager.ts";
+import {
+  AudioManager,
+  triggerHaptic,
+  CHANT_TRACKS,
+  ZEN_MUSIC_TRACKS,
+} from "./audio/audioManager.ts";
 import { NetworkClient } from "./net/client.ts";
 import { RITUAL_TYPES, ANIM_TYPES } from "./net/protocol.ts";
 import { getTodayLunar } from "./rituals/lunarCalendar.ts";
@@ -410,11 +415,166 @@ engine.player.update = (deltaSec: number, cameraYaw: number) => {
   }
 };
 
-btnSound?.addEventListener("click", () => {
-  const muted = audio.toggleMute();
-  if (btnSound) btnSound.textContent = muted ? "🔇" : "🔊";
-  showToast(muted ? "🔇 Đã tắt âm thanh" : "🔊 Đã bật âm thanh");
+// 9. Cài đặt Âm thanh & Nhạc Thiền chuasen.com
+const btnChantAudio = document.getElementById("btn-chant-audio");
+const hudChantLabel = document.getElementById("hud-chant-label");
+const modalSound = document.getElementById("modal-sound");
+const btnCloseSoundModal = document.getElementById("btn-close-sound-modal");
+const btnToggleChantModal = document.getElementById("btn-toggle-chant-modal");
+const btnToggleMusicModal = document.getElementById("btn-toggle-music-modal");
+const chantTrackList = document.getElementById("chant-track-list");
+const musicTrackList = document.getElementById("music-track-list");
+const sliderChantVol = document.getElementById(
+  "slider-chant-vol",
+) as HTMLInputElement | null;
+const sliderMusicVol = document.getElementById(
+  "slider-music-vol",
+) as HTMLInputElement | null;
+const sliderMasterVol = document.getElementById(
+  "slider-master-vol",
+) as HTMLInputElement | null;
+const sliderSfxVol = document.getElementById(
+  "slider-sfx-vol",
+) as HTMLInputElement | null;
+const btnToggleMuteAll = document.getElementById("btn-toggle-mute-all");
+
+function renderChantTracks(): void {
+  if (!chantTrackList) return;
+  chantTrackList.innerHTML = "";
+  const currentIdx = audio.currentChantIndex;
+  const isPlaying = audio.getIsChantPlaying();
+
+  CHANT_TRACKS.forEach((track, idx) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `sound-track-chip ${idx === currentIdx && isPlaying ? "active" : ""}`;
+    chip.innerHTML = `
+      <span>${idx === currentIdx && isPlaying ? "▶ " : ""}${track.title}</span>
+      <span class="track-meta">${track.durationSec}s · ${track.credit.split("·")[0].trim()}</span>
+    `;
+    chip.addEventListener("click", () => {
+      audio.playChant(idx);
+      showToast(`📿 Đang phát: ${track.title}`);
+    });
+    chantTrackList.appendChild(chip);
+  });
+}
+
+function renderMusicTracks(): void {
+  if (!musicTrackList) return;
+  musicTrackList.innerHTML = "";
+  const currentIdx = audio.currentMusicIndex;
+  const isPlaying = audio.getIsMusicPlaying();
+
+  ZEN_MUSIC_TRACKS.forEach((track, idx) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `sound-track-chip ${idx === currentIdx && isPlaying ? "active" : ""}`;
+    chip.innerHTML = `
+      <span>${idx === currentIdx && isPlaying ? "▶ " : ""}${track.title}</span>
+      <span class="track-meta">${track.durationSec}s</span>
+    `;
+    chip.addEventListener("click", () => {
+      audio.playZenMusic(idx);
+      showToast(`🎶 Đang phát nhạc thiền: ${track.title}`);
+    });
+    musicTrackList.appendChild(chip);
+  });
+}
+
+function syncSoundUI(): void {
+  const isChanting = audio.getIsChantPlaying();
+  const currentChant = audio.getCurrentChant();
+  const isMusic = audio.getIsMusicPlaying();
+
+  if (btnChantAudio && hudChantLabel) {
+    if (isChanting) {
+      btnChantAudio.classList.add("active");
+      hudChantLabel.textContent = `${currentChant.title} ⏸`;
+    } else {
+      btnChantAudio.classList.remove("active");
+      hudChantLabel.textContent = "Nghe niệm Phật";
+    }
+  }
+
+  if (btnToggleChantModal) {
+    btnToggleChantModal.textContent = isChanting ? "Dừng niệm" : "Phát ngay";
+  }
+
+  if (btnToggleMusicModal) {
+    btnToggleMusicModal.textContent = isMusic ? "Dừng nhạc" : "Phát ngay";
+  }
+
+  if (btnSound) {
+    btnSound.textContent = audio.isMuted ? "🔇" : "🔊";
+  }
+
+  if (btnToggleMuteAll) {
+    btnToggleMuteAll.textContent = audio.isMuted ? "Bật tiếng" : "Tắt tiếng";
+  }
+
+  renderChantTracks();
+  renderMusicTracks();
+}
+
+audio.onStateChange = () => {
+  syncSoundUI();
+};
+
+btnChantAudio?.addEventListener("click", () => {
+  const playing = audio.toggleChant();
+  if (playing) {
+    showToast(`📿 Đang phát niệm Phật: ${audio.getCurrentChant().title}`);
+  } else {
+    showToast("Đã dừng niệm Phật");
+  }
 });
+
+btnSound?.addEventListener("click", () => {
+  modalSound?.classList.remove("hidden");
+  syncSoundUI();
+});
+
+btnCloseSoundModal?.addEventListener("click", () => {
+  modalSound?.classList.add("hidden");
+});
+
+btnToggleChantModal?.addEventListener("click", () => {
+  audio.toggleChant();
+});
+
+btnToggleMusicModal?.addEventListener("click", () => {
+  audio.toggleZenMusic();
+});
+
+sliderChantVol?.addEventListener("input", (e) => {
+  const val = Number((e.target as HTMLInputElement).value);
+  audio.setChantVolume(val / 100);
+});
+
+sliderMusicVol?.addEventListener("input", (e) => {
+  const val = Number((e.target as HTMLInputElement).value);
+  audio.setMusicVolume(val / 100);
+});
+
+sliderMasterVol?.addEventListener("input", (e) => {
+  const val = Number((e.target as HTMLInputElement).value);
+  audio.setMasterVolume(val / 100);
+});
+
+sliderSfxVol?.addEventListener("input", (e) => {
+  const val = Number((e.target as HTMLInputElement).value);
+  audio.setSfxVolume(val / 100);
+});
+
+btnToggleMuteAll?.addEventListener("click", () => {
+  const muted = audio.toggleMute();
+  showToast(muted ? "🔇 Đã tắt toàn bộ âm thanh" : "🔊 Đã bật âm thanh");
+});
+
+// Render khởi tạo ban đầu
+renderChantTracks();
+renderMusicTracks();
 
 // 10. Cập Nhật Tiến Trình & Cấp Bậc Lên HUD
 function getLotusTier(streak: number): { name: string; icon: string } {

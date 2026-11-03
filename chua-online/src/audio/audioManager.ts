@@ -1,6 +1,6 @@
 /**
  * Giai đoạn 5: Hệ thống Âm thanh (Audio Engine) & Xúc giác (Haptics)
- *
+ * Tích hợp nguồn tài nguyên âm thanh & nhạc thiền chính thức từ chuasen.com:
  * 1. Web Audio API & Spatial Sound:
  *    - Sử dụng AudioContext kết hợp PannerNode HRTF để khi người chơi đi lại gần
  *      Tháp Chuông hay Chánh Điện, âm thanh sẽ to dần và định vị theo tai trái/tai phải.
@@ -10,7 +10,83 @@
  * 3. Mô phỏng Gõ Chuông, Mõ & Lần Chuỗi (Haptic Feedback):
  *    - triggerHaptic('bell' | 'bead' | 'mo')
  *    - Sử dụng Navigator Vibration API với các xung nhịp đặc trưng.
+ * 4. Phát tệp Niệm Phật & Nhạc Thiền tịnh tâm (MP3/WebM từ chuasen.com)
  */
+
+export interface AudioTrack {
+  id: string;
+  title: string;
+  src: string;
+  durationSec: number;
+  license: string;
+  credit: string;
+  sourceUrl?: string;
+}
+
+export const CHANT_TRACKS: AudioTrack[] = [
+  {
+    id: "niem-phat-ky-duyen",
+    title: "Niệm Phật Kỳ Duyên",
+    src: "./audio/niem-phat-ky-duyen.mp3",
+    durationSec: 176.4,
+    license: "CC0 1.0",
+    credit: "SieuAmThanh · Niệm Nam Mô A Di Đà Phật trầm hùng",
+  },
+  {
+    id: "kinh-a-di-da",
+    title: "Kinh A Di Đà",
+    src: "./audio/kinh-a-di-da.mp3",
+    durationSec: 179.95,
+    license: "CC0 1.0",
+    credit: "SieuAmThanh · Tụng kinh A Di Đà truyền thống",
+  },
+  {
+    id: "niem-phat-ngay-ram",
+    title: "Niệm Phật Ngày Rằm",
+    src: "./audio/niem-phat-ngay-ram.mp3",
+    durationSec: 70.09,
+    license: "CC0 1.0",
+    credit: "SieuAmThanh · Niệm Phật thanh tịnh ngày sóc vọng",
+  },
+  {
+    id: "chua-bai-dinh",
+    title: "Chuông Chùa Bái Đính",
+    src: "./audio/chua-bai-dinh.mp3",
+    durationSec: 27.8,
+    license: "CC0 1.0",
+    credit: "SieuAmThanh · Tiếng đại hồng chung ngân vang",
+  },
+];
+
+export const ZEN_MUSIC_TRACKS: AudioTrack[] = [
+  {
+    id: "nhac-dan-tranh",
+    title: "Đàn tranh độc tấu",
+    src: "./audio/nhac/dan-tranh.mp3",
+    durationSec: 85.09,
+    license: "CC0 1.0",
+    credit: "neolein (đàn tranh, thang ngũ cung) · Freesound",
+    sourceUrl: "https://freesound.org/people/neolein/sounds/472707/",
+  },
+  {
+    id: "nhac-nui-da",
+    title: "Núi đá vôi",
+    src: "./audio/nhac/nui-da.mp3",
+    durationSec: 104.5,
+    license: "CC0 1.0",
+    credit: "neolein (đàn tranh trên nền nhạc núi rừng) · Freesound",
+    sourceUrl: "https://freesound.org/people/neolein/sounds/664200/",
+  },
+  {
+    id: "nhac-hoa-sen",
+    title: "Hoa sen",
+    src: "./audio/nhac/hoa-sen.mp3",
+    durationSec: 120,
+    license: "CC0 1.0",
+    credit: "nemaavla (đàn phím, chuông, tiếng ngân) · Freesound",
+    sourceUrl: "https://freesound.org/people/nemaavla/sounds/507957/",
+  },
+];
 
 // Singleton AudioContext toàn cục
 let globalAudioCtx: AudioContext | null = null;
@@ -24,7 +100,7 @@ export function getAudioContext(): AudioContext {
     globalAudioCtx = new AudioCtx();
   }
   if (globalAudioCtx.state === "suspended") {
-    globalAudioCtx.resume();
+    globalAudioCtx.resume().catch(() => {});
   }
   return globalAudioCtx;
 }
@@ -61,21 +137,38 @@ export function triggerHaptic(type: "bell" | "bead" | "mo"): void {
 }
 
 /**
- * Quản lý toàn diện Audio Engine & Spatial Panner cho Chùa Sen
+ * Quản lý toàn diện Audio Engine, Nhạc Thiền, Tụng Kinh & Spatial Panner cho Chùa Sen
  */
 export class AudioManager {
   public ctx: AudioContext | null = null;
   public masterGain: GainNode | null = null;
   public bgGain: GainNode | null = null;
   public sfxGain: GainNode | null = null;
+  public chantGain: GainNode | null = null;
+  public musicGain: GainNode | null = null;
+
   public isMuted: boolean = false;
   private isAmbientPlaying: boolean = false;
-
   private ambientOscillators: OscillatorNode[] = [];
 
   // Vị trí Panner 3D cho các công trình trong chùa
   public bellPanner: PannerNode | null = null; // Tháp Chuông (15.5, 3.5, 4.0)
   public moPanner: PannerNode | null = null; // Gian Mõ Chánh Điện (5.25, 1.5, -18.0)
+  public chantPanner: PannerNode | null = null; // Tòa Sen Chánh Điện (0, 1.5, -16.0)
+
+  // Quản lý Track Tụng Kinh & Nhạc Thiền từ chuasen.com
+  private chantAudio: HTMLAudioElement | null = null;
+  private chantSourceNode: MediaElementAudioSourceNode | null = null;
+  public currentChantIndex: number = 0;
+  private isChantPlaying: boolean = false;
+
+  private musicAudio: HTMLAudioElement | null = null;
+  private musicSourceNode: MediaElementAudioSourceNode | null = null;
+  public currentMusicIndex: number = 0;
+  private isMusicPlaying: boolean = false;
+
+  // Lắng nghe thay đổi trạng thái phát
+  public onStateChange?: () => void;
 
   constructor() {
     this.initUserGestureAudio();
@@ -113,10 +206,20 @@ export class AudioManager {
       this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
 
-      // Kênh Nhạc Nền (Ambient Music Gain)
+      // Kênh Nhạc Nền / Drone Tổng Hợp
       this.bgGain = this.ctx.createGain();
       this.bgGain.gain.setValueAtTime(0.5, this.ctx.currentTime);
       this.bgGain.connect(this.masterGain);
+
+      // Kênh Nhạc Thiền Đàn Tranh / Núi Đá / Hoa Sen
+      this.musicGain = this.ctx.createGain();
+      this.musicGain.gain.setValueAtTime(0.6, this.ctx.currentTime);
+      this.musicGain.connect(this.masterGain);
+
+      // Kênh Tụng Kinh / Niệm Phật
+      this.chantGain = this.ctx.createGain();
+      this.chantGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+      this.chantGain.connect(this.masterGain);
 
       // Kênh Hiệu Ứng (SFX Gain)
       this.sfxGain = this.ctx.createGain();
@@ -129,7 +232,10 @@ export class AudioManager {
       // 1. Web Audio API & Spatial Sound: Gian Mõ Chánh Điện (x: 5.25, y: 1.5, z: -18.0)
       this.moPanner = this.createSpatialPanner(5.25, 1.5, -18.0);
 
-      // Bật nhạc thiền ambient tĩnh tâm tự động
+      // 1. Web Audio API & Spatial Sound: Chánh Điện Niệm Phật (x: 0, y: 1.5, z: -16.0)
+      this.chantPanner = this.createSpatialPanner(0, 1.5, -16.0);
+
+      // Bật drone thiền ambient tĩnh tâm
       const navConn = (
         navigator as unknown as { connection?: { saveData?: boolean } }
       ).connection;
@@ -139,7 +245,7 @@ export class AudioManager {
     }
 
     if (this.ctx.state === "suspended") {
-      this.ctx.resume();
+      this.ctx.resume().catch(() => {});
     }
 
     return this.ctx;
@@ -213,7 +319,185 @@ export class AudioManager {
    */
   public updateAudioLevels(isChanting: boolean, isMeditating: boolean): void {
     if (!this.bgGain) return;
-    updateAudioLevels(isChanting, isMeditating, this.bgGain);
+    const isAnyChanting = isChanting || this.isChantPlaying;
+    updateAudioLevels(isAnyChanting, isMeditating, this.bgGain);
+
+    if (this.musicGain && this.ctx) {
+      let musicTarget = 0.6;
+      if (isAnyChanting) musicTarget = 0.18; // Giảm nhạc nền xuống khi niệm Phật
+      if (isMeditating) musicTarget = 0.35; // Giữ êm dịu khi thiền
+      this.musicGain.gain.setTargetAtTime(
+        musicTarget,
+        this.ctx.currentTime,
+        0.5,
+      );
+    }
+  }
+
+  /**
+   * Phát hoặc Chuyển bài Tụng Kinh / Niệm Phật (Authentic Audio from chuasen.com)
+   */
+  public playChant(trackIdOrIndex?: string | number): void {
+    this.ensureContext();
+    if (trackIdOrIndex !== undefined) {
+      if (typeof trackIdOrIndex === "number") {
+        this.currentChantIndex =
+          (trackIdOrIndex + CHANT_TRACKS.length) % CHANT_TRACKS.length;
+      } else {
+        const found = CHANT_TRACKS.findIndex((t) => t.id === trackIdOrIndex);
+        if (found !== -1) this.currentChantIndex = found;
+      }
+    }
+
+    const track = CHANT_TRACKS[this.currentChantIndex];
+    if (!this.chantAudio) {
+      this.chantAudio = new Audio();
+      this.chantAudio.crossOrigin = "anonymous";
+      this.chantAudio.loop = true;
+
+      try {
+        if (this.ctx && this.chantGain) {
+          this.chantSourceNode = this.ctx.createMediaElementSource(
+            this.chantAudio,
+          );
+          this.chantSourceNode.connect(this.chantGain);
+        }
+      } catch {
+        // Dự phòng nếu trình duyệt giới hạn routing MediaElement
+      }
+
+      this.chantAudio.addEventListener("ended", () => {
+        this.playNextChant();
+      });
+    }
+
+    this.chantAudio.src = track.src;
+    this.chantAudio
+      .play()
+      .then(() => {
+        this.isChantPlaying = true;
+        this.updateAudioLevels(true, false);
+        this.onStateChange?.();
+      })
+      .catch((err) => {
+        console.warn("Không thể tự động phát niệm Phật:", err);
+      });
+  }
+
+  public stopChant(): void {
+    if (this.chantAudio) {
+      this.chantAudio.pause();
+      this.chantAudio.currentTime = 0;
+    }
+    this.isChantPlaying = false;
+    this.updateAudioLevels(false, false);
+    this.onStateChange?.();
+  }
+
+  public toggleChant(trackIdOrIndex?: string | number): boolean {
+    if (this.isChantPlaying) {
+      this.stopChant();
+      return false;
+    } else {
+      this.playChant(trackIdOrIndex);
+      return true;
+    }
+  }
+
+  public playNextChant(): void {
+    this.currentChantIndex = (this.currentChantIndex + 1) % CHANT_TRACKS.length;
+    this.playChant(this.currentChantIndex);
+  }
+
+  public getCurrentChant(): AudioTrack {
+    return CHANT_TRACKS[this.currentChantIndex];
+  }
+
+  public getIsChantPlaying(): boolean {
+    return this.isChantPlaying;
+  }
+
+  /**
+   * Phát Nhạc Thiền tịnh tâm (Đàn Tranh, Núi Đá, Hoa Sen từ chuasen.com)
+   */
+  public playZenMusic(trackIdOrIndex?: string | number): void {
+    this.ensureContext();
+    if (trackIdOrIndex !== undefined) {
+      if (typeof trackIdOrIndex === "number") {
+        this.currentMusicIndex =
+          (trackIdOrIndex + ZEN_MUSIC_TRACKS.length) % ZEN_MUSIC_TRACKS.length;
+      } else {
+        const found = ZEN_MUSIC_TRACKS.findIndex(
+          (t) => t.id === trackIdOrIndex,
+        );
+        if (found !== -1) this.currentMusicIndex = found;
+      }
+    }
+
+    const track = ZEN_MUSIC_TRACKS[this.currentMusicIndex];
+    if (!this.musicAudio) {
+      this.musicAudio = new Audio();
+      this.musicAudio.crossOrigin = "anonymous";
+      this.musicAudio.loop = true;
+
+      try {
+        if (this.ctx && this.musicGain) {
+          this.musicSourceNode = this.ctx.createMediaElementSource(
+            this.musicAudio,
+          );
+          this.musicSourceNode.connect(this.musicGain);
+        }
+      } catch {
+        // Fallback
+      }
+
+      this.musicAudio.addEventListener("ended", () => {
+        this.nextZenMusic();
+      });
+    }
+
+    this.musicAudio.src = track.src;
+    this.musicAudio
+      .play()
+      .then(() => {
+        this.isMusicPlaying = true;
+        this.onStateChange?.();
+      })
+      .catch((err) => {
+        console.warn("Không thể tự động phát nhạc thiền:", err);
+      });
+  }
+
+  public stopZenMusic(): void {
+    if (this.musicAudio) {
+      this.musicAudio.pause();
+    }
+    this.isMusicPlaying = false;
+    this.onStateChange?.();
+  }
+
+  public toggleZenMusic(): boolean {
+    if (this.isMusicPlaying) {
+      this.stopZenMusic();
+      return false;
+    } else {
+      this.playZenMusic();
+      return true;
+    }
+  }
+
+  public nextZenMusic(): void {
+    this.currentMusicIndex =
+      (this.currentMusicIndex + 1) % ZEN_MUSIC_TRACKS.length;
+    this.playZenMusic(this.currentMusicIndex);
+  }
+
+  public getCurrentMusic(): AudioTrack {
+    return ZEN_MUSIC_TRACKS[this.currentMusicIndex];
+  }
+
+  public getIsMusicPlaying(): boolean {
+    return this.isMusicPlaying;
   }
 
   /**
@@ -235,11 +519,10 @@ export class AudioManager {
       osc.type = i % 2 === 0 ? "sine" : "triangle";
       osc.frequency.setValueAtTime(freq, now);
 
-      // Thêm rung nhẹ (LFO filter) tạo độ sâu không gian
       filter.type = "lowpass";
       filter.frequency.setValueAtTime(freq * 1.5, now);
 
-      const amp = 0.06 / (i + 1);
+      const amp = 0.05 / (i + 1);
       gain.gain.setValueAtTime(0, now);
       gain.gain.linearRampToValueAtTime(amp, now + 4.0);
 
@@ -298,7 +581,6 @@ export class AudioManager {
 
       const initAmp = 0.35 / Math.sqrt(i + 1);
       gain.gain.setValueAtTime(initAmp, now);
-      // Ngân vang sâu lắng suy hao chậm theo hàm mũ
       gain.gain.exponentialRampToValueAtTime(0.0001, now + 6.5);
 
       osc.connect(filter);
@@ -324,7 +606,6 @@ export class AudioManager {
     const filter = ctx.createBiquadFilter();
 
     osc.type = "sine";
-    // Mõ gỗ tụt tần số nhanh từ 640Hz xuống 140Hz tạo tiếng "cốc" đanh
     osc.frequency.setValueAtTime(640, now);
     osc.frequency.exponentialRampToValueAtTime(140, now + 0.08);
 
@@ -371,6 +652,36 @@ export class AudioManager {
   }
 
   /**
+   * Điều chỉnh âm lượng các kênh
+   */
+  public setMasterVolume(vol: number): void {
+    if (!this.masterGain || !this.ctx) return;
+    const clamped = Math.max(0, Math.min(1, vol));
+    this.masterGain.gain.setValueAtTime(
+      this.isMuted ? 0 : clamped,
+      this.ctx.currentTime,
+    );
+  }
+
+  public setMusicVolume(vol: number): void {
+    if (!this.musicGain || !this.ctx) return;
+    const clamped = Math.max(0, Math.min(1, vol));
+    this.musicGain.gain.setValueAtTime(clamped, this.ctx.currentTime);
+  }
+
+  public setSfxVolume(vol: number): void {
+    if (!this.sfxGain || !this.ctx) return;
+    const clamped = Math.max(0, Math.min(1, vol));
+    this.sfxGain.gain.setValueAtTime(clamped, this.ctx.currentTime);
+  }
+
+  public setChantVolume(vol: number): void {
+    if (!this.chantGain || !this.ctx) return;
+    const clamped = Math.max(0, Math.min(1, vol));
+    this.chantGain.gain.setValueAtTime(clamped, this.ctx.currentTime);
+  }
+
+  /**
    * Bật / Tắt toàn bộ âm thanh
    */
   public toggleMute(): boolean {
@@ -381,6 +692,14 @@ export class AudioManager {
         this.ctx.currentTime,
       );
     }
+    if (this.isMuted) {
+      if (this.chantAudio) this.chantAudio.muted = true;
+      if (this.musicAudio) this.musicAudio.muted = true;
+    } else {
+      if (this.chantAudio) this.chantAudio.muted = false;
+      if (this.musicAudio) this.musicAudio.muted = false;
+    }
+    this.onStateChange?.();
     return this.isMuted;
   }
 }

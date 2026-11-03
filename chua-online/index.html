@@ -13,8 +13,11 @@
       name="description"
       content="Chùa Sen là chùa online 3D miễn phí: đi chùa, lễ Phật, thắp hương, tụng kinh cùng mọi người ngay trên điện thoại, không cần đăng ký, không cần cài đặt."
     />
+    <meta property="og:title" content="Chùa Sen – Chùa online 3D" />
+    <meta property="og:description" content="Đi chùa, lễ Phật, thắp hương, tụng kinh cùng nhau ngay trên điện thoại." />
+    <meta property="og:image" content="./og.png" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
@@ -148,6 +151,12 @@
 
         <!-- Bộ công cụ & tiến trình bên phải -->
         <div class="hud-glass hud-tools">
+          <!-- Nghe Niệm Phật trực tiếp -->
+          <button id="btn-chant-audio" type="button" class="hud-chant-pill" title="Nghe niệm Phật">
+            <span class="chant-dot"></span>
+            <span id="hud-chant-label">Nghe niệm Phật</span>
+          </button>
+
           <!-- Cấp bậc hoa sen & Hành trình -->
           <button id="btn-journey" type="button" class="hud-level__btn" title="Hành trình tu tập & Quẻ chánh niệm">
             <span id="hud-tier-emblem">🪷</span>
@@ -164,8 +173,8 @@
             👤
           </button>
 
-          <!-- Âm thanh -->
-          <button id="btn-sound" type="button" class="hud-round" title="Bật / Tắt âm thanh">
+          <!-- Cài đặt Âm thanh -->
+          <button id="btn-sound" type="button" class="hud-round" title="Cài đặt Âm thanh & Nhạc thiền">
             🔊
           </button>
         </div>
@@ -276,6 +285,72 @@
               <span id="task-que" class="task-chip done">🪷 Đọc quẻ</span>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Cài Đặt Âm Thanh & Nhạc Thiền -->
+    <div id="modal-sound" class="modal-backdrop hidden">
+      <div class="modal-card sound-modal-card">
+        <button id="btn-close-sound-modal" class="modal-close" aria-label="Đóng">✕</button>
+
+        <div class="modal-header">
+          <h2>Âm thanh & Tụng kinh</h2>
+          <p class="modal-subtitle">Tùy chỉnh nhạc thiền, bài tụng và âm lượng</p>
+        </div>
+
+        <div class="modal-body">
+          <!-- Phần 1: Niệm Phật / Tụng Kinh -->
+          <section class="sound-sec">
+            <div class="sound-sec__head">
+              <h3>📿 Tụng kinh & Niệm Phật</h3>
+              <button id="btn-toggle-chant-modal" type="button" class="btn btn--sm btn--gold">Phát ngay</button>
+            </div>
+            <div class="sound-tracks" id="chant-track-list">
+              <!-- Render động danh sách 4 bài niệm Phật -->
+            </div>
+            <div class="sound-slider-row">
+              <label for="slider-chant-vol">Âm lượng niệm Phật</label>
+              <input type="range" id="slider-chant-vol" min="0" max="100" value="85" />
+            </div>
+          </section>
+
+          <!-- Phần 2: Nhạc Thiền Tĩnh Tâm -->
+          <section class="sound-sec">
+            <div class="sound-sec__head">
+              <h3>🎶 Nhạc Thiền Tĩnh Tâm</h3>
+              <button id="btn-toggle-music-modal" type="button" class="btn btn--sm btn--gold">Phát ngay</button>
+            </div>
+            <div class="sound-tracks" id="music-track-list">
+              <!-- Render động danh sách 3 bài nhạc thiền -->
+            </div>
+            <div class="sound-slider-row">
+              <label for="slider-music-vol">Âm lượng nhạc thiền</label>
+              <input type="range" id="slider-music-vol" min="0" max="100" value="60" />
+            </div>
+          </section>
+
+          <!-- Phần 3: Âm lượng Chung & Mute -->
+          <section class="sound-sec">
+            <h3>⚙️ Âm lượng tổng & Hiệu ứng</h3>
+            <div class="sound-slider-row">
+              <label for="slider-master-vol">Âm lượng tổng</label>
+              <input type="range" id="slider-master-vol" min="0" max="100" value="85" />
+            </div>
+            <div class="sound-slider-row">
+              <label for="slider-sfx-vol">Hiệu ứng (Mõ, chuông, khánh)</label>
+              <input type="range" id="slider-sfx-vol" min="0" max="100" value="100" />
+            </div>
+            <div class="sound-toggle-mute-row">
+              <span>Tắt toàn bộ âm thanh</span>
+              <button id="btn-toggle-mute-all" type="button" class="btn btn--ghost btn--sm">Tắt tiếng</button>
+            </div>
+          </section>
+
+          <!-- Ghi công tác quyền -->
+          <footer class="sound-credit">
+            <p><strong>Nguồn âm thanh:</strong> chuasen.com · Giọng tụng: SieuAmThanh · Đàn tranh & chuông: neolein, nemaavla (Freesound CC0 1.0).</p>
+          </footer>
         </div>
       </div>
     </div>
