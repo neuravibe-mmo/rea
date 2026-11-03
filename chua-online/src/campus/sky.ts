@@ -140,30 +140,30 @@ const PRESETS: Record<"dawn" | "day" | "dusk" | "night", SkyPreset> = {
 
   // 4. Ban đêm tĩnh mịch (Night)
   night: {
-    skyTop: new THREE.Color(0x070b1f),
-    skyUpper: new THREE.Color(0x111a36),
-    skyMid: new THREE.Color(0x1e2b52),
-    skyHorizon: new THREE.Color(0x344164),
-    glow: new THREE.Color(0x131a38),
-    glowAmount: 0.2,
+    skyTop: new THREE.Color(0x0a102a),
+    skyUpper: new THREE.Color(0x152245),
+    skyMid: new THREE.Color(0x233360),
+    skyHorizon: new THREE.Color(0x3c4c78),
+    glow: new THREE.Color(0x253555),
+    glowAmount: 0.35,
     sunColor: new THREE.Color(0x445577),
     sunDir: dirFromAngles(180, -20),
     sunAmount: 0.0,
     moonAmount: 1.0,
-    moonDir: dirFromAngles(-24, 42),
+    moonDir: dirFromAngles(-24, 26),
     stars: 1.0,
-    cloudLit: new THREE.Color(0x4b587a),
-    cloudShade: new THREE.Color(0x161a29),
+    cloudLit: new THREE.Color(0x5a6a90),
+    cloudShade: new THREE.Color(0x1e263d),
     cloudCover: 0.45,
-    fogColor: new THREE.Color(0x0e1324),
-    fogNear: 18,
-    fogFar: 95,
-    sunLightColor: new THREE.Color(0x8ba4cc), // Ánh trăng bàng bạc
-    sunLightIntensity: 0.32,
-    hemiSky: new THREE.Color(0x273656),
-    hemiGround: new THREE.Color(0x0d1424),
-    hemiIntensity: 0.42,
-    lanternIntensity: 1.3,
+    fogColor: new THREE.Color(0x18223a), // Sương đêm xanh trong sáng rõ
+    fogNear: 45, // Mở rộng tầm nhìn, không nuốt chửng cảnh quan
+    fogFar: 180,
+    sunLightColor: new THREE.Color(0xb0c8f5), // Ánh trăng rằm sáng bàng bạc
+    sunLightIntensity: 0.85,
+    hemiSky: new THREE.Color(0x3d4e78),
+    hemiGround: new THREE.Color(0x1f273c),
+    hemiIntensity: 0.72,
+    lanternIntensity: 2.8,
     isNight: true,
   },
 };
@@ -172,6 +172,7 @@ const SKY_VERTEX_SHADER = `
 varying vec3 vDir;
 void main() {
   vDir = normalize(position);
+  // .xyww đặt độ sâu đúng mặt phẳng xa: vòm trời vẽ cuối cùng và chỉ tô các điểm ảnh chưa có gì che (Early-Z rejection)
   gl_Position = (projectionMatrix * modelViewMatrix * vec4(position, 1.0)).xyww;
 }
 `;
@@ -183,6 +184,7 @@ uniform vec3 uMid;
 uniform vec3 uHorizon;
 uniform vec3 uGlow;
 uniform float uGlowAmt;
+uniform vec3 uGlowDir;
 uniform vec3 uSunDir;
 uniform vec3 uSunColor;
 uniform float uSunAmt;
@@ -202,6 +204,12 @@ float hash21(vec2 p) {
   return fract(p.x * p.y);
 }
 
+float hash31(vec3 p) {
+  p = fract(p * vec3(443.897, 441.423, 437.195));
+  p += dot(p, p.yzx + 19.19);
+  return fract((p.x + p.y) * p.z);
+}
+
 float vnoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -218,55 +226,82 @@ float fbm(vec2 p) {
   float s = 0.0;
   for (int i = 0; i < 4; i++) {
     s += a * vnoise(p);
-    p = p * 2.04 + vec2(15.1, 8.7);
+    p = p * 2.03 + vec2(17.1, 9.2);
     a *= 0.5;
   }
   return s;
 }
 
-void main() {
-  vec3 d = normalize(vDir);
+vec3 skyGradient(vec3 d) {
   float h = max(d.y, 0.0);
-
-  // 1. Dải màu chân trời 4 tầng
+  // Bốn dải màu: chân trời, dải giữa, dải trên, đỉnh trời
   vec3 col = mix(uHorizon, uMid, smoothstep(0.0, 0.16, h));
   col = mix(col, uUpper, smoothstep(0.1, 0.42, h));
   col = mix(col, uTop, smoothstep(0.34, 0.95, h));
 
-  // 2. Ráng chiều / bình minh
-  float g = max(dot(d, uSunDir), 0.0);
+  // Ráng chiều: quầng rộng sát chân trời phía sau chánh điện, cộng một điểm sáng hẹp
+  float g = max(dot(d, uGlowDir), 0.0);
   float low = 1.0 - smoothstep(0.0, 0.5, h);
-  col += uGlow * uGlowAmt * (pow(g, 2.5) * 0.3 * low + pow(g, 10.0) * 0.3);
+  col += uGlow * uGlowAmt * (pow(g, 2.5) * 0.3 * low + pow(g, 12.0) * 0.28);
+  return col;
+}
 
-  // 3. Đĩa mặt trời
-  col += uSunColor * uSunAmt * (pow(g, 5.0) * 0.25 + pow(g, 64.0) * 0.75 + smoothstep(0.9990, 0.9997, g) * 1.5);
+void main() {
+  vec3 d = normalize(vDir);
+  vec3 col = skyGradient(d);
+  float h = d.y;
 
-  // 4. Bầu trời đêm: Trăng rằm & Sao lung linh
-  if (uStars > 0.01 && h > 0.02) {
-    vec2 starUv = d.xz / (h + 0.1) * 35.0;
-    float r = hash21(floor(starUv));
-    float starBright = step(0.92, r) * (0.6 + 0.4 * sin(uTime * 2.5 + r * 62.0)) * smoothstep(0.02, 0.15, h) * uStars;
-    col += vec3(0.9, 0.95, 1.0) * starBright * 1.4;
+  // 1. Mặt trời: quầng mềm và một đĩa nhỏ sáng gắt
+  float s = max(dot(d, uSunDir), 0.0);
+  col += uSunColor * uSunAmt * (pow(s, 5.0) * 0.22 + pow(s, 64.0) * 0.7 + smoothstep(0.9990, 0.9996, s) * 1.4);
+
+  // 2. Màn đêm ngàn sao nhấp nháy 3D (3D grid cells với jitter ngẫu nhiên)
+  float stars = 0.0;
+  if (uStars > 0.001 && h > 0.0) {
+    vec3 p = d * 62.0;
+    vec3 cell = floor(p);
+    vec3 f = fract(p) - 0.5;
+    float r = hash31(cell);
+    vec3 jitter = vec3(hash31(cell + 3.1), hash31(cell + 7.7), hash31(cell + 11.3)) - 0.5;
+    float dist = length(f - jitter * 0.55);
+    float size = 0.07 + 0.09 * hash31(cell + 5.5);
+    float tw = 0.8 + 0.2 * sin(uTime * 1.7 + r * 60.0);
+    stars = step(0.9, r) * (1.0 - smoothstep(0.0, size, dist)) * tw * smoothstep(0.0, 0.12, h) * uStars;
+    col += vec3(0.85, 0.9, 1.0) * stars * 1.6;
   }
 
-  if (uMoonAmt > 0.01) {
+  // 3. Vầng trăng rằm với quầng hào quang & đốm biển mặt trăng (Lunar Maria)
+  if (uMoonAmt > 0.001) {
     float md = dot(d, uMoonDir);
-    col += vec3(0.7, 0.8, 1.0) * uMoonAmt * (pow(max(md, 0.0), 30.0) * 0.15 + pow(max(md, 0.0), 200.0) * 0.4);
-    if (md > 0.9982) {
-      col = mix(col, vec3(1.0, 0.98, 0.92) * 1.2, uMoonAmt);
+    col += vec3(0.62, 0.7, 0.95) * uMoonAmt * (pow(max(md, 0.0), 300.0) * 0.4 + pow(max(md, 0.0), 40.0) * 0.1);
+    if (md > 0.9985) {
+      vec3 t = normalize(cross(uMoonDir, vec3(0.0, 1.0, 0.0)));
+      vec3 b = cross(t, uMoonDir);
+      vec2 q = vec2(dot(d, t), dot(d, b)) / 0.045;
+      float disc = 1.0 - smoothstep(0.93, 1.0, length(q));
+      float maria = vnoise(q * 3.2 + 4.0) * 0.55 + vnoise(q * 7.0) * 0.25;
+      vec3 moon = mix(vec3(1.0, 0.97, 0.88), vec3(0.5, 0.55, 0.68), maria * 1.1);
+      col = mix(col, moon * 1.05, disc * uMoonAmt);
     }
   }
 
-  // 5. Mây trôi bồng bềnh
-  if (h > 0.02) {
-    vec2 cloudUv = d.xz / (h + 0.3) * vec2(2.6, 2.0) + vec2(uTime * 0.012, uTime * 0.005);
-    float n = fbm(cloudUv);
-    float cover = smoothstep(uCloudCover, uCloudCover + 0.18, n);
-    float fade = smoothstep(0.0, 0.22, h);
-    if (cover * fade > 0.005) {
-      vec3 cloud = mix(uCloudShade, uCloudLit, clamp(n * 1.2, 0.0, 1.0));
-      cloud += uGlow * uGlowAmt * pow(g, 3.0) * 0.4;
-      col = mix(col, cloud, cover * fade * 0.88);
+  // 4. Mây trôi mỏng hữu cơ đa tầng (FBM) & tự đổ bóng theo hướng nguồn sáng
+  if (h > 0.0) {
+    vec2 uv = d.xz / (h + 0.28) * vec2(2.8, 2.0) + vec2(uTime * 0.02, uTime * 0.007);
+    float n = fbm(uv);
+    float cover = smoothstep(uCloudCover, uCloudCover + 0.16, n);
+    float fade = smoothstep(0.0, 0.2, h);
+    if (cover * fade > 0.003) {
+      vec2 toLight = normalize(uSunDir.xz + vec2(0.0001, 0.0));
+      float n2 = fbm(uv + toLight * 0.09);
+      float lit = clamp(0.5 + (n - n2) * 4.2 + (1.0 - cover) * 0.25, 0.0, 1.0);
+      vec3 cloud = mix(uCloudShade, uCloudLit, lit);
+
+      // Mây phía ráng chiều ửng màu ráng; mây gần mặt trời có viền sáng
+      float gl = pow(max(dot(d, uGlowDir), 0.0), 3.0);
+      cloud += uGlow * uGlowAmt * gl * 0.45;
+      cloud += uSunColor * uSunAmt * pow(s, 8.0) * 0.5 * (1.0 - cover * 0.5);
+      col = mix(col, cloud, cover * fade * 0.92);
     }
   }
 
@@ -278,11 +313,16 @@ export class SkyManager {
   private scene: THREE.Scene;
   private dirLight: THREE.DirectionalLight;
   private hemiLight: THREE.HemisphereLight;
+  private ambientLight: THREE.AmbientLight;
+  private altarSpot: THREE.SpotLight;
+  private porchSpot: THREE.SpotLight;
+  private facadeSpot: THREE.SpotLight;
   private skyMesh: THREE.Mesh | null = null;
   private skyMaterial: THREE.ShaderMaterial | null = null;
 
   // Đèn lồng sân chùa & nến bàn thờ
   private lanternLights: THREE.PointLight[] = [];
+  private currentLanternIntensity = 0.5;
 
   // Trạng thái bầu trời hiện tại
   private currentHour = 10;
@@ -292,32 +332,57 @@ export class SkyManager {
   constructor(scene: THREE.Scene) {
     this.scene = scene;
 
-    // 1. Ánh sáng Bán Cầu (HemisphereLight)
-    this.hemiLight = new THREE.HemisphereLight(0xffeedd, 0x443322, 0.8);
+    // 1. Ánh sáng Môi Trường tổng thể (AmbientLight - chống tối om góc khuất)
+    this.ambientLight = new THREE.AmbientLight(0xffeedd, 0.45);
+    this.scene.add(this.ambientLight);
+
+    // 2. Ánh sáng Bán Cầu (HemisphereLight - màu trời & màu đất)
+    this.hemiLight = new THREE.HemisphereLight(0xffeedd, 0x443322, 0.85);
     this.scene.add(this.hemiLight);
 
-    // 2. Ánh sáng Mặt trời / Mặt trăng (DirectionalLight)
-    this.dirLight = new THREE.DirectionalLight(0xfffaed, 1.3);
-    this.dirLight.position.set(20, 45, 20);
+    // 3. Ánh sáng Mặt trời / Mặt trăng (DirectionalLight)
+    this.dirLight = new THREE.DirectionalLight(0xfffaed, 1.4);
+    this.dirLight.position.set(20, 50, 20);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.width = 1024;
     this.dirLight.shadow.mapSize.height = 1024;
     this.dirLight.shadow.camera.near = 5;
-    this.dirLight.shadow.camera.far = 110;
-    this.dirLight.shadow.camera.left = -32;
-    this.dirLight.shadow.camera.right = 32;
-    this.dirLight.shadow.camera.top = 32;
-    this.dirLight.shadow.camera.bottom = -32;
+    this.dirLight.shadow.camera.far = 130;
+    this.dirLight.shadow.camera.left = -34;
+    this.dirLight.shadow.camera.right = 34;
+    this.dirLight.shadow.camera.top = 34;
+    this.dirLight.shadow.camera.bottom = -34;
     this.dirLight.shadow.bias = -0.0006;
     this.scene.add(this.dirLight);
 
-    // 3. Khởi tạo Vòm Trời Thủ Tục (Procedural Sky Dome)
+    // 4. Đèn rọi Chánh Điện & Bàn Thờ Tam Bảo (Altar Spotlight chuẩn Chùa Sen)
+    this.altarSpot = new THREE.SpotLight(0xffdf88, 4.2, 28, Math.PI / 4, 0.65, 1.2);
+    this.altarSpot.position.set(0, 8.5, -11.0);
+    this.altarSpot.target.position.set(0, 2.0, -19.5);
+    this.scene.add(this.altarSpot);
+    this.scene.add(this.altarSpot.target);
+
+    // 5. Đèn rọi Tiền Sảnh & Hoành Phi "TỪ BI HỶ XẢ" (Porch Spotlight)
+    this.porchSpot = new THREE.SpotLight(0xffb84d, 3.5, 22, Math.PI / 3, 0.7, 1.2);
+    this.porchSpot.position.set(0, 7.0, -6.5);
+    this.porchSpot.target.position.set(0, 3.2, -9.5);
+    this.scene.add(this.porchSpot);
+    this.scene.add(this.porchSpot.target);
+
+    // 6. Đèn rọi mặt tiền Chánh Điện & 2 Tầng Mái (Facade & Roof Spotlight)
+    this.facadeSpot = new THREE.SpotLight(0xffbe66, 4.2, 42, Math.PI / 3.2, 0.6, 1.1);
+    this.facadeSpot.position.set(0, 11.0, 6.0);
+    this.facadeSpot.target.position.set(0, 8.5, -16.0);
+    this.scene.add(this.facadeSpot);
+    this.scene.add(this.facadeSpot.target);
+
+    // 7. Khởi tạo Vòm Trời Thủ Tục (Procedural Sky Dome)
     this.initSkyDome();
 
-    // 4. Khởi tạo Dàn Đèn Lồng Sân Chùa (Night Lanterns)
+    // 8. Khởi tạo Dàn Đèn Lồng Sân Chùa (Night Lanterns)
     this.initLanternLights();
 
-    // 5. Cập nhật theo giờ Việt Nam
+    // 9. Cập nhật theo giờ Việt Nam
     this.updateTimeOfDay();
   }
 
@@ -329,6 +394,7 @@ export class SkyManager {
       uHorizon: { value: new THREE.Color() },
       uGlow: { value: new THREE.Color() },
       uGlowAmt: { value: 1.0 },
+      uGlowDir: { value: new THREE.Vector3(0.18, 0.1, -1).normalize() },
       uSunDir: { value: new THREE.Vector3(0, 1, 0) },
       uSunColor: { value: new THREE.Color() },
       uSunAmt: { value: 1.0 },
@@ -351,7 +417,7 @@ export class SkyManager {
       fog: false,
     });
 
-    const geom = new THREE.SphereGeometry(300, 32, 16);
+    const geom = new THREE.SphereGeometry(400, 32, 16);
     this.skyMesh = new THREE.Mesh(geom, this.skyMaterial);
     this.skyMesh.renderOrder = 999;
     this.skyMesh.frustumCulled = false;
@@ -359,7 +425,7 @@ export class SkyManager {
   }
 
   private initLanternLights(): void {
-    // Tọa độ 8 cây đèn lồng đá sân chùa + 1 đèn bàn thờ Tam Bảo
+    // Tọa độ các cây đèn lồng đá sân chùa + đèn bàn thờ + đèn lư hương
     const positions: [number, number, number][] = [
       [-4.5, 1.6, 6],
       [4.5, 1.6, 6],
@@ -369,11 +435,17 @@ export class SkyManager {
       [4.5, 1.6, 22],
       [-6.5, 1.6, -4],
       [6.5, 1.6, -4],
-      [0, 2.2, -18.0], // Gian Chánh Điện
+      [-10.5, 1.6, 2],
+      [10.5, 1.6, 2],
+      [-14.5, 1.6, 8],
+      [14.5, 1.6, 8],
+      [0, 2.5, -18.0], // Gian Chánh Điện
+      [0, 1.8, -2.5],  // Lư hương đồng sân chùa
     ];
 
     for (const [x, y, z] of positions) {
-      const pl = new THREE.PointLight(0xffaa33, 0, 7.5, 1.8);
+      // Bán kính chiếu sáng 14m, decay 1.2 để ánh sáng đèn lồng tỏa rộng và ấm áp
+      const pl = new THREE.PointLight(0xffaa38, 0, 14, 1.2);
       pl.position.set(x, y, z);
       this.scene.add(pl);
       this.lanternLights.push(pl);
@@ -452,13 +524,44 @@ export class SkyManager {
     this.hemiLight.groundColor.copy(hemiGround);
     this.hemiLight.intensity = hemiIntensity;
 
-    // Hướng nguồn sáng (mặt trời/mặt trăng)
-    const lightDir = from.sunDir.clone().lerp(to.sunDir, t).normalize();
-    this.dirLight.position.set(
-      lightDir.x * 45,
-      Math.max(lightDir.y * 50, 10),
-      lightDir.z * 45,
-    );
+    const isNightTime = from.isNight || to.isNight;
+
+    // Cập nhật AmbientLight chống tối om góc khuất
+    const ambientColor = isNightTime
+      ? new THREE.Color(0xbcd0ee)
+      : new THREE.Color(0xfff0dd);
+    const ambientIntensity = isNightTime ? 0.60 : 0.48;
+    this.ambientLight.color.copy(ambientColor);
+    this.ambientLight.intensity = ambientIntensity;
+
+    // Cập nhật đèn rọi Chánh Điện, tiền sảnh và mặt tiền mái chùa
+    if (isNightTime) {
+      this.altarSpot.intensity = 4.6;
+      this.porchSpot.intensity = 3.8;
+      this.facadeSpot.intensity = 4.2;
+    } else {
+      this.altarSpot.intensity = 1.2;
+      this.porchSpot.intensity = 0.5;
+      this.facadeSpot.intensity = 0.8;
+    }
+
+    // Hướng nguồn sáng: Ban đêm theo Mặt Trăng (-24 độ, 26 độ), ban ngày theo Mặt Trời
+    let lightDir: THREE.Vector3;
+    if (isNightTime) {
+      lightDir = from.moonDir.clone().lerp(to.moonDir, t).normalize();
+      this.dirLight.position.set(
+        lightDir.x * 55,
+        Math.max(lightDir.y * 60, 25),
+        lightDir.z * 55,
+      );
+    } else {
+      lightDir = from.sunDir.clone().lerp(to.sunDir, t).normalize();
+      this.dirLight.position.set(
+        lightDir.x * 50,
+        Math.max(lightDir.y * 55, 15),
+        lightDir.z * 50,
+      );
+    }
 
     // Sương mù & màu nền Scene
     const fogColor = from.fogColor.clone().lerp(to.fogColor, t);
@@ -470,6 +573,7 @@ export class SkyManager {
     // Cập nhật đèn lồng đá sân chùa (bật sáng ấm áp khi hoàng hôn/đêm)
     const lanternInt =
       from.lanternIntensity + (to.lanternIntensity - from.lanternIntensity) * t;
+    this.currentLanternIntensity = lanternInt;
     for (const pl of this.lanternLights) {
       pl.intensity = lanternInt;
     }
@@ -520,5 +624,9 @@ export class SkyManager {
 
   public getIsNight(): boolean {
     return this.isNight;
+  }
+
+  public getLanternIntensity(): number {
+    return this.currentLanternIntensity;
   }
 }

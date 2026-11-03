@@ -1,4 +1,3 @@
-import * as THREE from "three";
 import { initViewport } from "./core/viewport.ts";
 import { Engine } from "./core/engine.ts";
 import {
@@ -182,12 +181,13 @@ function updateSvgPreview(): void {
   if (onbPlate) onbPlate.textContent = currentProfile.name;
   if (inputDharmaName) inputDharmaName.value = currentProfile.name;
 
-  // Cập nhật màu áo nhân vật trong 3D
-  if (engine.player.bodyMesh) {
-    const mat = engine.player.bodyMesh.material as THREE.MeshStandardMaterial;
-    if (mat && mat.color) {
-      mat.color.setStyle(currentProfile.color);
-    }
+  // Cập nhật nhân vật Chibi 3D chuẩn Chùa Sen theo profile hiện tại
+  if (engine.player) {
+    engine.player.setProfile({
+      name: currentProfile.name,
+      gender: currentProfile.gender as "nam" | "nu",
+      color: currentProfile.color,
+    });
   }
 }
 
@@ -342,6 +342,8 @@ window.addEventListener("keydown", (e) => {
 
 // 9. Kết Nối Nút Công Phu & Nghi Lễ
 const btnBow = document.getElementById("btn-bow");
+const btnPray = document.getElementById("btn-pray");
+const btnSweep = document.getElementById("btn-sweep");
 const btnIncense = document.getElementById("btn-incense");
 const btnBell = document.getElementById("btn-bell");
 const btnChant = document.getElementById("btn-chant");
@@ -351,15 +353,43 @@ const btnLantern = document.getElementById("btn-lantern");
 const btnSound = document.getElementById("btn-sound");
 
 function doBow(): void {
-  engine.player.anim = ANIM_TYPES.BOW;
+  // Lễ Phật chu kỳ đầy đủ 8 keyframe trong 2.6s chuẩn Chùa Sen
+  engine.player.bow(() => {
+    showToast("Đã hoàn tất lễ bái Tam Bảo");
+  });
   triggerHaptic("bead");
   markTaskComplete("bow");
-  showToast("🙏 Thành tâm kính lễ Tam Bảo");
-  setTimeout(() => {
-    if (engine.player.anim === ANIM_TYPES.BOW) {
-      engine.player.anim = ANIM_TYPES.IDLE;
-    }
-  }, 1600);
+  showToast("🙇 Thành tâm kính lễ Tam Bảo");
+}
+
+function doPray(): void {
+  const phrases = [
+    "🙏 Nam Mô A Di Đà Phật",
+    "🙏 A Di Đà Phật",
+    "🙏 Chắp tay cung kính",
+    "🙏 Nguyện an lành",
+  ];
+  const chosen = phrases[Math.floor(Math.random() * phrases.length)];
+  engine.player.showChatBubble(chosen, 3200);
+  triggerHaptic("bead");
+  showToast(chosen);
+}
+
+let isSweeping = false;
+function toggleSweep(): void {
+  isSweeping = !isSweeping;
+  if (isSweeping) {
+    if (isMeditating) toggleMeditate();
+    engine.player.setCarry("broom");
+    engine.player.setSubtitle("đang quét lá");
+    btnSweep?.classList.add("active");
+    showToast("🧹 Cầm chổi quét lá sân chùa thanh tịnh tâm ý");
+  } else {
+    engine.player.setCarry(null);
+    engine.player.setSubtitle("");
+    btnSweep?.classList.remove("active");
+    showToast("Đã cất chổi");
+  }
 }
 
 function doIncense(): void {
@@ -375,17 +405,34 @@ function doBell(): void {
   showToast("🔔 Chuông đại hồng ngân vang thức tỉnh lòng người");
 }
 
+let chantSubtitleTimer: number | null = null;
 function doMo(): void {
   audio.playMo();
   net.sendRitual(RITUAL_TYPES.CHANT);
+  engine.player.setSubtitle("đang tụng kinh");
+  if (chantSubtitleTimer) clearTimeout(chantSubtitleTimer);
+  chantSubtitleTimer = window.setTimeout(() => {
+    if (!isMeditating && !isSweeping) {
+      engine.player.setSubtitle("");
+    }
+  }, 3500);
   showToast("🪵 Tiếng mõ thanh tịnh nhịp nhàng");
 }
 
 let malaCount = 0;
+let malaSubtitleTimer: number | null = null;
 function doMala(): void {
   malaCount = (malaCount % 108) + 1;
   audio.playChime();
   markTaskComplete("mala");
+  engine.player.setSubtitle("đang niệm Phật");
+  if (malaSubtitleTimer) clearTimeout(malaSubtitleTimer);
+  malaSubtitleTimer = window.setTimeout(() => {
+    if (!isMeditating && !isSweeping) {
+      engine.player.setSubtitle("");
+    }
+  }, 4000);
+
   if (malaCount === 108) {
     audio.playBell();
     showToast(
@@ -401,13 +448,16 @@ let isMeditating = false;
 function toggleMeditate(): void {
   isMeditating = !isMeditating;
   if (isMeditating) {
-    engine.player.anim = ANIM_TYPES.SIT;
+    if (isSweeping) toggleSweep();
+    engine.player.sit(true);
+    engine.player.setSubtitle("đang thiền");
     audio.updateAudioLevels(false, true); // Duck âm nền xuống 12%
     markTaskComplete("meditate");
     btnMeditate?.classList.add("active");
     showToast("🧘 Đang ngồi thiền tĩnh tâm (Nhạc nền giảm sâu 12%)");
   } else {
-    engine.player.anim = ANIM_TYPES.IDLE;
+    engine.player.sit(false);
+    engine.player.setSubtitle("");
     audio.updateAudioLevels(false, false);
     btnMeditate?.classList.remove("active");
     showToast("Đã xả thiền");
@@ -421,6 +471,8 @@ function doLantern(): void {
 }
 
 btnBow?.addEventListener("click", doBow);
+btnPray?.addEventListener("click", doPray);
+btnSweep?.addEventListener("click", toggleSweep);
 btnIncense?.addEventListener("click", doIncense);
 btnBell?.addEventListener("click", doBell);
 btnChant?.addEventListener("click", doMo);
@@ -434,6 +486,7 @@ engine.player.update = (deltaSec: number, cameraYaw: number) => {
   origPlayerUpdate(deltaSec, cameraYaw);
   if (isMeditating && engine.player.anim === ANIM_TYPES.WALK) {
     isMeditating = false;
+    engine.player.setSubtitle(isSweeping ? "đang quét lá" : "");
     audio.updateAudioLevels(false, false);
     btnMeditate?.classList.remove("active");
   }

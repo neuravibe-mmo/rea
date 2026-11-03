@@ -1,15 +1,59 @@
 import * as THREE from "three";
-import { Campus } from "../campus/campus.ts";
+import { Campus, getGroundHeight } from "../campus/campus.ts";
 import { SkyManager } from "../campus/sky.ts";
 import { PlayerController } from "./controls.ts";
 import { CameraController } from "./camera.ts";
 import { RemotePlayerState } from "../net/protocol.ts";
+import {
+  buildChibiAvatar,
+  ChibiAvatarInstance,
+  RobeColorType,
+  GenderType,
+  FaceStyleType,
+} from "./avatar.ts";
+
+/**
+ * Tạo Texture vòng hào quang hoa sen vàng lan tỏa chuẩn Chùa Sen (chuasen.com - HE)
+ */
+function createRippleTexture(size = 128): THREE.DataTexture {
+  const data = new Uint8Array(size * size * 4);
+  const half = size / 2;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const a = Math.hypot((x + 0.5 - half) / half, (y + 0.5 - half) / half);
+      if (a > 1.0) continue;
+      // Vành sóng chính
+      const ring = Math.exp(-Math.pow((a - 0.78) / 0.075, 2));
+      // Vành hào quang phụ lan tỏa
+      const ringGlow = 0.35 * Math.exp(-Math.pow((a - 0.78) / 0.22, 2));
+      // Đĩa sáng mờ bên trong
+      const innerDisk = 0.16 * Math.max(0, 1 - a / 0.78);
+      // Chấm nhụy sen trung tâm
+      const centerDot = 0.65 * Math.exp(-Math.pow(a / 0.08, 2));
+      // Viền mờ rìa ngoài
+      const edgeFade = a > 0.85 ? Math.max(0, 1 - (a - 0.85) / 0.15) : 1;
+      const alpha = Math.min(1, ring + ringGlow + innerDisk + centerDot) * edgeFade;
+
+      const idx = (y * size + x) * 4;
+      data[idx] = 255;      // R: Sắc vàng hổ phách Chùa Sen
+      data[idx + 1] = 236;  // G
+      data[idx + 2] = 175;  // B
+      data[idx + 3] = Math.round(alpha * 255);
+    }
+  }
+  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.needsUpdate = true;
+  return tex;
+}
 
 interface RemotePlayerEntity {
   id: number;
   mesh: THREE.Group;
-  bodyMesh: THREE.Mesh;
-  headMesh: THREE.Mesh;
+  avatar: ChibiAvatarInstance;
   targetPos: THREE.Vector3;
   targetFacing: number;
   currentFacing: number;
@@ -39,6 +83,22 @@ export class Engine {
   private remoteEntities = new Map<number, RemotePlayerEntity>();
   private activeLanterns: ActiveLantern[] = [];
 
+  // Vòng sóng hoa sen khi nhấp chuột di chuyển (Click-to-Move Ripple)
+  private activeRipples: { mesh: THREE.Mesh; startTime: number; duration: number }[] = [];
+  private rippleGeom = new THREE.PlaneGeometry(1.25, 1.25);
+  private rippleMat = new THREE.MeshBasicMaterial({
+    map: createRippleTexture(128),
+    transparent: true,
+    opacity: 0.95,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    depthTest: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
+    toneMapped: false,
+  });
+
   constructor(canvas: HTMLCanvasElement) {
     // 1. Scene & Camera
     this.scene = new THREE.Scene();
@@ -60,7 +120,7 @@ export class Engine {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.18;
 
     // 3. Khởi tạo Thế giới Chùa
     this.campus = new Campus();
@@ -75,6 +135,12 @@ export class Engine {
 
     // 6. Camera Controller Góc nhìn thứ 3
     this.cameraCtrl = new CameraController(this.camera, this.campus.colliders);
+
+    // Xoay hình học vòng sóng hoa sen nằm phẳng trên mặt đất
+    this.rippleGeom.rotateX(-Math.PI / 2);
+
+    // Kích hoạt tính năng Đi bộ đến điểm nhấp chuột chuẩn Chùa Sen (Click-to-Move)
+    this.initClickToMove();
 
     // Bắt sự kiện resize
     window.addEventListener("resize", this.onResize.bind(this));
@@ -121,101 +187,49 @@ export class Engine {
   }
 
   /**
-   * Tạo hình nhân vật người chơi khác kèm bảng tên trên đầu (Billboard Tag)
+   * Tạo hình nhân vật người chơi khác chuẩn phong cách Chibi Chùa Sen
    */
   private createRemotePlayerEntity(id: number): RemotePlayerEntity {
-    const group = new THREE.Group();
-
-    // Thân áo (màu áo nâu sồng hoặc áo lam dịu)
-    const robeColors = [0x8b5a2b, 0x5b7083, 0x6e6e6e, 0xb8860b];
+    const robeColors: RobeColorType[] = ["lam", "nau", "xam", "vang"];
     const robeColor = robeColors[id % robeColors.length];
-    const robeMat = new THREE.MeshStandardMaterial({
-      color: robeColor,
-      roughness: 0.8,
-    });
-    const bodyGeom = new THREE.CylinderGeometry(0.24, 0.36, 1.1, 14);
-    const bodyMesh = new THREE.Mesh(bodyGeom, robeMat);
-    bodyMesh.position.y = 0.55;
-    bodyMesh.castShadow = true;
-    group.add(bodyMesh);
+    const gender: GenderType = id % 3 === 0 ? "nu" : "nam";
+    const faceStyle: FaceStyleType = id % 2 === 0 ? "zen" : "happy";
+    const levelStr = `Cấp ${(id % 3) + 1}`;
 
-    // Đầu
-    const headMat = new THREE.MeshStandardMaterial({
-      color: 0xdfb18e,
-      roughness: 0.6,
-    });
-    const headGeom = new THREE.SphereGeometry(0.18, 14, 14);
-    const headMesh = new THREE.Mesh(headGeom, headMat);
-    headMesh.position.y = 1.25;
-    headMesh.castShadow = true;
-    group.add(headMesh);
+    const DHARMA_NAMES = [
+      "Tâm Nguyện",
+      "Liên Tâm",
+      "Viên Tín",
+      "Tuệ Tri",
+      "Như Đạo",
+      "Minh An",
+      "Thiện Hòa",
+      "Diệu Âm",
+      "Thanh Tịnh",
+      "Phúc Lành",
+    ];
+    const remoteName = DHARMA_NAMES[id % DHARMA_NAMES.length];
 
-    // Nón lá
-    const hatMat = new THREE.MeshStandardMaterial({
-      color: 0xd4a373,
-      roughness: 0.9,
+    const avatar = buildChibiAvatar({
+      robeColor,
+      gender,
+      faceStyle,
+      name: remoteName,
+      level: levelStr,
+      hasHat: id % 4 === 0,
+      isSelf: false,
     });
-    const hatGeom = new THREE.ConeGeometry(0.42, 0.2, 16);
-    const hat = new THREE.Mesh(hatGeom, hatMat);
-    hat.position.y = 1.44;
-    hat.castShadow = true;
-    group.add(hat);
-
-    // Bảng tên hiển thị trên đầu (Billboard Canvas Texture)
-    const nameSprite = this.createNameSprite(`Phật tử #${id}`);
-    nameSprite.position.set(0, 1.85, 0);
-    group.add(nameSprite);
 
     return {
       id,
-      mesh: group,
-      bodyMesh,
-      headMesh,
+      mesh: avatar.root,
+      avatar,
       targetPos: new THREE.Vector3(0, 0, 0),
       targetFacing: 0,
       currentFacing: 0,
       anim: 0,
       walkTimer: 0,
     };
-  }
-
-  private createNameSprite(text: string): THREE.Sprite {
-    const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 64;
-    const ctx = canvas.getContext("2d")!;
-
-    ctx.fillStyle = "rgba(20, 13, 8, 0.75)";
-    if (typeof ctx.roundRect === "function") {
-      ctx.beginPath();
-      ctx.roundRect(16, 8, 224, 48, 24);
-      ctx.fill();
-      ctx.strokeStyle = "rgba(245, 197, 99, 0.5)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(16, 8, 224, 48, 24);
-      ctx.stroke();
-    } else {
-      ctx.fillRect(16, 8, 224, 48);
-      ctx.strokeStyle = "rgba(245, 197, 99, 0.5)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(16, 8, 224, 48);
-    }
-
-    ctx.fillStyle = "#fdfaf4";
-    ctx.font = "bold 22px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, 128, 32);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    const spriteMat = new THREE.SpriteMaterial({
-      map: texture,
-      transparent: true,
-    });
-    const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(1.4, 0.35, 1);
-    return sprite;
   }
 
   /**
@@ -269,9 +283,18 @@ export class Engine {
       // Cập nhật bầu trời (mây trôi, sao nhấp nháy)
       this.sky.update(deltaSec);
 
+      // Cập nhật khuôn viên chùa (Shader đèn lồng đá tự động bập bùng & đồng bộ độ sáng ngày/đêm)
+      const lanternInt = this.sky.getLanternIntensity();
+      this.campus.update(deltaSec, lanternInt);
+
       // Callback cập nhật bổ sung (như Spatial Audio Listener)
       if (this.onUpdate) {
         this.onUpdate(this.player, deltaSec);
+      }
+
+      // Cập nhật tỷ lệ bảng tên nhân vật chính theo cự ly Camera
+      if (this.player.avatar?.fitPlate) {
+        this.player.avatar.fitPlate(this.camera);
       }
 
       // Nội suy chuyển động mượt mà cho tất cả người chơi khác (Interpolation Lerp)
@@ -286,18 +309,15 @@ export class Engine {
         entity.currentFacing += diff * 0.2;
         entity.mesh.rotation.y = entity.currentFacing;
 
-        // Hoạt họa nhấp nhô
+        // Hoạt họa nhấp nhô và bước chân mượt mà
         if (entity.anim === 1) {
-          entity.walkTimer += deltaSec * 11;
-          const bob = Math.sin(entity.walkTimer) * 0.04;
-          entity.bodyMesh.position.y = 0.55 + bob;
-          entity.headMesh.position.y = 1.25 + bob;
-        } else if (entity.anim === 3) {
-          entity.bodyMesh.rotation.x = 0.45;
-        } else {
-          entity.bodyMesh.position.y = 0.55;
-          entity.headMesh.position.y = 1.25;
-          entity.bodyMesh.rotation.x = 0;
+          entity.walkTimer += deltaSec * 10;
+        }
+        entity.avatar.updateAnimation(entity.anim, entity.walkTimer);
+
+        // Cập nhật tỷ lệ bảng tên người chơi khác theo cự ly Camera
+        if (entity.avatar.fitPlate) {
+          entity.avatar.fitPlate(this.camera);
         }
       }
 
@@ -311,8 +331,146 @@ export class Engine {
         l.mesh.rotation.y += deltaSec * 0.2;
       }
 
+      // Cập nhật hiệu ứng vòng sóng hoa sen khi nhấp chuột (Click Ripple)
+      const curTime = performance.now();
+      for (let i = this.activeRipples.length - 1; i >= 0; i--) {
+        const rip = this.activeRipples[i];
+        const progress = (curTime - rip.startTime) / rip.duration;
+        if (progress >= 1.0) {
+          this.scene.remove(rip.mesh);
+          (rip.mesh.material as THREE.Material).dispose();
+          this.activeRipples.splice(i, 1);
+        } else {
+          // Nở sóng lan tỏa từ 0.45 lên 1.35 mượt mà (Ease Out Cubic)
+          const easeProgress = 1.0 - Math.pow(1.0 - progress, 3);
+          const s = 0.45 + easeProgress * 0.9;
+          rip.mesh.scale.set(s, 1, s);
+          (rip.mesh.material as THREE.MeshBasicMaterial).opacity =
+            0.95 * (1.0 - progress * progress);
+        }
+      }
+
       this.renderer.render(this.scene, this.camera);
     };
     loop();
+  }
+
+  /**
+   * Tạo vòng sóng hoa sen vàng lan tỏa khi nhấp chuột trên mặt sân chùa
+   * Đặt độ cao nổi lên trên bề mặt viên gạch lát (viên gạch cao y = 0.08m)
+   */
+  public spawnRipple(x: number, z: number, groundY?: number): void {
+    const y = groundY !== undefined ? groundY : getGroundHeight(x, z);
+    const mesh = new THREE.Mesh(this.rippleGeom, this.rippleMat.clone());
+    // Đặt cao độ cao hơn mặt viên gạch lát 1.2cm (y = groundY + 0.012)
+    // kết hợp polygonOffset và renderOrder: 50 đảm bảo sóng luôn hiển thị rõ ràng trên mặt gạch
+    mesh.position.set(x, y + 0.012, z);
+    mesh.renderOrder = 50;
+    this.scene.add(mesh);
+    this.activeRipples.push({
+      mesh,
+      startTime: performance.now(),
+      duration: 580,
+    });
+  }
+
+  /**
+   * Tính năng Nhấp chuột để di chuyển (Click / Tap to Move) chuẩn Chùa Sen
+   */
+  private initClickToMove(): void {
+    const dom = this.renderer.domElement;
+    let downX = 0;
+    let downY = 0;
+    let downTime = 0;
+    const raycaster = new THREE.Raycaster();
+    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    const planeIntersect = new THREE.Vector3();
+
+    window.addEventListener("pointerdown", (e) => {
+      // Chỉ nhận nút chuột trái hoặc chạm màn hình
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest(".hud-bar") ||
+        target?.closest(".hud-tools") ||
+        target?.closest(".hud-room") ||
+        target?.closest(".modal-backdrop") ||
+        target?.closest("#joystick-zone") ||
+        target?.closest(".onb")
+      ) {
+        return;
+      }
+      downX = e.clientX;
+      downY = e.clientY;
+      downTime = performance.now();
+    });
+
+    window.addEventListener("pointerup", (e) => {
+      if (e.button !== 0 && e.pointerType === "mouse") return;
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest(".hud-bar") ||
+        target?.closest(".hud-tools") ||
+        target?.closest(".hud-room") ||
+        target?.closest(".modal-backdrop") ||
+        target?.closest("#joystick-zone") ||
+        target?.closest(".onb")
+      ) {
+        return;
+      }
+
+      const moved = Math.hypot(e.clientX - downX, e.clientY - downY);
+      const elapsed = performance.now() - downTime;
+
+      // Nhấp nhanh (< 350ms và không kéo xoay camera quá 8px)
+      if (moved < 8 && elapsed < 350) {
+        const rect = dom.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+          ((e.clientX - rect.left) / rect.width) * 2 - 1,
+          -((e.clientY - rect.top) / rect.height) * 2 + 1,
+        );
+        raycaster.setFromCamera(mouse, this.camera);
+
+        // 1. Raycast tìm bề mặt sàn / gạch lát thực tế trong Scene
+        const hits = raycaster.intersectObjects(this.campus.root.children, true);
+        let targetX = 0;
+        let targetZ = 0;
+        let targetY = 0;
+        let validHit = false;
+
+        for (const hit of hits) {
+          // Bỏ qua các bề mặt đứng của tường / cột (normal.y < 0.4) và mái nhà cao (y > 2.0)
+          if (hit.face && hit.face.normal.y > 0.4 && hit.point.y < 2.0) {
+            targetX = hit.point.x;
+            targetZ = hit.point.z;
+            targetY = hit.point.y;
+            validHit = true;
+            break;
+          }
+        }
+
+        // 2. Dự phòng va chạm với mặt phẳng sân chùa nếu không chạm mesh
+        if (!validHit) {
+          if (raycaster.ray.intersectPlane(groundPlane, planeIntersect)) {
+            targetX = planeIntersect.x;
+            targetZ = planeIntersect.z;
+            targetY = getGroundHeight(targetX, targetZ);
+            validHit = true;
+          }
+        }
+
+        // 3. Nếu điểm đến hợp lệ trong khuôn viên chùa (-34..34, -25..51)
+        if (
+          validHit &&
+          targetX >= -34 &&
+          targetX <= 34 &&
+          targetZ >= -25 &&
+          targetZ <= 51
+        ) {
+          this.spawnRipple(targetX, targetZ, targetY);
+          this.player.walkTo(targetX, targetZ);
+        }
+      }
+    });
   }
 }

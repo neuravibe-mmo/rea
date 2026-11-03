@@ -1,5 +1,10 @@
 import * as THREE from "three";
-import { CampusCollider } from "../campus/campus.ts";
+import { CampusCollider, getGroundHeight } from "../campus/campus.ts";
+import {
+  buildChibiAvatar,
+  ChibiAvatarInstance,
+  AvatarOptions,
+} from "./avatar.ts";
 
 export class PlayerController {
   public position: THREE.Vector3 = new THREE.Vector3(0, 0, 16);
@@ -7,26 +12,56 @@ export class PlayerController {
   public anim: number = 0; // 0: idle, 1: walk, 2: sit, 3: bow
   public mesh: THREE.Group;
 
+  // Điều khiển bàn phím & Joystick
   private keys: Record<string, boolean> = {};
   private joystickDelta = { x: 0, y: 0 };
-  private moveSpeed = 4.2; // mét / giây
   private colliders: CampusCollider[] = [];
 
-  // Các bộ phận nhân vật để tạo hoạt họa
-  public bodyMesh!: THREE.Mesh;
+  // Vận tốc chuyển động thực tế (Physics Velocity)
+  private vx = 0;
+  private vz = 0;
+
+  // Hệ số vật lý chuyển động chuẩn Chùa Sen (chuasen.com: Sm = 2.6, jm = 12, Mm = 16)
+  private readonly MAX_SPEED = 3.0; // mét / giây
+  private readonly ACCEL_RATE = 14.0; // Gia tốc tăng tốc mượt mà
+  private readonly DECEL_RATE = 16.0; // Giảm tốc phanh êm ái
+  private readonly ROT_RATE = 14.0; // Tốc độ quay mặt tự nhiên theo hướng đi
+
+  // Hệ thống Click-to-Move (Đi bộ đến điểm nhấp chuột chuẩn Chùa Sen)
+  public walkTarget: THREE.Vector3 | null = null;
+  public onArriveCallback: (() => void) | null = null;
+
+  // Đối tượng Avatar Chibi chuẩn Chùa Sen
+  public avatar!: ChibiAvatarInstance;
+  public bodyMesh!: THREE.Mesh; // Giữ để tương thích ngược code cũ
   public headMesh!: THREE.Mesh;
   public armsGroup!: THREE.Group;
+
   private walkTime: number = 0;
   private bowProgress: number = 0;
+  private bowTimer: number = 0;
+  private readonly BOW_DURATION: number = 2.6; // Chu kỳ lạy Phật 2.6s chuẩn Chùa Sen
+  private bowCallback: (() => void) | null = null;
+  private currentOptions: AvatarOptions = {
+    robeColor: 0x5a8ac4,
+    gender: "nam",
+    name: "Tâm Nguyện",
+    level: "Cấp 1",
+    hasHat: false,
+    faceStyle: "zen",
+    isSelf: true,
+  };
 
   constructor(colliders: CampusCollider[]) {
     this.colliders = colliders;
     // Điểm xuất phát phân tán nhẹ trong sân chùa để không đứng chồng lên nhau
-    const spawnX = (Math.random() - 0.5) * 4;
-    const spawnZ = 15 + Math.random() * 2.5;
-    this.position.set(spawnX, 0, spawnZ);
+    const spawnX = (Math.random() - 0.5) * 3;
+    const spawnZ = 15 + Math.random() * 2;
+    const spawnY = getGroundHeight(spawnX, spawnZ);
+    this.position.set(spawnX, spawnY, spawnZ);
 
-    this.mesh = this.createAvatarMesh();
+    this.mesh = new THREE.Group();
+    this.buildAvatar(this.currentOptions);
     this.mesh.position.copy(this.position);
 
     this.initKeyboard();
@@ -34,147 +69,168 @@ export class PlayerController {
   }
 
   /**
-   * Tạo Texture khuôn mặt hiền từ, mắt nhắm tịnh tâm và nụ cười nhẹ
+   * Tạo dựng mô hình nhân vật Chibi Phật tử dễ thương chuẩn Chùa Sen
    */
-  private createFaceTexture(): THREE.CanvasTexture {
-    const canvas = document.createElement("canvas");
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext("2d")!;
+  public buildAvatar(options: AvatarOptions): void {
+    this.currentOptions = { ...this.currentOptions, ...options };
 
-    // Nền da ấm
-    ctx.fillStyle = "#dfb18e";
-    ctx.fillRect(0, 0, 256, 256);
+    // Dọn dẹp avatar cũ nếu đã tồn tại
+    while (this.mesh.children.length > 0) {
+      const child = this.mesh.children[0];
+      this.mesh.remove(child);
+    }
 
-    // Mắt cong nhắm thiền tịnh
-    ctx.strokeStyle = "#3a2416";
-    ctx.lineWidth = 4.5;
-    ctx.lineCap = "round";
+    this.avatar = buildChibiAvatar(this.currentOptions);
+    this.mesh.add(this.avatar.root);
 
-    // Mắt trái
-    ctx.beginPath();
-    ctx.arc(88, 134, 16, 0.2 * Math.PI, 0.8 * Math.PI, false);
-    ctx.stroke();
-
-    // Mắt phải
-    ctx.beginPath();
-    ctx.arc(168, 134, 16, 0.2 * Math.PI, 0.8 * Math.PI, false);
-    ctx.stroke();
-
-    // Lông mày cong thanh tú
-    ctx.strokeStyle = "#4a3020";
-    ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    ctx.arc(88, 118, 20, 1.2 * Math.PI, 1.8 * Math.PI, false);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(168, 118, 20, 1.2 * Math.PI, 1.8 * Math.PI, false);
-    ctx.stroke();
-
-    // Nụ cười mỉm từ bi
-    ctx.strokeStyle = "#4a3020";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(128, 164, 14, 0.2 * Math.PI, 0.8 * Math.PI, false);
-    ctx.stroke();
-
-    // Má hồng nhẹ nhàng
-    ctx.fillStyle = "rgba(240, 142, 163, 0.4)";
-    ctx.beginPath();
-    ctx.ellipse(78, 150, 12, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.ellipse(178, 150, 12, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
-    return tex;
+    // Gán các thuộc tính tương thích ngược cho hệ thống cũ
+    this.bodyMesh = this.avatar.skirtMesh;
+    this.headMesh = this.avatar.headMesh;
+    this.armsGroup = this.avatar.armsGroup;
   }
 
   /**
-   * Tạo hình nhân vật Phật tử mặc áo lam truyền thống với tay áo và chi tiết
+   * Cập nhật thông tin Phật tử (tên, giới tính, màu áo) từ giao diện Onboarding / Tùy chỉnh
    */
-  private createAvatarMesh(): THREE.Group {
-    const group = new THREE.Group();
-
-    // Thân áo lam truyền thống
-    const robeMat = new THREE.MeshStandardMaterial({
-      color: 0x5b7083,
-      roughness: 0.8,
-    });
-    const bodyGeom = new THREE.CylinderGeometry(0.24, 0.36, 1.1, 14);
-    this.bodyMesh = new THREE.Mesh(bodyGeom, robeMat);
-    this.bodyMesh.position.y = 0.55;
-    this.bodyMesh.castShadow = true;
-    group.add(this.bodyMesh);
-
-    // Đầu (màu da ấm thanh thoát với vẽ nét mặt từ bi)
-    const faceTex = this.createFaceTexture();
-    const headMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      map: faceTex,
-      roughness: 0.6,
-    });
-    const headGeom = new THREE.SphereGeometry(0.18, 16, 16);
-    this.headMesh = new THREE.Mesh(headGeom, headMat);
-    this.headMesh.position.y = 1.25;
-    this.headMesh.rotation.y = -Math.PI / 2; // Xoay mặt về hướng trước
-    this.headMesh.castShadow = true;
-    group.add(this.headMesh);
-
-    // Nón lá thanh tịnh
-    const hatMat = new THREE.MeshStandardMaterial({
-      color: 0xd4a373,
-      roughness: 0.9,
-    });
-    const hatGeom = new THREE.ConeGeometry(0.42, 0.2, 16);
-    const hat = new THREE.Mesh(hatGeom, hatMat);
-    hat.position.y = 1.44;
-    hat.castShadow = true;
-    group.add(hat);
-
-    // Hai cánh tay chắp trước ngực (tư thế chắp tay hoa sen thanh tịnh)
-    this.armsGroup = new THREE.Group();
-    const armGeom = new THREE.CylinderGeometry(0.06, 0.08, 0.45, 8);
-
-    const leftArm = new THREE.Mesh(armGeom, robeMat);
-    leftArm.position.set(-0.2, 0.75, 0.16);
-    leftArm.rotation.set(0.6, 0, -0.4);
-    this.armsGroup.add(leftArm);
-
-    const rightArm = new THREE.Mesh(armGeom, robeMat);
-    rightArm.position.set(0.2, 0.75, 0.16);
-    rightArm.rotation.set(0.6, 0, 0.4);
-    this.armsGroup.add(rightArm);
-
-    // Hai bàn tay chắp trước ngực
-    const handMat = new THREE.MeshStandardMaterial({ color: 0xdfb18e });
-    const handGeom = new THREE.BoxGeometry(0.08, 0.14, 0.05);
-    const hands = new THREE.Mesh(handGeom, handMat);
-    hands.position.set(0, 0.88, 0.28);
-    this.armsGroup.add(hands);
-
-    group.add(this.armsGroup);
-
-    return group;
+  public setProfile(profile: {
+    name?: string;
+    gender?: "nam" | "nu";
+    color?: string;
+    level?: string;
+  }): void {
+    const opts: AvatarOptions = { isSelf: true };
+    if (profile.name) opts.name = profile.name;
+    if (profile.gender) opts.gender = profile.gender;
+    if (profile.level) opts.level = profile.level;
+    if (profile.color) {
+      opts.robeColor = new THREE.Color(profile.color).getHex();
+    }
+    this.buildAvatar(opts);
   }
 
+  /**
+   * Đi đến tọa độ đích (Click / Tap to Move)
+   */
+  public walkTo(x: number, z: number, onArrive?: () => void): void {
+    // Đang ngồi hoặc lạy thì tự động đứng dậy xả thiền
+    if (this.anim === 2 || this.anim === 3) {
+      this.anim = 0;
+    }
+    this.walkTarget = new THREE.Vector3(x, 0, z);
+    this.onArriveCallback = onArrive || null;
+  }
+
+  public clearWalkTarget(): void {
+    this.walkTarget = null;
+    this.onArriveCallback = null;
+  }
+
+  /**
+   * Cầm nắm vật phẩm (chổi quét lá...)
+   */
+  public setCarry(item: "broom" | null): void {
+    this.avatar?.setCarry?.(item);
+  }
+
+  /**
+   * Cập nhật dòng trạng thái nhỏ dưới bảng tên (đang thiền, đang niệm Phật, đang tụng kinh...)
+   */
+  public setSubtitle(sub: string): void {
+    this.avatar?.setSubtitle?.(sub);
+  }
+
+  /**
+   * Hiện bong bóng câu thoại / biểu cảm trên đỉnh đầu
+   */
+  public showChatBubble(text: string, durationMs?: number): void {
+    this.avatar?.showChatBubble?.(text, durationMs);
+  }
+
+  /**
+   * Thực hiện động tác Đại Lễ Phật (lạy phủ phục 8 keyframe trong 2.6s)
+   */
+  public bow(onComplete?: () => void): void {
+    this.anim = 3;
+    this.bowTimer = 0;
+    this.bowProgress = 0;
+    this.bowCallback = onComplete || null;
+    this.clearWalkTarget();
+    this.vx = 0;
+    this.vz = 0;
+  }
+
+  /**
+   * Ngồi thiền tĩnh tọa bắt ấn Tam Muội
+   */
+  public sit(toggle?: boolean): void {
+    if (toggle === undefined) {
+      this.anim = this.anim === 2 ? 0 : 2;
+    } else {
+      this.anim = toggle ? 2 : 0;
+    }
+    this.clearWalkTarget();
+    this.vx = 0;
+    this.vz = 0;
+  }
+
+  /**
+   * Bắt phím điều khiển hỗ trợ cả physical e.code (miễn nhiễm gõ tiếng Việt Telex/VNI)
+   * và e.key thông thường.
+   */
   private initKeyboard(): void {
+    const CODE_MAP: Record<string, "up" | "down" | "left" | "right"> = {
+      KeyW: "up",
+      ArrowUp: "up",
+      KeyS: "down",
+      ArrowDown: "down",
+      KeyA: "left",
+      ArrowLeft: "left",
+      KeyD: "right",
+      ArrowRight: "right",
+    };
+
+    const KEY_MAP: Record<string, "up" | "down" | "left" | "right"> = {
+      w: "up",
+      s: "down",
+      a: "left",
+      d: "right",
+      arrowup: "up",
+      arrowdown: "down",
+      arrowleft: "left",
+      arrowright: "right",
+    };
+
     window.addEventListener("keydown", (e) => {
-      this.keys[e.key.toLowerCase()] = true;
+      // Bỏ qua nếu đang gõ chữ trong ô nhập liệu
+      const target = e.target as HTMLElement | null;
       if (
-        ["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(
-          e.key.toLowerCase(),
-        )
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
       ) {
-        e.preventDefault();
+        return;
+      }
+
+      const dir = CODE_MAP[e.code] || KEY_MAP[e.key.toLowerCase()];
+      if (dir) {
+        this.keys[dir] = true;
+        this.clearWalkTarget(); // Hủy tự động đi khi dùng phím điều khiển
+        if (
+          ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(
+            e.key,
+          )
+        ) {
+          e.preventDefault();
+        }
       }
     });
+
     window.addEventListener("keyup", (e) => {
-      this.keys[e.key.toLowerCase()] = false;
+      const dir = CODE_MAP[e.code] || KEY_MAP[e.key.toLowerCase()];
+      if (dir) {
+        this.keys[dir] = false;
+      }
     });
   }
 
@@ -215,6 +271,7 @@ export class PlayerController {
             x: moveX / maxRadius,
             y: moveY / maxRadius,
           };
+          this.clearWalkTarget();
           break;
         }
       }
@@ -238,18 +295,17 @@ export class PlayerController {
   }
 
   /**
-   * Cập nhật di chuyển theo góc quay ngang của camera (cameraYaw)
-   * và tính toán trượt tường mượt mà (Smooth Wall Sliding)
+   * Cập nhật chuyển động với quán tính gia tốc / giảm tốc và trượt tường chuẩn Chùa Sen
    */
   public update(deltaSec: number, cameraYaw: number): void {
     let rawInputX = 0;
     let rawInputZ = 0;
 
-    // Bàn phím WASD / Mũi tên
-    if (this.keys["w"] || this.keys["arrowup"]) rawInputZ -= 1;
-    if (this.keys["s"] || this.keys["arrowdown"]) rawInputZ += 1;
-    if (this.keys["a"] || this.keys["arrowleft"]) rawInputX -= 1;
-    if (this.keys["d"] || this.keys["arrowright"]) rawInputX += 1;
+    // Phím bấm WASD / Mũi tên
+    if (this.keys["up"]) rawInputZ -= 1;
+    if (this.keys["down"]) rawInputZ += 1;
+    if (this.keys["left"]) rawInputX -= 1;
+    if (this.keys["right"]) rawInputX += 1;
 
     // Cần điều khiển cảm ứng
     if (
@@ -258,51 +314,105 @@ export class PlayerController {
     ) {
       rawInputX = this.joystickDelta.x;
       rawInputZ = this.joystickDelta.y;
+      this.clearWalkTarget();
     }
 
-    const inputLen = Math.hypot(rawInputX, rawInputZ);
+    let moveDirX = 0;
+    let moveDirZ = 0;
+    let targetSpeed = 0;
+    const manualLen = Math.hypot(rawInputX, rawInputZ);
 
-    if (inputLen > 0.05 && this.anim !== 2 && this.anim !== 3) {
-      const normInputX = rawInputX / inputLen;
-      const normInputZ = rawInputZ / inputLen;
+    // 1. Nếu có thao tác phím / joystick
+    if (manualLen > 0.05 && this.anim !== 2 && this.anim !== 3) {
+      this.clearWalkTarget();
+      const normInputX = rawInputX / manualLen;
+      const normInputZ = rawInputZ / manualLen;
 
       // Xoay vector di chuyển theo hướng camera đang nhìn
-      // Camera nhìn về phía trước tương ứng với -cos(yaw), sin(yaw)
       const sinYaw = Math.sin(cameraYaw);
       const cosYaw = Math.cos(cameraYaw);
 
-      const worldMoveX = normInputX * cosYaw + normInputZ * sinYaw;
-      const worldMoveZ = -normInputX * sinYaw + normInputZ * cosYaw;
+      moveDirX = normInputX * cosYaw + normInputZ * sinYaw;
+      moveDirZ = -normInputX * sinYaw + normInputZ * cosYaw;
+      targetSpeed = this.MAX_SPEED * Math.min(manualLen, 1);
+    }
+    // 2. Nếu đang tự động đi tới điểm nhấp chuột (Click / Tap to Move)
+    else if (this.walkTarget && this.anim !== 2 && this.anim !== 3) {
+      const toX = this.walkTarget.x - this.position.x;
+      const toZ = this.walkTarget.z - this.position.z;
+      const dist = Math.hypot(toX, toZ);
+      const arriveRadius = 0.35;
 
-      const speed = this.moveSpeed * Math.min(inputLen, 1);
-      const deltaX = worldMoveX * speed * deltaSec;
-      const deltaZ = worldMoveZ * speed * deltaSec;
+      if (dist <= arriveRadius) {
+        // Đã đến nơi
+        const cb = this.onArriveCallback;
+        this.clearWalkTarget();
+        if (cb) cb();
+      } else {
+        moveDirX = toX / dist;
+        moveDirZ = toZ / dist;
+        // Giảm tốc mượt mà khi tiến sát đích đến
+        const decelFactor = Math.min(1.0, Math.max(0.35, dist / 1.2));
+        targetSpeed = this.MAX_SPEED * decelFactor;
+      }
+    }
 
-      // Xử lý va chạm trượt tường mượt mà (Smooth Wall Sliding):
-      // Tách rời việc thử di chuyển trên trục X và Z
+    // 3. Nội suy vận tốc quán tính (Exponential Velocity Lerp)
+    const hasMoveIntent = targetSpeed > 0;
+    const targetVx = moveDirX * targetSpeed;
+    const targetVz = moveDirZ * targetSpeed;
+
+    const rate = hasMoveIntent ? this.ACCEL_RATE : this.DECEL_RATE;
+    const blend = 1 - Math.exp(-rate * deltaSec);
+
+    this.vx += (targetVx - this.vx) * blend;
+    this.vz += (targetVz - this.vz) * blend;
+
+    const currentSpeed = Math.hypot(this.vx, this.vz);
+    if (!hasMoveIntent && currentSpeed < 0.05) {
+      this.vx = 0;
+      this.vz = 0;
+    }
+
+    // 4. Áp dụng chuyển động & Trượt tường mượt mà (Smooth Wall Sliding)
+    if (currentSpeed > 0.02) {
+      const deltaX = this.vx * deltaSec;
+      const deltaZ = this.vz * deltaSec;
+
       const nextX = this.position.x + deltaX;
       const nextZ = this.position.z + deltaZ;
 
       if (!this.checkCollision(nextX, this.position.z)) {
         this.position.x = nextX;
-      }
-      if (!this.checkCollision(this.position.x, nextZ)) {
-        this.position.z = nextZ;
+      } else {
+        this.vx = 0;
       }
 
-      // Quay mặt nhân vật mượt mà về hướng di chuyển (Angular Lerp)
-      const targetFacing = Math.atan2(worldMoveX, worldMoveZ);
-      this.facing = this.lerpAngle(this.facing, targetFacing, 0.22);
+      if (!this.checkCollision(this.position.x, nextZ)) {
+        this.position.z = nextZ;
+      } else {
+        this.vz = 0;
+      }
+
+      // Xoay mặt nhân vật mượt mà theo hướng di chuyển (Angular Lerp)
+      const targetFacing = Math.atan2(this.vx, this.vz);
+      const rotBlend = 1 - Math.exp(-this.ROT_RATE * deltaSec);
+      this.facing = this.lerpAngle(this.facing, targetFacing, rotBlend);
       this.mesh.rotation.y = this.facing;
 
       this.anim = 1; // Walk
-      this.walkTime += deltaSec * 11;
+      this.walkTime +=
+        deltaSec * (7 + 5 * (currentSpeed / this.MAX_SPEED));
     } else {
       if (this.anim === 1) this.anim = 0; // Idle
     }
 
     // Cập nhật hoạt họa chuyển động cơ thể (Animation Bobbing & Posture)
     this.updateAnimations(deltaSec);
+
+    // Cập nhật độ cao Y bám sát mặt gạch lát / sàn chùa mượt mà
+    const targetY = getGroundHeight(this.position.x, this.position.z);
+    this.position.y += (targetY - this.position.y) * Math.min(1, 14 * deltaSec);
 
     this.mesh.position.copy(this.position);
   }
@@ -311,36 +421,24 @@ export class PlayerController {
    * Tính toán hoạt họa bước chân, nhấp nhô người, lạy Phật và ngồi thiền
    */
   private updateAnimations(deltaSec: number): void {
-    if (this.anim === 1) {
-      // Đi bộ: Nhấp nhô nhịp bước chân
-      const bob = Math.sin(this.walkTime) * 0.04;
-      this.bodyMesh.position.y = 0.55 + bob;
-      this.headMesh.position.y = 1.25 + bob;
-      this.armsGroup.position.y = bob;
-      this.bodyMesh.rotation.x = 0.08; // Người hơi nghiêng về phía trước
-    } else if (this.anim === 3) {
-      // Lễ Phật: Cúi gập người thành kính
-      this.bowProgress = Math.min(1.0, this.bowProgress + deltaSec * 3.5);
-      const bowAngle = Math.sin(this.bowProgress * Math.PI) * 0.55;
-      this.bodyMesh.rotation.x = bowAngle;
-      this.headMesh.rotation.x = bowAngle * 0.8;
-      this.bodyMesh.position.y = 0.55 - bowAngle * 0.15;
-      this.headMesh.position.y = 1.25 - bowAngle * 0.25;
-      this.armsGroup.position.y = -bowAngle * 0.2;
-    } else if (this.anim === 2) {
-      // Ngồi thiền: Hạ thấp độ cao xuống bồ đoàn
-      this.bodyMesh.position.y = 0.35;
-      this.headMesh.position.y = 0.95;
-      this.armsGroup.position.y = -0.22;
-      this.bodyMesh.rotation.x = 0;
+    if (this.anim === 3) {
+      this.bowTimer += deltaSec;
+      this.bowProgress = Math.min(1.0, this.bowTimer / this.BOW_DURATION);
+      if (this.bowProgress >= 1.0) {
+        this.anim = 0;
+        this.bowProgress = 0;
+        this.bowTimer = 0;
+        const cb = this.bowCallback;
+        this.bowCallback = null;
+        if (cb) cb();
+      }
     } else {
-      // Idle: Trở về tư thế đứng trang nghiêm
-      this.bodyMesh.position.y = 0.55;
-      this.headMesh.position.y = 1.25;
-      this.armsGroup.position.y = 0;
-      this.bodyMesh.rotation.x = 0;
-      this.headMesh.rotation.x = 0;
       this.bowProgress = 0;
+      this.bowTimer = 0;
+    }
+
+    if (this.avatar) {
+      this.avatar.updateAnimation(this.anim, this.walkTime, this.bowProgress);
     }
   }
 
@@ -357,15 +455,32 @@ export class PlayerController {
    * Kiểm tra va chạm với các chướng ngại vật trong khuôn viên
    */
   private checkCollision(x: number, z: number): boolean {
-    const radius = 0.38;
+    const playerRadius = 0.32; // Bán kính chuẩn Chùa Sen wm = 0.3m
     for (const c of this.colliders) {
-      if (
-        x + radius > c.minX &&
-        x - radius < c.maxX &&
-        z + radius > c.minZ &&
-        z - radius < c.maxZ
+      // 1. Va chạm hình trụ tròn
+      if (c.cx !== undefined && c.cz !== undefined && c.radius !== undefined) {
+        const dx = x - c.cx;
+        const dz = z - c.cz;
+        const minDist = c.radius + playerRadius;
+        if (dx * dx + dz * dz < minDist * minDist) {
+          return true;
+        }
+      }
+      // 2. Va chạm hình hộp
+      else if (
+        c.minX !== undefined &&
+        c.maxX !== undefined &&
+        c.minZ !== undefined &&
+        c.maxZ !== undefined
       ) {
-        return true;
+        if (
+          x + playerRadius > c.minX &&
+          x - playerRadius < c.maxX &&
+          z + playerRadius > c.minZ &&
+          z - playerRadius < c.maxZ
+        ) {
+          return true;
+        }
       }
     }
     // Giới hạn trong khuôn viên tường bao chùa (-35..35, -26..52.5)

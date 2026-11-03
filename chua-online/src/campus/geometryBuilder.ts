@@ -296,20 +296,22 @@ export class GeometryBuilder {
   /**
    * Dựng mái chùa cổ truyền Á Đông với đầy đủ chi tiết kiến trúc Chùa Sen:
    * 1. Mặt ngói nền uốn cong 4 hướng
-   * 2. Các dải sống ngói âm dương nổi khối 3D (Tile Ribs)
-   * 3. Mũi ngói rủ xuống diềm mái (Toe rows)
-   * 4. Sống ngói bờ đao (Hip caps) bảo vệ 4 góc
-   * 5. 4 đầu đao vuốt cong vút lên cao bịt đồng/vàng (Corner Horns)
-   * 6. Bờ nóc đỉnh mái (Ridge) và Kìm nóc hóa rồng
+   * 2. Trần rui mè gỗ sẫm kín khít mặt dưới (không bị hở khi nhìn từ dưới lên)
+   * 3. Các dải sống ngói âm dương nổi khối 3D (Tile Ribs)
+   * 4. Mũi ngói rủ xuống diềm mái (Toe rows / Fascia)
+   * 5. Sống ngói bờ đao (Hip caps) bảo vệ 4 góc
+   * 6. 4 đầu đao vuốt cong vút lên cao bịt đồng/vàng (Corner Horns)
+   * 7. Bờ nóc đỉnh mái (Ridge) và Phù điêu Lưỡng Long Chầu Nguyệt dát vàng
    */
-  addCurvedRoofTier(spec: RoofTierSpec): void {
+  addCurvedRoofTier(spec: RoofTierSpec, goldB?: GeometryBuilder): void {
     const tileColor = spec.tileColor ?? new THREE.Color(0x6a5a45);
     const thickness = spec.thickness ?? 0.22;
     const pt = new THREE.Vector3();
     const stepsAlongSide = 12;
     const stepsUpSlope = 8;
+    const woodEaveCol = new THREE.Color(0x2d1c10); // Màu gỗ lim sẫm trần rui mè
 
-    // 1. Dựng 4 mặt ngói nền uốn cong
+    // 1. Dựng 4 mặt ngói nền uốn cong (Cả mặt trên và mặt dưới trần gỗ kín khít)
     for (let side = 0; side < 4; side++) {
       const isFrontBack = side === 0 || side === 1;
       const slopeLen = Math.hypot(
@@ -318,10 +320,12 @@ export class GeometryBuilder {
       );
 
       const grid: number[][] = [];
+      const underGrid: number[][] = [];
 
       for (let ir = 0; ir <= stepsUpSlope; ir++) {
         const r = ir / stepsUpSlope;
         const row: number[] = [];
+        const underRow: number[] = [];
 
         for (let in_ = 0; in_ <= stepsAlongSide; in_++) {
           const n = -1 + (2 * in_) / stepsAlongSide;
@@ -345,11 +349,26 @@ export class GeometryBuilder {
           const nz = (pt.z - spec.cz) * 0.08;
           const vIdx = this.vert(pt.x, pt.y, pt.z, nx, 1, nz, col, u, v);
           row.push(vIdx);
+
+          // Mặt trần dưới mái (Soffit / Trần rui mè) hạ thấp theo thickness
+          const uIdx = this.vert(
+            pt.x,
+            pt.y - thickness,
+            pt.z,
+            -nx,
+            -1,
+            -nz,
+            woodEaveCol,
+            u,
+            v,
+          );
+          underRow.push(uIdx);
         }
         grid.push(row);
+        underGrid.push(underRow);
       }
 
-      // Nối các ô vuông lưới thành 2 tam giác
+      // Nối các ô vuông lưới thành mặt ngói phía trên
       for (let ir = 0; ir < stepsUpSlope; ir++) {
         for (let in_ = 0; in_ < stepsAlongSide; in_++) {
           const v00 = grid[ir][in_];
@@ -357,27 +376,35 @@ export class GeometryBuilder {
           const v10 = grid[ir + 1][in_];
           const v11 = grid[ir + 1][in_ + 1];
           this.quad(v00, v01, v11, v10);
+
+          // Mặt trần gỗ phía dưới (ngửa xuống dưới nhìn từ sân chùa lên kín khít, không hở)
+          const u00 = underGrid[ir][in_];
+          const u01 = underGrid[ir][in_ + 1];
+          const u10 = underGrid[ir + 1][in_];
+          const u11 = underGrid[ir + 1][in_ + 1];
+          this.quad(u00, u10, u11, u01);
         }
       }
 
-      // Diềm mái (fascia) ở mép dưới vạt mái (r = 0)
-      const fasciaCol = new THREE.Color(0x3d220f);
+      // Diềm mái (fascia) ở mép dưới vạt mái (r = 0): bịt kín mặt trên xuống mặt dưới
       for (let in_ = 0; in_ < stepsAlongSide; in_++) {
         const top0 = grid[0][in_];
         const top1 = grid[0][in_ + 1];
-
-        const x0 = this.pos[top0 * 3];
-        const y0 = this.pos[top0 * 3 + 1];
-        const z0 = this.pos[top0 * 3 + 2];
-
-        const x1 = this.pos[top1 * 3];
-        const y1 = this.pos[top1 * 3 + 1];
-        const z1 = this.pos[top1 * 3 + 2];
-
-        const b0 = this.vert(x0, y0 - thickness, z0, 0, -1, 0, fasciaCol, 0, 0);
-        const b1 = this.vert(x1, y1 - thickness, z1, 0, -1, 0, fasciaCol, 1, 0);
-
+        const b0 = underGrid[0][in_];
+        const b1 = underGrid[0][in_ + 1];
         this.quad(top0, top1, b1, b0);
+      }
+
+      // Viền mép trên đỉnh mái (r = 1): bịt kín kết nối mặt trên với mặt dưới nếu là tầng mái hở (Tier 1)
+      if (spec.Rz > 0) {
+        const lastIr = stepsUpSlope;
+        for (let in_ = 0; in_ < stepsAlongSide; in_++) {
+          const t0 = grid[lastIr][in_];
+          const t1 = grid[lastIr][in_ + 1];
+          const u0 = underGrid[lastIr][in_];
+          const u1 = underGrid[lastIr][in_ + 1];
+          this.quad(t0, u0, u1, t1);
+        }
       }
 
       // 2. Dựng các dải sống ngói âm dương nổi khối 3D (Tile Ribs Vg)
@@ -388,10 +415,10 @@ export class GeometryBuilder {
     this.addHipCaps(spec);
 
     // 4. 4 Đầu đao vuốt cong vút lên không trung bịt đồng dát vàng (Corner Horns Gg)
-    this.addCornerHorns(spec);
+    this.addCornerHorns(spec, goldB);
 
-    // 5. Bờ nóc mái ngọc / gạch nung đỉnh nóc (Ridge) và Kìm nóc
-    this.addRidgeAndBeasts(spec);
+    // 5. Bờ nóc mái ngọc / gạch nung đỉnh nóc (Ridge) và Phù điêu Lưỡng Long Chầu Nguyệt
+    this.addRidgeAndBeasts(spec, goldB);
   }
 
   /**
@@ -563,9 +590,10 @@ export class GeometryBuilder {
   /**
    * Tạo 4 đầu đao vuốt cong vút lên không trung với chóp nhọn bọc đồng dát vàng (Corner Horns Gg)
    */
-  private addCornerHorns(spec: RoofTierSpec): void {
-    const goldCol = new THREE.Color(0xd4af37);
+  private addCornerHorns(spec: RoofTierSpec, goldB?: GeometryBuilder): void {
+    const goldCol = new THREE.Color(0xffd700);
     const woodHornCol = new THREE.Color(0x3a2617);
+    const targetGold = goldB ?? this;
     const corners: [number, number][] = [
       [1, 1],
       [-1, 1],
@@ -581,19 +609,21 @@ export class GeometryBuilder {
       const startZ = spec.cz + signZ * (spec.B + flare);
       const startY = spec.baseY + curl + 0.05;
 
-      const hornSteps = 6;
+      const hornSteps = 8;
       let prevRing: number[] = [];
 
       for (let step = 0; step <= hornSteps; step++) {
         const t = step / hornSteps;
-        // Đường cong vút ra ngoài và hếch mạnh lên trời
-        const hx = startX + signX * t * 0.75;
-        const hz = startZ + signZ * t * 0.75;
-        const hy = startY + Math.pow(t, 1.8) * 0.95;
+        // Đường cong vút ra ngoài và hếch mạnh lên trời chuẩn kiến trúc đao cong Chùa Sen
+        const hx = startX + signX * (t * 0.95 + Math.pow(t, 2.5) * 0.35);
+        const hz = startZ + signZ * (t * 0.95 + Math.pow(t, 2.5) * 0.35);
+        const hy = startY + Math.pow(t, 1.95) * 1.35;
 
-        // Bán kính ống vuốt nhọn dần từ 0.13m về 0.03m
-        const hornR = lerp(0.13, 0.03, t);
-        const col = t > 0.65 ? goldCol : woodHornCol; // Chóp đầu đao mạ vàng kim
+        // Bán kính ống vuốt nhọn dần từ 0.14m về 0.025m
+        const hornR = lerp(0.14, 0.025, t);
+        const isGoldTip = t > 0.6;
+        const col = isGoldTip ? goldCol : woodHornCol; // Chóp ngoài cùng bọc đồng dát vàng kim
+        const builder = isGoldTip && goldB ? targetGold : this;
 
         const ringVerts: number[] = [];
         const ringSegs = 6;
@@ -602,10 +632,10 @@ export class GeometryBuilder {
           const rx = hx + Math.cos(ang) * hornR;
           const rz = hz + Math.sin(ang) * hornR;
           const ry = hy + Math.sin(ang) * (hornR * 0.5);
-          ringVerts.push(this.vert(rx, ry, rz, 0, 1, 0, col));
+          ringVerts.push(builder.vert(rx, ry, rz, 0, 1, 0, col));
         }
 
-        if (step > 0 && prevRing.length > 0) {
+        if (step > 0 && prevRing.length > 0 && builder === this) {
           for (let i = 0; i < ringSegs; i++) {
             const nextI = (i + 1) % ringSegs;
             this.quad(
@@ -622,50 +652,210 @@ export class GeometryBuilder {
   }
 
   /**
-   * Tạo bờ nóc gạch ngọc (Ridge) và Kìm nóc cá hóa rồng
+   * Tạo bờ nóc gạch ngọc (Ridge) và Phù điêu Lưỡng Long Chầu Nguyệt dát vàng (chuasen.com)
+   * Toàn bộ phần Rồng và Mặt Nguyệt dát vàng được đưa vào goldB để hiển thị sắc vàng kim óng ả!
    */
-  private addRidgeAndBeasts(spec: RoofTierSpec): void {
+  private addRidgeAndBeasts(spec: RoofTierSpec, goldB?: GeometryBuilder): void {
+    const targetGold = goldB ?? this;
     const ridgeCol = spec.ridgeColor ?? new THREE.Color(0x4a2818);
-    const goldCol = new THREE.Color(0xd4af37);
+    const goldCol = new THREE.Color(0xffe066);
+    const goldDeep = new THREE.Color(0xd98218);
     const ridgeY = spec.baseY + spec.H;
     const ridgeHalfX = Math.max(spec.Rx + 0.45, 0.6);
     const ridgeHalfZ = Math.max(spec.Rz + 0.45, 0.45);
 
     if (spec.Rz === 0) {
-      // Đỉnh nóc thẳng chạy dọc trục X (như nóc Chánh Điện)
+      // 1. Đỉnh nóc thẳng chạy dọc trục X (nóc Chánh Điện) bằng ngói gạch sẫm màu
       this.addBox(
         spec.cx - ridgeHalfX,
         ridgeY - 0.05,
-        spec.cz - 0.28,
+        spec.cz - 0.32,
         spec.cx + ridgeHalfX,
-        ridgeY + 0.38,
-        spec.cz + 0.28,
+        ridgeY + 0.42,
+        spec.cz + 0.32,
         ridgeCol,
       );
 
-      // Kìm nóc / Thao thiết hóa rồng 2 đầu bờ nóc chạm vàng
+      // Kìm nóc / Thao thiết hóa rồng 2 đầu bờ nóc
       for (const sign of [-1, 1]) {
         const kx = spec.cx + sign * ridgeHalfX;
         // Thân kìm nóc
         this.addBox(
-          kx - 0.2,
+          kx - 0.22,
           ridgeY + 0.1,
-          spec.cz - 0.25,
-          kx + 0.2,
-          ridgeY + 0.85,
-          spec.cz + 0.25,
+          spec.cz - 0.28,
+          kx + 0.22,
+          ridgeY + 0.95,
+          spec.cz + 0.28,
+          ridgeCol,
+        );
+        // Đuôi kìm nóc dát vàng uốn lượn ngược lên trời
+        targetGold.addBox(
+          kx + sign * 0.08,
+          ridgeY + 0.75,
+          spec.cz - 0.18,
+          kx + sign * 0.42,
+          ridgeY + 1.35,
+          spec.cz + 0.18,
           goldCol,
         );
-        // Đuôi rồng uốn lượn ngược lên
-        this.addBox(
-          kx + sign * 0.1,
-          ridgeY + 0.65,
-          spec.cz - 0.15,
-          kx + sign * 0.38,
+      }
+
+      // =========================================================================
+      // PHÙ ĐIÊU LƯỠNG LONG CHẦU NGUYỆT DÁT VÀNG TRÊN ĐỈNH NÓC CHÁNH ĐIỆN (chuasen.com)
+      // Toàn bộ chi tiết vàng này dựng vào targetGold để hiển thị vàng kim óng ả!
+      // =========================================================================
+      const sunCenterY = ridgeY + 1.25;
+
+      // 1. Tòa sen chân đế & Mặt Nguyệt / Bánh xe Pháp Luân ở trung tâm (x = 0)
+      targetGold.addCylinder(
+        spec.cx,
+        spec.cz,
+        ridgeY + 0.42,
+        ridgeY + 0.62,
+        0.45,
+        0.32,
+        14,
+        goldDeep,
+      );
+      // 8 Cánh sen dát vàng xòe quanh chân đế mặt nguyệt
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        targetGold.addPetal(
+          spec.cx,
+          ridgeY + 0.58,
+          spec.cz,
+          a,
+          0.45,
+          0.28,
+          0.16,
+          0.04,
+          goldCol,
+        );
+      }
+
+      // Đĩa Mặt Nguyệt tròn dát vàng trung tâm
+      targetGold.addBox(
+        spec.cx - 0.45,
+        sunCenterY - 0.45,
+        spec.cz - 0.08,
+        spec.cx + 0.45,
+        sunCenterY + 0.45,
+        spec.cz + 0.08,
+        goldCol,
+      );
+
+      // Vành tròn kim quang viền ngoài
+      targetGold.addCylinder(
+        spec.cx,
+        spec.cz,
+        sunCenterY - 0.52,
+        sunCenterY + 0.52,
+        0.58,
+        0.58,
+        18,
+        goldDeep,
+      );
+
+      // 16 Tia hào quang mặt trời tỏa sáng rực rỡ xung quanh
+      for (let i = 0; i < 16; i++) {
+        const ang = (i / 16) * Math.PI * 2;
+        const inR = 0.62;
+        const outR = i % 2 === 0 ? 1.05 : 0.85;
+        const p0 = new THREE.Vector3(
+          spec.cx + Math.cos(ang) * inR,
+          sunCenterY + Math.sin(ang) * inR,
+          spec.cz,
+        );
+        const p1 = new THREE.Vector3(
+          spec.cx + Math.cos(ang) * outR,
+          sunCenterY + Math.sin(ang) * outR,
+          spec.cz,
+        );
+        targetGold.addLimb(p0, p1, 0.048, 0.008, 4, goldCol);
+      }
+
+      // Trụ đỡ mặt nguyệt nối xuống chân đế
+      targetGold.addLimb(
+        new THREE.Vector3(spec.cx, ridgeY + 0.62, spec.cz),
+        new THREE.Vector3(spec.cx, sunCenterY - 0.45, spec.cz),
+        0.08,
+        0.08,
+        6,
+        goldDeep,
+      );
+
+      // 2. Đôi Rồng Vàng uốn lượn đối xứng 2 bên (Two Symmetrical Golden Dragons)
+      // Tọa độ các điểm uốn thân rồng (đã nâng cao hoàn toàn trên bờ nóc ridgeY + 0.42)
+      const dragonCtrl: [number, number][] = [
+        [1.35, 1.25], // Đầu rồng chầu sát Mặt Nguyệt
+        [1.85, 1.55], // Cổ rồng vươn cao
+        [2.45, 0.95], // Nhịp uốn 1 (bụng rồng lượn trên bờ nóc)
+        [3.25, 1.45], // Nhịp vồng 2 (lưng rồng uốn cao)
+        [4.05, 0.85], // Nhịp uốn 2 (bụng rồng nhịp 2)
+        [4.65, 1.15], // Đuôi rồng bắt đầu vút lên
+        [5.05, 1.65], // Đuôi rồng cuộn vút cao ở đầu hồi thành ngọn lửa vàng
+      ];
+
+      for (const sign of [-1, 1]) {
+        // Dựng các đốt thân rồng nối nhau bằng addLimb
+        for (let i = 0; i < dragonCtrl.length - 1; i++) {
+          const [x0, y0] = dragonCtrl[i];
+          const [x1, y1] = dragonCtrl[i + 1];
+          const p0 = new THREE.Vector3(spec.cx + sign * x0, ridgeY + y0, spec.cz);
+          const p1 = new THREE.Vector3(spec.cx + sign * x1, ridgeY + y1, spec.cz);
+
+          // Bán kính thân rồng thuôn dần từ cổ (0.16m) về đuôi (0.05m)
+          const r0 = lerp(0.16, 0.05, i / (dragonCtrl.length - 1));
+          const r1 = lerp(0.16, 0.05, (i + 1) / (dragonCtrl.length - 1));
+          targetGold.addLimb(p0, p1, r0, r1, 7, goldCol);
+
+          // Dãy vây vi cá nhọn nhô lên dọc sống lưng rồng
+          const finP = new THREE.Vector3().lerpVectors(p0, p1, 0.5);
+          const finTip = finP
+            .clone()
+            .add(new THREE.Vector3(0, 0.22 * (1 - (i / dragonCtrl.length) * 0.35), 0));
+          targetGold.addLimb(finP, finTip, 0.045, 0.006, 4, goldDeep);
+        }
+
+        // Móng vuốt rồng (Claws) bám trên bờ nóc
+        const frontClawBase = new THREE.Vector3(spec.cx + sign * 2.35, ridgeY + 0.95, spec.cz);
+        const frontClawFoot = new THREE.Vector3(spec.cx + sign * 2.25, ridgeY + 0.44, spec.cz + 0.12);
+        targetGold.addLimb(frontClawBase, frontClawFoot, 0.06, 0.035, 5, goldDeep);
+
+        const rearClawBase = new THREE.Vector3(spec.cx + sign * 3.95, ridgeY + 0.85, spec.cz);
+        const rearClawFoot = new THREE.Vector3(spec.cx + sign * 3.85, ridgeY + 0.44, spec.cz + 0.12);
+        targetGold.addLimb(rearClawBase, rearClawFoot, 0.055, 0.03, 5, goldDeep);
+
+        // Chi tiết Đầu Rồng (Head, Snout, Horns, Whiskers)
+        const headPos = new THREE.Vector3(spec.cx + sign * 1.35, ridgeY + 1.25, spec.cz);
+        // Mõm rồng há ngậm ngọc hướng vào Mặt Nguyệt
+        const snoutPos = new THREE.Vector3(spec.cx + sign * 0.92, ridgeY + 1.22, spec.cz);
+        targetGold.addLimb(headPos, snoutPos, 0.13, 0.075, 6, goldCol);
+
+        // Viên ngọc Minh Châu ngậm ở khóe miệng
+        targetGold.addCylinder(
+          spec.cx + sign * 0.82,
+          spec.cz,
           ridgeY + 1.15,
-          spec.cz + 0.15,
-          goldCol,
+          ridgeY + 1.29,
+          0.065,
+          0.065,
+          8,
+          new THREE.Color(0xffffff),
         );
+
+        // Sừng rồng (Dragon Horns) vươn cao uy nghi
+        const hornTip = headPos
+          .clone()
+          .add(new THREE.Vector3(sign * 0.28, 0.45, 0));
+        targetGold.addLimb(headPos, hornTip, 0.045, 0.008, 5, goldCol);
+
+        // Râu rồng (Whiskers) uốn cong mềm mại bay về phía trước
+        const beardTip = snoutPos
+          .clone()
+          .add(new THREE.Vector3(-sign * 0.24, -0.22, 0.1));
+        targetGold.addLimb(snoutPos, beardTip, 0.028, 0.006, 4, goldCol);
       }
     } else {
       // Đỉnh nóc hình hộp vuông (cổ lầu / tháp chuông)
@@ -678,6 +868,305 @@ export class GeometryBuilder {
         spec.cz + ridgeHalfZ,
         ridgeCol,
       );
+    }
+  }
+
+  /**
+   * Tạo đoạn cành / rễ cong giữa 2 điểm trong không gian 3D (Limb)
+   */
+  addLimb(
+    p0: THREE.Vector3,
+    p1: THREE.Vector3,
+    r0: number,
+    r1: number,
+    segs = 6,
+    color: THREE.Color = new THREE.Color(0x5c3317),
+    caps = false,
+  ): void {
+    const dir = new THREE.Vector3().subVectors(p1, p0);
+    const len = dir.length();
+    if (len < 0.0001) return;
+    dir.normalize();
+
+    const arbitrary =
+      Math.abs(dir.y) < 0.95
+        ? new THREE.Vector3(0, 1, 0)
+        : new THREE.Vector3(1, 0, 0);
+    const side = new THREE.Vector3().crossVectors(dir, arbitrary).normalize();
+    const up = new THREE.Vector3().crossVectors(side, dir).normalize();
+
+    const bottomVerts: number[] = [];
+    const topVerts: number[] = [];
+
+    for (let i = 0; i <= segs; i++) {
+      const a = (i / segs) * Math.PI * 2;
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      const radial = new THREE.Vector3()
+        .addScaledVector(side, cos)
+        .addScaledVector(up, sin);
+
+      const v0 = new THREE.Vector3().copy(p0).addScaledVector(radial, r0);
+      const v1 = new THREE.Vector3().copy(p1).addScaledVector(radial, r1);
+
+      bottomVerts.push(
+        this.vert(
+          v0.x,
+          v0.y,
+          v0.z,
+          radial.x,
+          radial.y,
+          radial.z,
+          color,
+          i / segs,
+          0,
+        ),
+      );
+      topVerts.push(
+        this.vert(
+          v1.x,
+          v1.y,
+          v1.z,
+          radial.x,
+          radial.y,
+          radial.z,
+          color,
+          i / segs,
+          1,
+        ),
+      );
+    }
+
+    for (let i = 0; i < segs; i++) {
+      this.quad(
+        bottomVerts[i],
+        bottomVerts[i + 1],
+        topVerts[i + 1],
+        topVerts[i],
+      );
+    }
+
+    if (caps) {
+      const bc = this.vert(
+        p0.x,
+        p0.y,
+        p0.z,
+        -dir.x,
+        -dir.y,
+        -dir.z,
+        color,
+        0.5,
+        0.5,
+      );
+      const tc = this.vert(
+        p1.x,
+        p1.y,
+        p1.z,
+        dir.x,
+        dir.y,
+        dir.z,
+        color,
+        0.5,
+        0.5,
+      );
+      for (let i = 0; i < segs; i++) {
+        this.tri(bc, bottomVerts[i + 1], bottomVerts[i]);
+        this.tri(tc, topVerts[i], topVerts[i + 1]);
+      }
+    }
+  }
+
+  /**
+   * Tạo cụm tán lá mây đa diện biến dạng (Deformed Icosphere/Canopy Cloud)
+   */
+  addDeformedSphere(
+    center: THREE.Vector3,
+    rx: number,
+    ry: number,
+    rz: number,
+    bump: number,
+    baseColor: THREE.Color,
+    crownColor: THREE.Color,
+    uSteps = 10,
+    vSteps = 8,
+  ): void {
+    const grid: number[][] = [];
+
+    for (let iv = 0; iv <= vSteps; iv++) {
+      const v = iv / vSteps;
+      const theta = v * Math.PI; // 0 (top) to PI (bottom)
+      const sinT = Math.sin(theta);
+      const cosT = Math.cos(theta);
+      const row: number[] = [];
+
+      // Color lerp từ ngọn (crown) xuống đáy (base)
+      const color = new THREE.Color().copy(crownColor).lerp(baseColor, v);
+
+      for (let iu = 0; iu <= uSteps; iu++) {
+        const u = iu / uSteps;
+        const phi = u * Math.PI * 2;
+        const sinP = Math.sin(phi);
+        const cosP = Math.cos(phi);
+
+        const nx = sinT * cosP;
+        const ny = cosT;
+        const nz = sinT * sinP;
+
+        // Biến dạng lồi lõm tự nhiên của khối tán lá
+        const noiseVal =
+          (noise2D(center.x + nx * 2.5, center.z + nz * 2.5) - 0.5) * bump;
+        const scale = 1 + noiseVal;
+
+        const px = center.x + nx * rx * scale;
+        const py = center.y + ny * ry * scale;
+        const pz = center.z + nz * rz * scale;
+
+        const vIdx = this.vert(px, py, pz, nx, ny, nz, color, u, v);
+        row.push(vIdx);
+      }
+      grid.push(row);
+    }
+
+    for (let iv = 0; iv < vSteps; iv++) {
+      for (let iu = 0; iu < uSteps; iu++) {
+        const v00 = grid[iv][iu];
+        const v01 = grid[iv][iu + 1];
+        const v10 = grid[iv + 1][iu];
+        const v11 = grid[iv + 1][iu + 1];
+        if (iv === 0) {
+          this.tri(v00, v10, v11);
+        } else if (iv === vSteps - 1) {
+          this.tri(v00, v10, v01);
+        } else {
+          this.quad(v00, v10, v11, v01);
+        }
+      }
+    }
+  }
+
+  /**
+   * Tạo cánh sen nổi 3D (3D Lotus Petal) vát cong ôm theo hướng tâm
+   */
+  addPetal(
+    baseX: number,
+    baseY: number,
+    baseZ: number,
+    angle: number,
+    tilt: number,
+    length: number,
+    width: number,
+    thickness: number,
+    color: THREE.Color,
+  ): void {
+    const dirX = Math.cos(angle);
+    const dirZ = Math.sin(angle);
+    const sideX = -Math.sin(angle);
+    const sideZ = Math.cos(angle);
+
+    const cosT = Math.cos(tilt);
+    const sinT = Math.sin(tilt);
+
+    // Điểm gốc (Base)
+    const bx = baseX;
+    const by = baseY;
+    const bz = baseZ;
+
+    // Điểm phình to ở giữa (Mid)
+    const midLen = length * 0.55;
+    const midX = bx + dirX * midLen * cosT;
+    const midY = by + midLen * sinT;
+    const midZ = bz + dirZ * midLen * cosT;
+
+    const midL_x = midX + sideX * (width * 0.5);
+    const midL_z = midZ + sideZ * (width * 0.5);
+    const midR_x = midX - sideX * (width * 0.5);
+    const midR_z = midZ - sideZ * (width * 0.5);
+
+    // Đầu mũi cánh sen (Tip) uốn cong nhẹ
+    const tipLen = length;
+    const tipX = bx + dirX * tipLen * cosT * 0.95;
+    const tipY = by + tipLen * (sinT + 0.12);
+    const tipZ = bz + dirZ * tipLen * cosT * 0.95;
+
+    // Mặt trên cánh sen
+    const tBase = this.vert(bx, by, bz, 0, 1, 0, color, 0.5, 0);
+    const tMidL = this.vert(midL_x, midY, midL_z, -sideX, 1, -sideZ, color, 0, 0.5);
+    const tMidR = this.vert(midR_x, midY, midR_z, sideX, 1, sideZ, color, 1, 0.5);
+    const tTip = this.vert(tipX, tipY, tipZ, dirX, 1, dirZ, color, 0.5, 1);
+
+    this.tri(tBase, tMidL, tTip);
+    this.tri(tBase, tTip, tMidR);
+
+    // Mặt dưới cánh sen (cách một khoảng thickness)
+    const bBase = this.vert(bx, by - thickness, bz, 0, -1, 0, color, 0.5, 0);
+    const bMidL = this.vert(midL_x, midY - thickness, midL_z, -sideX, -1, -sideZ, color, 0, 0.5);
+    const bMidR = this.vert(midR_x, midY - thickness, midR_z, sideX, -1, sideZ, color, 1, 0.5);
+    const bTip = this.vert(tipX, tipY - thickness, tipZ, dirX, -1, dirZ, color, 0.5, 1);
+
+    this.tri(bBase, bTip, bMidL);
+    this.tri(bBase, bMidR, bTip);
+
+    // Mép cạnh cánh sen
+    this.quad(tBase, tMidL, bMidL, bBase);
+    this.quad(tMidL, tTip, bTip, bMidL);
+    this.quad(tTip, tMidR, bMidR, bTip);
+    this.quad(tMidR, tBase, bBase, bMidR);
+  }
+
+  /**
+   * Tạo phiến lá Bồ Đề hình trái tim có đuôi nhọn (Bodhi Leaf Polygon)
+   */
+  addBodhiLeaf(
+    pos: THREE.Vector3,
+    normal: THREE.Vector3,
+    scale: number,
+    color: THREE.Color,
+  ): void {
+    const leafPolygon: [number, number][] = [
+      [0, 0.95],      // Đuôi nhọn của lá bồ đề
+      [0.4, 0.25],
+      [0.54, -0.15],
+      [0.3, -0.45],
+      [0, -0.28],     // Vết khuyết cuống lá hình tim
+      [-0.3, -0.45],
+      [-0.54, -0.15],
+      [-0.4, 0.25],
+    ];
+
+    const up =
+      Math.abs(normal.y) < 0.95
+        ? new THREE.Vector3(0, 1, 0)
+        : new THREE.Vector3(1, 0, 0);
+    const side = new THREE.Vector3().crossVectors(normal, up).normalize();
+    const bitangent = new THREE.Vector3().crossVectors(side, normal).normalize();
+
+    // Điểm tâm cuống lá
+    const cIdx = this.vert(
+      pos.x + bitangent.x * 0.05 * scale,
+      pos.y + bitangent.y * 0.05 * scale,
+      pos.z + bitangent.z * 0.05 * scale,
+      normal.x,
+      normal.y,
+      normal.z,
+      color,
+      0.5,
+      0.5,
+    );
+
+    const polyVerts: number[] = [];
+    for (const [lx, ly] of leafPolygon) {
+      const vx = pos.x + (side.x * lx + bitangent.x * ly) * scale;
+      const vy = pos.y + (side.y * lx + bitangent.y * ly) * scale;
+      const vz = pos.z + (side.z * lx + bitangent.z * ly) * scale;
+      polyVerts.push(
+        this.vert(vx, vy, vz, normal.x, normal.y, normal.z, color, lx, ly),
+      );
+    }
+
+    // Nối tam giác cánh hoa hình tim
+    for (let i = 0; i < polyVerts.length; i++) {
+      const next = (i + 1) % polyVerts.length;
+      this.tri(cIdx, polyVerts[i], polyVerts[next]);
     }
   }
 

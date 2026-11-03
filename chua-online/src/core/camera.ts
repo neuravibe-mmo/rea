@@ -187,15 +187,28 @@ export class CameraController {
     const testZ = this.targetPosition.z + cosYaw * cosPitch * effectiveDist;
 
     for (const c of this.colliders) {
-      if (
-        testX > c.minX &&
-        testX < c.maxX &&
-        testZ > c.minZ &&
-        testZ < c.maxZ
+      if (c.cx !== undefined && c.cz !== undefined && c.radius !== undefined) {
+        const dx = testX - c.cx;
+        const dz = testZ - c.cz;
+        if (dx * dx + dz * dz < c.radius * c.radius) {
+          effectiveDist = Math.max(this.minDistance, effectiveDist * 0.55);
+          break;
+        }
+      } else if (
+        c.minX !== undefined &&
+        c.maxX !== undefined &&
+        c.minZ !== undefined &&
+        c.maxZ !== undefined
       ) {
-        // Thu ngắn camera về gần người chơi để không nhìn xuyên tường
-        effectiveDist = Math.max(this.minDistance, effectiveDist * 0.55);
-        break;
+        if (
+          testX > c.minX &&
+          testX < c.maxX &&
+          testZ > c.minZ &&
+          testZ < c.maxZ
+        ) {
+          effectiveDist = Math.max(this.minDistance, effectiveDist * 0.55);
+          break;
+        }
       }
     }
 

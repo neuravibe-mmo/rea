@@ -2,10 +2,13 @@ import * as THREE from "three";
 import { GeometryBuilder } from "./geometryBuilder.ts";
 
 export interface CampusCollider {
-  minX: number;
-  maxX: number;
-  minZ: number;
-  maxZ: number;
+  minX?: number;
+  maxX?: number;
+  minZ?: number;
+  maxZ?: number;
+  cx?: number;
+  cz?: number;
+  radius?: number;
 }
 
 export interface CushionSeat {
@@ -34,6 +37,30 @@ const PALETTE = {
   bamboo: new THREE.Color(0x558b2f),
 };
 
+/**
+ * Tính toán cao độ thực tế của mặt sàn / gạch lát / thềm tam cấp tại tọa độ (x, z)
+ */
+export function getGroundHeight(x: number, z: number): number {
+  // 1. Chánh điện và bậc tam cấp
+  if (x >= -10.6 && x <= 10.6 && z >= -23.4 && z <= -8.2) {
+    return 0.8;
+  }
+  if (Math.abs(x) <= 3.6 && z >= -8.2 && z <= -6.8) {
+    if (Math.abs(x) <= 3.2 && z <= -7.4) return 0.55;
+    return 0.3;
+  }
+  // 2. Cầu gỗ qua hồ sen
+  if (Math.abs(x) <= 1.8 && z >= 28.5 && z <= 47.5) {
+    return 0.35;
+  }
+  // 3. Sân chùa lát đá phiến trung tâm (-19.3..19.3, -24.3..24.8) -> mặt gạch y = 0.08m
+  if (x >= -19.3 && x <= 19.3 && z >= -24.3 && z <= 24.8) {
+    return 0.08;
+  }
+  // 4. Sân cỏ khuôn viên chùa
+  return 0.0;
+}
+
 export class Campus {
   public root: THREE.Group = new THREE.Group();
   public colliders: CampusCollider[] = [];
@@ -43,6 +70,11 @@ export class Campus {
   public woodMat: THREE.MeshStandardMaterial;
   public stoneMat: THREE.MeshStandardMaterial;
   public goldMat: THREE.MeshStandardMaterial;
+  public leafMat: THREE.MeshStandardMaterial;
+  public glowMat: THREE.ShaderMaterial;
+
+  public glowMesh: THREE.Mesh | null = null;
+  public leavesMesh: THREE.Mesh | null = null;
 
   constructor() {
     const loader = new THREE.TextureLoader();
@@ -112,11 +144,62 @@ export class Campus {
       metalness: 0.05,
     });
 
-    // 4. Vật liệu mạ vàng tượng Phật Tam Bảo / Chuông đồng
+    // 4. Vật liệu mạ vàng tượng Phật Tam Bảo / Chuông đồng / Lưỡng Long Chầu Nguyệt (Chùa Sen)
     this.goldMat = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.35,
-      metalness: 0.75,
+      color: new THREE.Color(0xffe277),
+      roughness: 0.25,
+      metalness: 0.85,
+      emissive: new THREE.Color(0xd98218),
+      emissiveIntensity: 0.42, // Luôn tỏa ánh vàng kim rực rỡ cả ngày lẫn đêm
+    });
+
+    // 5. Vật liệu tán lá Bồ đề và cây cối sân chùa
+    this.leafMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.72,
+      metalness: 0.04,
+      side: THREE.DoubleSide,
+    });
+
+    // 6. Shader buồng đèn lồng đá sân chùa (tự phát sáng bập bùng & đồng bộ Ngày/Đêm)
+    this.glowMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uLanternNight: { value: 0.5 },
+        uLanternWarm: { value: new THREE.Color(0xff9922) },
+        uLanternHot: { value: new THREE.Color(0xffdf66) },
+      },
+      vertexShader: `
+        uniform float uTime;
+        varying vec3 vNormal;
+        varying float vFlicker;
+
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+
+          // Dao động ngọn nến bập bùng nhẹ trên GPU
+          float flicker = sin(uTime * 11.0 + position.x * 6.0 + position.z * 4.0) * 0.12
+                        + cos(uTime * 23.0 + position.y * 13.0) * 0.08;
+          vFlicker = flicker;
+
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+      `,
+      fragmentShader: `
+        uniform float uLanternNight;
+        uniform vec3 uLanternWarm;
+        uniform vec3 uLanternHot;
+        varying vec3 vNormal;
+        varying float vFlicker;
+
+        void main() {
+          float intensity = (0.35 + uLanternNight * 0.95) * (1.0 + vFlicker);
+          vec3 col = mix(uLanternWarm, uLanternHot, clamp(0.5 + vFlicker * 2.5, 0.0, 1.0));
+          gl_FragColor = vec4(col * intensity, 1.0);
+        }
+      `,
     });
 
     this.buildCourtyards();
@@ -130,6 +213,20 @@ export class Campus {
     this.buildQuanAmGarden();
     this.buildPureBasin();
     this.buildStoneLanterns();
+  }
+
+  /**
+   * Cập nhật shader buồng đèn lồng đá theo thời gian thực và chu kỳ Ngày/Đêm
+   */
+  public update(deltaSec: number, lanternIntensity = 1.0): void {
+    if (this.glowMat) {
+      this.glowMat.uniforms.uTime.value += deltaSec;
+      this.glowMat.uniforms.uLanternNight.value = THREE.MathUtils.lerp(
+        this.glowMat.uniforms.uLanternNight.value,
+        lanternIntensity,
+        0.05,
+      );
+    }
   }
 
   /**
@@ -422,19 +519,157 @@ export class Campus {
     this.colliders.push({ minX: -10.2, maxX: -8.8, minZ: -22.6, maxZ: -9.4 });
     this.colliders.push({ minX: 8.8, maxX: 10.2, minZ: -22.6, maxZ: -9.4 });
 
-    // Cổ diêm thông sáng giữa 2 tầng mái với chấn song gỗ
+    // Trần gỗ lim đỡ mái hạ và che kín toàn bộ lòng Chánh điện (bịt kín không gian tầng 1)
+    woodB.addBox(-9.8, by + 5.5, -22.6, 9.8, by + 5.85, -9.4, PALETTE.woodDark);
+
+    // Tường bao chịu lực lõi giữa tầng 1 và tầng 2 (bịt kín khoảng không gian bên trong mái hạ)
+    woodB.addBox(-7.6, by + 5.8, -19.6, 7.6, by + 9.6, -12.4, PALETTE.woodDark);
+
+    // Khối tường gỗ sẫm cổ diêm thông sáng giữa 2 tầng mái (bịt kín từ by + 9.5 lên by + 12.6)
     woodB.addBox(
-      -7.5,
+      -7.6,
       by + 9.5,
-      -19.5,
-      7.5,
-      by + 12.1,
-      -12.5,
+      -19.6,
+      7.6,
+      by + 12.6,
+      -12.4,
       PALETTE.woodDark,
     );
 
+    // Tường lõi cổ diêm ăn sâu lên mái thượng (bảo đảm khi góc mái cong vút lên không bao giờ bị hở xuyên thấu)
+    woodB.addBox(
+      -7.2,
+      by + 12.4,
+      -19.2,
+      7.2,
+      by + 13.9,
+      -12.8,
+      PALETTE.woodDark,
+    );
+
+    // Khung xà gồ viền quanh cổ diêm (Xà hạ & Xà thượng cổ diêm)
+    woodB.addBox(-7.75, by + 9.55, -12.65, 7.75, by + 9.9, -12.25, PALETTE.woodDark);
+    woodB.addBox(-7.75, by + 12.15, -12.65, 7.75, by + 12.6, -12.25, PALETTE.woodDark);
+
+    // 4 Cột góc cổ diêm
+    for (const sx of [-7.6, 7.6]) {
+      for (const sz of [-19.5, -12.5]) {
+        woodB.addBox(sx - 0.22, by + 9.5, sz - 0.22, sx + 0.22, by + 12.6, sz + 0.22, PALETTE.woodDark);
+      }
+    }
+
+    // Hàng chấn song gỗ lim mặt trước cổ diêm (khít chặt giữa xà hạ và xà thượng)
+    for (let x = -7.2; x <= 7.2; x += 0.35) {
+      if (Math.abs(x) < 1.45) continue; // Chừa ô cửa sổ thông sáng ở giữa
+      woodB.addBox(
+        x - 0.05,
+        by + 9.9,
+        -12.4,
+        x + 0.05,
+        by + 12.15,
+        -12.28,
+        new THREE.Color(0xb58038),
+      );
+    }
+
+    // Khung cửa sổ cổ diêm chính giữa sơn son viền vàng
+    woodB.addBox(
+      -1.4,
+      by + 10.2,
+      -12.46,
+      1.4,
+      by + 11.85,
+      -12.34,
+      new THREE.Color(0x6e1f18),
+    );
+    goldB.addBox(
+      -1.46,
+      by + 10.14,
+      -12.48,
+      1.46,
+      by + 11.91,
+      -12.42,
+      PALETTE.gold,
+    );
+
+    // Chấn song gỗ 2 bên hông cổ diêm (mặt đông & tây) tạo vẻ đẹp kiến trúc hoàn chỉnh từ mọi góc nhìn
+    for (const sx of [-7.6, 7.6]) {
+      for (let z = -19.0; z <= -13.0; z += 0.65) {
+        woodB.addBox(
+          sx - 0.06,
+          by + 10.1,
+          z - 0.06,
+          sx + 0.06,
+          by + 11.9,
+          z + 0.06,
+          new THREE.Color(0xb58038),
+        );
+      }
+    }
+
+    // Dải phướn lụa vàng rủ hai bên tiền sảnh
+    for (const px of [-7.6, 7.6]) {
+      woodB.addBox(
+        px - 0.35,
+        by + 2.2,
+        -9.3,
+        px + 0.35,
+        by + 6.0,
+        -9.26,
+        new THREE.Color(0xd9a826),
+      );
+      woodB.addBox(
+        px - 0.38,
+        by + 2.1,
+        -9.32,
+        px + 0.38,
+        by + 2.2,
+        -9.24,
+        PALETTE.woodDark,
+      );
+    }
+
+    // Đôi Hạc đồng cưỡi Rùa đứng chầu hai bên sảnh Chánh Điện (x = ±4.6, z = -7.8)
+    for (const sign of [-1, 1]) {
+      const hx = sign * 4.6;
+      const hz = -7.8;
+      // Mai rùa
+      stoneB.addBox(
+        hx - 0.38,
+        by,
+        hz - 0.48,
+        hx + 0.38,
+        by + 0.28,
+        hz + 0.48,
+        PALETTE.bronze,
+      );
+      // Chân hạc
+      goldB.addCylinder(hx - 0.06, hz, by + 0.28, by + 1.25, 0.02, 0.02, 6, PALETTE.gold);
+      goldB.addCylinder(hx + 0.06, hz, by + 0.28, by + 1.25, 0.02, 0.02, 6, PALETTE.gold);
+      // Thân chim hạc
+      goldB.addCylinder(hx, hz, by + 1.25, by + 1.75, 0.18, 0.12, 8, PALETTE.gold);
+      // Cổ hạc vươn cao uốn cong thanh thoát
+      goldB.addLimb(
+        new THREE.Vector3(hx, by + 1.7, hz + 0.05),
+        new THREE.Vector3(hx, by + 2.45, hz - 0.08),
+        0.045,
+        0.025,
+        5,
+        PALETTE.gold,
+      );
+      // Đầu hạc và mỏ ngậm cành sen
+      goldB.addLimb(
+        new THREE.Vector3(hx, by + 2.45, hz - 0.08),
+        new THREE.Vector3(hx - sign * 0.12, by + 2.48, hz - 0.25),
+        0.03,
+        0.008,
+        4,
+        PALETTE.gold,
+      );
+    }
+
     // DỰNG 2 TẦNG MÁI CHÙA CHÁNH ĐIỆN THEO ĐÚNG HỆ THÔNG SỐ CHÙA SEN
-    // Tầng Mái 1 (Mái hạ xòe rộng 4 hướng che hiên và hàng cột)
+    // Tầng Mái 1 (Mái hạ xòe rộng 4 hướng che hiên và hàng cột, trần rui mè kín khít)
     roofB.addCurvedRoofTier({
       cx: 0,
       cz: -16.0,
@@ -449,9 +684,9 @@ export class Campus {
       flare: 0.85,
       tileColor: new THREE.Color(0x6a5a45),
       mossAmount: 0.95,
-    });
+    }, goldB);
 
-    // Tầng Mái 2 (Mái thượng đỉnh nóc uy nghiêm với bờ nóc ngói ngọc và kìm nóc cá hóa rồng)
+    // Tầng Mái 2 (Mái thượng đỉnh nóc uy nghiêm với bờ nóc ngói ngọc và Phù điêu Lưỡng Long Chầu Nguyệt dát vàng)
     roofB.addCurvedRoofTier({
       cx: 0,
       cz: -16.0,
@@ -466,7 +701,7 @@ export class Campus {
       flare: 0.9,
       tileColor: new THREE.Color(0x8a6b4b),
       mossAmount: 0.75,
-    });
+    }, goldB);
 
     // 5. Nội điện: Tượng Đức Phật Thích Ca Mâu Ni & 2 Tôn Giả
     this.buildBuddhaAltar(goldB, 0, by, -20.3);
@@ -510,6 +745,52 @@ export class Campus {
       mesh.matrixAutoUpdate = false;
       this.root.add(mesh);
     }
+
+    // Bức Hoành Phi "TỪ BI HỶ XẢ" sơn son thiếp vàng treo chính giữa tiền sảnh
+    const hoanhPhi = this.createHoanhPhiMesh(0, by + 5.75, -9.18);
+    this.root.add(hoanhPhi);
+  }
+
+  /**
+   * Tạo Hoành Phi chữ Hán/Quốc ngữ "TỪ BI HỶ XẢ" sơn son thiếp vàng
+   */
+  private createHoanhPhiMesh(x: number, y: number, z: number): THREE.Mesh {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d")!;
+
+    // Nền đỏ son sẫm truyền thống
+    ctx.fillStyle = "#8a1c18";
+    ctx.fillRect(0, 0, 512, 128);
+
+    // Viền kép thếp vàng
+    ctx.strokeStyle = "#ffd700";
+    ctx.lineWidth = 10;
+    ctx.strokeRect(6, 6, 500, 116);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(16, 16, 480, 96);
+
+    // Chữ TỪ BI HỶ XẢ vàng kim rực rỡ
+    ctx.fillStyle = "#ffe680";
+    ctx.font = "bold 56px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("✦ TỪ BI HỶ XẢ ✦", 256, 64);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshStandardMaterial({
+      map: tex,
+      roughness: 0.35,
+      metalness: 0.25,
+    });
+    const geom = new THREE.PlaneGeometry(3.6, 0.9);
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(x, y, z);
+    mesh.matrixAutoUpdate = false;
+    mesh.updateMatrix();
+    return mesh;
   }
 
   /**
@@ -923,51 +1204,209 @@ export class Campus {
   }
 
   /**
-   * 7. Cây Bồ Đề Đại Thụ và Chòi Tĩnh Tâm tại (x: -15.6, z: 7)
+   * 7. Cây Bồ Đề Đại Thụ và Hoa Viên Cây Xanh Khuôn Viên Chùa
+   * Tái tạo chuẩn kiến trúc cây cổ thụ Chùa Sen:
+   * - Thân cây hình nón cụt thuôn từ gốc lên ngọn
+   * - Hệ bạnh rễ cổ thụ (Buttress roots) tỏa tròn cắm xuống đất
+   * - Chạc ba và các cành lớn phân nhánh (Limb branches)
+   * - 9 Cụm tán lá mây đa diện hữu cơ (Organic Canopy Clouds) biến dạng dẹp Y (squash) và gồ ghề (bump)
+   * - Phiến lá Bồ Đề hình trái tim có đuôi nhọn (Bodhi leaf polygon)
+   * - Rễ phụ buông rủ thanh tịnh (Aerial root tendrils)
+   * - Băng ghế đá tròn bao quanh gốc cây phục vụ Phật tử thiền tọa
    */
   private buildBodhiTree(): void {
-    const b = new GeometryBuilder();
-    const tx = -15.6,
-      tz = 7.0;
+    const woodB = new GeometryBuilder();
+    const leavesB = new GeometryBuilder();
+    const stoneB = new GeometryBuilder();
 
-    // Gốc cây Bồ đề cổ thụ vững chãi
-    b.addCylinder(tx, tz, 0.08, 3.8, 1.4, 0.9, 12, PALETTE.woodDark);
+    // Danh sách các cây Bồ đề cổ thụ và cây hoa viên trong khuôn viên
+    const trees: { x: number; z: number; scale: number; hasBench: boolean }[] =
+      [
+        { x: -15.6, z: 7.0, scale: 1.25, hasBench: true }, // Cây Bồ Đề Đại Thụ chính
+        { x: -26.0, z: -8.0, scale: 1.05, hasBench: false }, // Cây vườn Quan Âm
+        { x: 21.5, z: 24.0, scale: 0.95, hasBench: false }, // Cây cạnh hồ sen
+        { x: 21.0, z: -10.0, scale: 1.0, hasBench: false }, // Cây sau tháp chuông
+      ];
 
-    // Tán lá Bồ đề xanh mướt nhiều tầng rợp mát
-    b.addCylinder(tx, tz, 3.5, 6.2, 3.8, 2.6, 14, PALETTE.leaf);
-    b.addCylinder(tx, tz, 5.8, 8.4, 2.8, 1.2, 12, PALETTE.leaf);
+    // Cấu hình 9 cụm đám mây tán lá (Canopy clusters)
+    const cloudClusters: [number, number, number, number][] = [
+      [0, 6.2, 0, 2.6],
+      [2.6, 5.4, 0.9, 2.1],
+      [-2.4, 5.3, -1.6, 2.2],
+      [-0.8, 5.8, 2.6, 2.0],
+      [1.4, 7.2, -1.1, 1.8],
+      [-2.1, 6.8, 0.8, 1.7],
+      [3.2, 6.2, -1.4, 1.6],
+      [0.6, 4.8, -2.8, 1.7],
+      [-3.2, 4.8, 1.7, 1.6],
+    ];
 
-    // Băng ghế đá tròn quanh gốc cây để thiền tọa
-    const benchR = 2.4;
-    b.addCylinder(
-      tx,
-      tz,
-      0.08,
-      0.5,
-      benchR + 0.5,
-      benchR,
-      16,
-      PALETTE.stoneLight,
-    );
+    // Cấu hình các cành nhánh chính
+    const branchConfigs: [number, number, number, number, number][] = [
+      [2.7, 5.2, 1.0, 0.28, 0.12],
+      [-2.3, 5.0, -1.7, 0.26, 0.11],
+      [-0.9, 5.5, 2.4, 0.25, 0.1],
+      [1.5, 6.2, -1.4, 0.22, 0.09],
+    ];
 
-    this.colliders.push({
-      minX: tx - 2.8,
-      maxX: tx + 2.8,
-      minZ: tz - 2.8,
-      maxZ: tz + 2.8,
-    });
+    // Cấu hình rễ phụ buông rủ
+    const tendrilConfigs: [number, number, number, number][] = [
+      [1.8, 4.8, 0.8, 3.2],
+      [-1.6, 4.6, -1.2, 3.0],
+      [0.7, 5.2, -2.0, 3.5],
+      [-1.2, 5.0, 1.9, 3.1],
+    ];
 
-    const geom = b.build();
-    if (geom) {
-      const mat = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.8,
-      });
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.matrixAutoUpdate = false;
-      this.root.add(mesh);
+    for (const tree of trees) {
+      const tx = tree.x;
+      const tz = tree.z;
+      const r = tree.scale;
+
+      // 1. Thân cây cổ thụ thuôn dần lên trên
+      woodB.addCylinder(
+        tx,
+        tz,
+        0.08,
+        3.5 * r,
+        0.72 * r,
+        0.44 * r,
+        10,
+        PALETTE.woodDark,
+      );
+
+      // 2. Hệ bạnh rễ cổ thụ (Buttress roots) tỏa tròn cắm xuống đất
+      const rootAngles = [0.15, 1.15, 2.1, 3.25, 4.35, 5.35];
+      for (const a of rootAngles) {
+        const rx = Math.cos(a);
+        const rz = Math.sin(a);
+        woodB.addLimb(
+          new THREE.Vector3(tx + rx * 0.44 * r, 1.0 * r, tz + rz * 0.44 * r),
+          new THREE.Vector3(tx + rx * 1.65 * r, 0.08, tz + rz * 1.65 * r),
+          0.22 * r,
+          0.07 * r,
+          6,
+          PALETTE.woodDark,
+        );
+      }
+
+      // 3. Các cành lớn phân nhánh
+      for (const [bx, by, bz, r0, r1] of branchConfigs) {
+        woodB.addLimb(
+          new THREE.Vector3(tx, 3.1 * r, tz),
+          new THREE.Vector3(tx + bx * r, by * r, tz + bz * r),
+          r0 * r,
+          r1 * r,
+          6,
+          PALETTE.woodDark,
+        );
+      }
+
+      // 4. Các đám mây tán lá mây hữu cơ và phiến lá Bồ Đề hình tim
+      for (const [cx, cy, cz, cr] of cloudClusters) {
+        const center = new THREE.Vector3(tx + cx * r, cy * r, tz + cz * r);
+
+        leavesB.addDeformedSphere(
+          center,
+          cr * r,
+          cr * r * 0.78,
+          cr * r,
+          0.24,
+          new THREE.Color(0x355e2b), // Base màu xanh sẫm
+          new THREE.Color(0x60993e), // Crown màu xanh tươi
+          10,
+          8,
+        );
+
+        // Phiến lá bồ đề nhọn đuôi rải rác trên tán lá
+        for (let li = 0; li < 6; li++) {
+          const theta = (li / 6) * Math.PI * 2 + cx;
+          const phi = (li % 3) * 0.4 + 0.6;
+          const normal = new THREE.Vector3(
+            Math.cos(theta) * Math.sin(phi),
+            Math.cos(phi),
+            Math.sin(theta) * Math.sin(phi),
+          ).normalize();
+          const leafPos = center.clone().addScaledVector(normal, cr * r * 0.92);
+          leavesB.addBodhiLeaf(
+            leafPos,
+            normal,
+            0.32 * r,
+            new THREE.Color(0x72ad48),
+          );
+        }
+      }
+
+      // 5. Rễ phụ buông rủ từ cành cao
+      for (const [tx_off, ty_start, tz_off, len] of tendrilConfigs) {
+        woodB.addLimb(
+          new THREE.Vector3(tx + tx_off * r, ty_start * r, tz + tz_off * r),
+          new THREE.Vector3(
+            tx + tx_off * r + 0.1,
+            (ty_start - len) * r,
+            tz + tz_off * r - 0.1,
+          ),
+          0.035 * r,
+          0.015 * r,
+          4,
+          PALETTE.woodDark,
+        );
+      }
+
+      // 6. Băng ghế đá tròn thiền tọa (nếu có)
+      if (tree.hasBench) {
+        const benchR = 2.4;
+        stoneB.addCylinder(
+          tx,
+          tz,
+          0.08,
+          0.52,
+          benchR + 0.48,
+          benchR,
+          18,
+          PALETTE.stoneLight,
+        );
+        this.colliders.push({
+          cx: tx,
+          cz: tz,
+          radius: benchR + 0.48,
+        });
+      } else {
+        this.colliders.push({
+          cx: tx,
+          cz: tz,
+          radius: 1.1 * r,
+        });
+      }
+    }
+
+    // Dựng Mesh gỗ (Thân, cành, rễ)
+    const woodGeom = woodB.build();
+    if (woodGeom) {
+      const woodMesh = new THREE.Mesh(woodGeom, this.woodMat);
+      woodMesh.castShadow = true;
+      woodMesh.receiveShadow = true;
+      woodMesh.matrixAutoUpdate = false;
+      this.root.add(woodMesh);
+    }
+
+    // Dựng Mesh tán lá (Toàn bộ lá cây sân chùa gom vào 1 Mesh duy nhất)
+    const leavesGeom = leavesB.build();
+    if (leavesGeom) {
+      this.leavesMesh = new THREE.Mesh(leavesGeom, this.leafMat);
+      this.leavesMesh.castShadow = true;
+      this.leavesMesh.receiveShadow = true;
+      this.leavesMesh.matrixAutoUpdate = false;
+      this.root.add(this.leavesMesh);
+    }
+
+    // Dựng Mesh ghế đá
+    const stoneGeom = stoneB.build();
+    if (stoneGeom) {
+      const stoneMesh = new THREE.Mesh(stoneGeom, this.stoneMat);
+      stoneMesh.castShadow = true;
+      stoneMesh.receiveShadow = true;
+      stoneMesh.matrixAutoUpdate = false;
+      this.root.add(stoneMesh);
     }
   }
 
@@ -1164,10 +1603,19 @@ export class Campus {
   }
 
   /**
-   * 11. Đèn Đá Sân Chùa (Stone Lanterns) dọc lối đi
+   * 11. Đèn Đá Hoa Sen Sân Chùa (Procedural Lotus Stone Lanterns)
+   * Tái tạo chuẩn kiến trúc đèn lồng đá hoa sen Việt Nam:
+   * - Chân đế giật cấp 2 tầng bát giác
+   * - Vòng 8 cánh sen 3D nở ôm lấy chân đế
+   * - Trụ đá thon ở giữa có gờ đai
+   * - Bát sen trên với 6 cánh xòe ra đỡ buồng đèn
+   * - Buồng sáng phát quang tự động đồng bộ shader ngày/đêm
+   * - Mái đá nón bát giác uốn cong xòe rộng và đỉnh búp sen
    */
   private buildStoneLanterns(): void {
     const b = new GeometryBuilder();
+    const glowBuilder = new GeometryBuilder();
+
     const lanternCoords: [number, number][] = [
       [-4.5, 6],
       [4.5, 6],
@@ -1177,52 +1625,115 @@ export class Campus {
       [4.5, 22],
       [-6.5, -4],
       [6.5, -4],
+      [-10.5, 2],
+      [10.5, 2],
+      [-14.5, 8],
+      [14.5, 8],
     ];
 
     for (const [lx, lz] of lanternCoords) {
-      // Chân đèn
-      b.addBox(
-        lx - 0.35,
-        0.08,
-        lz - 0.35,
-        lx + 0.35,
-        0.4,
-        lz + 0.35,
-        PALETTE.stoneDark,
-      );
-      // Thân đèn
-      b.addCylinder(lx, lz, 0.4, 1.3, 0.16, 0.14, 8, PALETTE.stone);
-      // Buồng thắp nến
-      b.addBox(
-        lx - 0.28,
-        1.3,
-        lz - 0.28,
-        lx + 0.28,
-        1.8,
-        lz + 0.28,
-        PALETTE.goldLight,
-      );
-      // Mái che đèn đá
-      b.addCylinder(lx, lz, 1.8, 2.15, 0.45, 0.08, 6, PALETTE.stoneDark);
+      // 1. Đế đá 2 tầng giật cấp bát giác
+      b.addCylinder(lx, lz, 0.08, 0.22, 0.44, 0.42, 8, PALETTE.stoneDark);
+      b.addCylinder(lx, lz, 0.22, 0.35, 0.36, 0.32, 8, PALETTE.stone);
 
+      // 2. Vòng 8 cánh sen nổi 3D ôm quanh chân đế
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        b.addPetal(
+          lx,
+          0.33,
+          lz,
+          angle,
+          0.26,
+          0.26,
+          0.16,
+          0.035,
+          PALETTE.stoneLight,
+        );
+      }
+
+      // 3. Thân trụ đá thon ở giữa
+      b.addCylinder(lx, lz, 0.35, 1.18, 0.17, 0.14, 8, PALETTE.stone);
+      // Gờ đai đá thắt ngang thân trụ
+      b.addCylinder(lx, lz, 0.72, 0.78, 0.185, 0.185, 8, PALETTE.stoneDark);
+
+      // 4. Bát sen trên đỡ buồng đèn
+      b.addCylinder(lx, lz, 1.18, 1.26, 0.16, 0.28, 8, PALETTE.stone);
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        b.addPetal(
+          lx,
+          1.25,
+          lz,
+          angle,
+          0.42,
+          0.22,
+          0.14,
+          0.03,
+          PALETTE.stoneLight,
+        );
+      }
+
+      // 5. Buồng đèn đá: Nan chắn bảo vệ 4 góc
+      const postRadius = 0.22;
+      const postThick = 0.035;
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const px = lx + Math.cos(a) * postRadius;
+        const pz = lz + Math.sin(a) * postRadius;
+        b.addBox(
+          px - postThick,
+          1.26,
+          pz - postThick,
+          px + postThick,
+          1.74,
+          pz + postThick,
+          PALETTE.stoneDark,
+        );
+      }
+
+      // 6. Buồng phát sáng ngọn đèn ấm (Glow Chamber)
+      glowBuilder.addCylinder(
+        lx,
+        lz,
+        1.28,
+        1.72,
+        0.16,
+        0.16,
+        8,
+        new THREE.Color(0xffdf77),
+      );
+
+      // 7. Mái che đèn đá nón bát giác xòe rộng
+      b.addCylinder(lx, lz, 1.74, 1.94, 0.45, 0.18, 8, PALETTE.stone);
+      // Đỉnh búp sen đá trên nóc đèn
+      b.addCylinder(lx, lz, 1.94, 2.14, 0.09, 0.015, 8, PALETTE.stoneLight);
+
+      // Va chạm hình trụ tròn êm ái
       this.colliders.push({
-        minX: lx - 0.45,
-        maxX: lx + 0.45,
-        minZ: lz - 0.45,
-        maxZ: lz + 0.45,
+        cx: lx,
+        cz: lz,
+        radius: 0.46,
       });
     }
 
-    const geom = b.build();
-    if (geom) {
-      const mat = new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.8,
-      });
-      const mesh = new THREE.Mesh(geom, mat);
-      mesh.castShadow = true;
-      mesh.matrixAutoUpdate = false;
-      this.root.add(mesh);
+    // Dựng Mesh đá
+    const stoneGeom = b.build();
+    if (stoneGeom) {
+      const stoneMesh = new THREE.Mesh(stoneGeom, this.stoneMat);
+      stoneMesh.castShadow = true;
+      stoneMesh.receiveShadow = true;
+      stoneMesh.matrixAutoUpdate = false;
+      this.root.add(stoneMesh);
+    }
+
+    // Dựng Mesh buồng sáng phát quang (Glow Mesh)
+    const glowGeom = glowBuilder.build();
+    if (glowGeom) {
+      this.glowMesh = new THREE.Mesh(glowGeom, this.glowMat);
+      this.glowMesh.matrixAutoUpdate = false;
+      this.glowMesh.frustumCulled = false;
+      this.root.add(this.glowMesh);
     }
   }
 }
