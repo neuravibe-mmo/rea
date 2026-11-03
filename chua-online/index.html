@@ -69,23 +69,58 @@
         </header>
 
         <div class="onb__preview" aria-hidden="true">
-          <svg class="onb__figure" viewBox="0 0 140 170" focusable="false">
-            <ellipse cx="70" cy="159" rx="54" ry="8.5" fill="rgba(0,0,0,0.3)"></ellipse>
-            <!-- Thân áo -->
-            <path id="svg-robe" d="M51 87C58 82 82 82 89 87L98 136C83 142.5 57 142.5 42 136Z" fill="#5a8ac4"></path>
-            <path d="M42.5 135.5C57 142 83 142 97.5 135.5" stroke="#f3ead6" stroke-width="2" fill="none"></path>
-            <path id="svg-sleeve-l" d="M52 88C41 93 35.5 108 39.5 121C46 126.5 58 123 65.5 113C62.5 105 60.5 96 58.5 89Z" fill="#4d7bb4"></path>
-            <path id="svg-sleeve-r" d="M88 88C99 93 104.5 108 100.5 121C94 126.5 82 123 74.5 113C77.5 105 79.5 96 81.5 89Z" fill="#4d7bb4"></path>
-            <path d="M70 101.5C75.5 106.5 76.5 115 70 122C63.5 115 64.5 106.5 70 101.5Z" fill="#e8cbb1"></path>
-            <!-- Đầu & Khuôn mặt -->
-            <ellipse cx="70" cy="52" rx="30" ry="28" fill="#f0d5be"></ellipse>
-            <path d="M52 56Q58 50 64 56M76 56Q82 50 88 56" stroke="#4a3b32" stroke-width="2.5" stroke-linecap="round" fill="none"></path>
-            <ellipse cx="50" cy="63" rx="5" ry="3" fill="rgba(235,169,187,0.5)"></ellipse>
-            <ellipse cx="90" cy="63" rx="5" ry="3" fill="rgba(235,169,187,0.5)"></ellipse>
-            <path d="M65 64Q70 69 75 64" stroke="#4a3b32" stroke-width="2" stroke-linecap="round" fill="none"></path>
-            <!-- Tóc / Nón lá -->
-            <g id="svg-hair">
-              <path d="M40 50A30 28 0 0 1 100 50C95 38 85 32 70 32C55 32 45 38 40 50Z" fill="#3a2e2b"></path>
+          <svg id="onb-figure" class="onb__figure" viewBox="0 0 140 170" focusable="false" aria-hidden="true" data-look="nam" data-family="trang">
+            <ellipse class="fg-ring" cx="70" cy="159" rx="54" ry="8.5"></ellipse>
+            <ellipse class="fg-ground" cx="70" cy="159.5" rx="36" ry="5.5"></ellipse>
+            <g class="fg-nu">
+              <circle class="fg-hair" cx="97" cy="83" r="9.5"></circle>
+              <path class="fg-hair-line" d="M92 80q5-4 10 0"></path>
+              <circle class="fg-tie" cx="91.5" cy="79" r="2.3"></circle>
+            </g>
+            <g class="fg-body">
+              <path class="fg-pants" d="M55 128L47.5 154Q57 159 67 155L69.5 128Z"></path>
+              <path class="fg-pants" d="M85 128L92.5 154Q83 159 73 155L70.5 128Z"></path>
+              <ellipse class="fg-shoe" cx="56" cy="156.5" rx="10.5" ry="4.2"></ellipse>
+              <ellipse class="fg-shoe" cx="84" cy="156.5" rx="10.5" ry="4.2"></ellipse>
+              <path class="fg-robe" d="M51 87C58 82 82 82 89 87L98 136C83 142.5 57 142.5 42 136Z"></path>
+              <path class="fg-fold" d="M60 118L56.5 138M80 118L83.5 138"></path>
+              <path class="fg-hem" d="M42.5 135.5C57 142 83 142 97.5 135.5"></path>
+              <path class="fg-skin-dark fg-v" d="M60 83L71 104L80 83Z"></path>
+              <path class="fg-yem" d="M61 84.5h18l-2.5 17h-13z"></path>
+              <path class="fg-trim fg-cross" d="M82.5 84.5L70.5 105"></path>
+              <path class="fg-lapel fg-cross" d="M55.5 86.5L62.5 83.5L81 112.5L72.5 118Z"></path>
+              <path class="fg-trim fg-cross" d="M62.5 84L80.5 112"></path>
+              <rect class="fg-collar" x="61.5" y="78.5" width="17" height="7" rx="3"></rect>
+              <path class="fg-closure" d="M75 86q7 2 12 7"></path>
+              <g class="fg-buttons"><circle cx="70" cy="89" r="1.7"></circle><circle cx="70" cy="96" r="1.7"></circle></g>
+              <path class="fg-sleeve" d="M52 88C41 93 35.5 108 39.5 121C46 126.5 58 123 65.5 113C62.5 105 60.5 96 58.5 89Z"></path>
+              <path class="fg-sleeve" d="M88 88C99 93 104.5 108 100.5 121C94 126.5 82 123 74.5 113C77.5 105 79.5 96 81.5 89Z"></path>
+              <path class="fg-trim" d="M39.5 121C46 126.5 58 123 65.5 113M100.5 121C94 126.5 82 123 74.5 113"></path>
+              <path class="fg-skin" d="M70 101.5C75.5 106.5 76.5 115 70 122C63.5 115 64.5 106.5 70 101.5Z"></path>
+              <path class="fg-line" d="M70 104.5V119"></path>
+            </g>
+            <g class="fg-head">
+              <g class="fg-nam">
+                <circle class="fg-skin" cx="38.5" cy="56" r="5.8"></circle>
+                <circle class="fg-skin" cx="101.5" cy="56" r="5.8"></circle>
+                <circle class="fg-skin-dark" cx="38.5" cy="56" r="2.6"></circle>
+                <circle class="fg-skin-dark" cx="101.5" cy="56" r="2.6"></circle>
+              </g>
+              <ellipse class="fg-skin" cx="70" cy="52" rx="32" ry="30"></ellipse>
+              <path class="fg-skin-dark fg-jaw" d="M41.7 66A32 30 0 0 0 98.3 66Q70 88 41.7 66Z"></path>
+              <g class="fg-nam">
+                <path class="fg-scalp" d="M38 52A32 30 0 0 1 102 52C98 40 86 33 70 33C54 33 42 40 38 52Z"></path>
+                <path class="fg-stubble" d="M38 52A32 30 0 0 1 102 52C98 40 86 33 70 33C54 33 42 40 38 52Z"></path>
+              </g>
+              <g class="fg-nu">
+                <path class="fg-hair" d="M36 62V52A34 32 0 0 1 104 52V62Q104 70 96.5 69C98.5 60 97 52 92.5 46C85 38.5 77 36 70 35.5C63 36 55 38.5 47.5 46C43 52 41.5 60 43.5 69Q36 70 36 62Z"></path>
+                <path class="fg-hair-line" d="M49 36Q57 27 68 25.5"></path>
+              </g>
+              <path class="fg-brow" d="M52.5 47.5Q58 45 63.5 47.5M76.5 47.5Q82 45 87.5 47.5"></path>
+              <path class="fg-face fg-eyes" d="M52 58Q58 51.5 64 58M76 58Q82 51.5 88 58"></path>
+              <ellipse class="fg-blush" cx="50.5" cy="64.5" rx="6.2" ry="3.6"></ellipse>
+              <ellipse class="fg-blush" cx="89.5" cy="64.5" rx="6.2" ry="3.6"></ellipse>
+              <path class="fg-face" d="M64.5 65.5Q70 70.5 75.5 65.5"></path>
             </g>
           </svg>
           <p id="onb-plate" class="onb__plate">Chân Giác</p>
@@ -173,6 +208,11 @@
             👤
           </button>
 
+          <!-- Thắng cảnh & Chiêm bái chùa -->
+          <button id="btn-gallery" type="button" class="hud-round" title="Thắng cảnh & Chiêm bái Chùa Sen">
+            🖼️
+          </button>
+
           <!-- Cài đặt Âm thanh -->
           <button id="btn-sound" type="button" class="hud-round" title="Cài đặt Âm thanh & Nhạc thiền">
             🔊
@@ -239,8 +279,11 @@
         
         <!-- Highlight Ngày Lễ Đặc Biệt (Phật Đản, Vu Lan, Sóc, Vọng...) -->
         <div id="special-day-banner" class="special-day-banner hidden">
-          <span class="special-icon">🪷</span>
-          <span id="special-day-title" class="special-title">Đại lễ Phật Đản</span>
+          <img id="special-day-img" class="special-day-banner__img" src="./images/phat-dan.png" alt="Ngày lễ" />
+          <div class="special-day-banner__text">
+            <span class="special-icon">🪷</span>
+            <span id="special-day-title" class="special-title">Đại lễ Phật Đản</span>
+          </div>
         </div>
 
         <div class="modal-header">
@@ -252,6 +295,9 @@
         <div class="modal-body">
           <!-- Quẻ Chánh Niệm 48 lá -->
           <div class="que-card">
+            <div class="que-banner-wrap">
+              <img id="que-img" class="que-banner-img" src="./images/thien-online.png" alt="Chánh niệm" />
+            </div>
             <div class="que-header">
               <span id="que-tag" class="que-tag">Quẻ Chánh Niệm</span>
               <span id="que-card-num" class="que-card-num">#1 / 48</span>
@@ -351,6 +397,132 @@
           <footer class="sound-credit">
             <p><strong>Nguồn âm thanh:</strong> chuasen.com · Giọng tụng: SieuAmThanh · Đàn tranh & chuông: neolein, nemaavla (Freesound CC0 1.0).</p>
           </footer>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Thắng Cảnh & Chiêm Bái Chùa Sen (Gallery) -->
+    <div id="modal-gallery" class="modal-backdrop hidden">
+      <div class="modal-card gallery-modal-card">
+        <button id="btn-close-gallery-modal" class="modal-close" aria-label="Đóng">✕</button>
+
+        <div class="modal-header">
+          <h2>Thắng cảnh & Chiêm bái Chùa Sen</h2>
+          <p class="modal-subtitle">Hình ảnh khuôn viên, tôn tượng chư Phật và nếp sống thiền môn</p>
+        </div>
+
+        <div class="modal-body">
+          <div class="gallery-grid" id="gallery-grid">
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/gioi-thieu.png" alt="Toàn cảnh Chùa Sen" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Toàn cảnh Chùa Sen</h4>
+                <p>Khuôn viên thanh tịnh với non nước hữu tình, cổng Tam Quan và Chánh Điện nguy nga.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/quan-the-am-bo-tat.png" alt="Tượng Quán Thế Âm Bồ Tát" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Tôn Tượng Quán Thế Âm</h4>
+                <p>Tôn tượng Bồ Tát Quán Thế Âm từ bi lân mẫn, lắng nghe tiếng kêu cầu của chúng sinh giữa hồ sen.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/cay-bo-de.png" alt="Cội Bồ Đề" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Cội Bồ Đề Cổ Thụ</h4>
+                <p>Bóng mát bồ đề che chở cho các Phật tử tọa thiền, tìm lại an lạc trong từng bước chân chánh niệm.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/tha-den-hoa-dang.png" alt="Đêm Hội Hoa Đăng" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Đêm Hội Hoa Đăng</h4>
+                <p>Hàng vạn ngọn đèn lung linh trôi trên dòng nước biếc, thắp sáng tâm nguyện an lành và từ bi.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/thap-huong-online.png" alt="Thắp Hương Chánh Điện" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Khói Hương Chánh Điện</h4>
+                <p>Dâng một nén tâm hương thanh tịnh trước Tam Bảo, nguyện cho thế giới hòa bình, nhân dân an lạc.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/thien-online.png" alt="Tọa Thiền Tĩnh Lặng" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Tọa Thiền Tĩnh Tâm</h4>
+                <p>Dừng lại ba giây, thở vào tâm tĩnh lặng, thở ra miệng mỉm cười – hiện tại là phút giây tuyệt vời.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/niem-phat-online.png" alt="Niệm Phật Tam Bảo" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Niệm Phật Hòa Chúng</h4>
+                <p>Tiếng niệm Nam Mô A Di Đà Phật trầm hùng hòa cùng đại chúng bốn phương không phân biệt khoảng cách.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/phat-dan.png" alt="Đại Lễ Phật Đản" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Đại Lễ Phật Đản</h4>
+                <p>Kỷ niệm ngày Đấng Từ Phụ Thích Ca Mâu Ni đản sinh mang nguồn tuệ giác vô lượng đến muôn loài.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/le-vu-lan.png" alt="Đại Lễ Vu Lan" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Đại Lễ Vu Lan Báo Hiếu</h4>
+                <p>Bông hồng cài áo tri ân công đức trời biển của hai đấng sinh thành trong ngày rằm tháng Bảy.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/kinh.png" alt="Tủ Kinh Điển" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Tủ Kinh Điển Phật Giáo</h4>
+                <p>Kho tàng giáo pháp chánh tín: Bát Nhã Ba La Mật Đa Tâm Kinh, Chú Đại Bi, Vãng Sanh Quyết Định Chơn Ngôn.</p>
+              </div>
+            </article>
+
+            <article class="gallery-item">
+              <div class="gallery-img-wrap">
+                <img src="./images/huong-dan-di-chua-online.png" alt="Nhân Vật & Đi Chùa" loading="lazy" />
+              </div>
+              <div class="gallery-caption">
+                <h4>Nhân Vật Đi Chùa</h4>
+                <p>Khoác lên mình chiếc áo tràng lam, tràng xám hay áo bà ba mộc mạc, cùng nhau tu tập mỗi ngày.</p>
+              </div>
+            </article>
+          </div>
         </div>
       </div>
     </div>

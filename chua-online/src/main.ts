@@ -144,19 +144,41 @@ const inputDharmaName = document.getElementById(
 ) as HTMLInputElement;
 const btnRandomName = document.getElementById("btn-random-name");
 const onbPlate = document.getElementById("onb-plate");
-const svgRobe = document.getElementById("svg-robe");
-const svgSleeveL = document.getElementById("svg-sleeve-l");
-const svgSleeveR = document.getElementById("svg-sleeve-r");
+const onbFigure = document.getElementById("onb-figure") as HTMLElement | null;
 const genderChips = document.getElementById("gender-chips");
 const outfitChips = document.getElementById("outfit-chips");
 const colorSwatches = document.getElementById("color-swatches");
 const btnEnterTemple = document.getElementById("btn-enter-temple");
 const btnCharCustom = document.getElementById("btn-char-custom");
 
+function adjustColorBrightness(hex: string, percent: number): string {
+  const num = parseInt(hex.replace("#", ""), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = Math.max(0, Math.min(255, (num >> 16) + amt));
+  const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00ff) + amt));
+  const B = Math.max(0, Math.min(255, (num & 0x0000ff) + amt));
+  return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
+}
+
 function updateSvgPreview(): void {
-  if (svgRobe) svgRobe.setAttribute("fill", currentProfile.color);
-  if (svgSleeveL) svgSleeveL.setAttribute("fill", currentProfile.color);
-  if (svgSleeveR) svgSleeveR.setAttribute("fill", currentProfile.color);
+  if (onbFigure) {
+    onbFigure.dataset.look = currentProfile.gender;
+    const f =
+      currentProfile.outfit === "ba-ba"
+        ? "baba"
+        : currentProfile.outfit === "ao-dai"
+          ? "aodai"
+          : "trang";
+    onbFigure.dataset.family = f;
+    onbFigure.style.setProperty("--onb-robe", currentProfile.color);
+    onbFigure.style.setProperty(
+      "--onb-robe-shade",
+      adjustColorBrightness(currentProfile.color, -25),
+    );
+    onbFigure.classList.remove("is-pop");
+    void onbFigure.offsetWidth; // trigger reflow
+    onbFigure.classList.add("is-pop");
+  }
   if (onbPlate) onbPlate.textContent = currentProfile.name;
   if (inputDharmaName) inputDharmaName.value = currentProfile.name;
 
@@ -188,6 +210,7 @@ genderChips?.addEventListener("click", (e) => {
     .forEach((c) => c.classList.remove("active"));
   target.classList.add("active");
   currentProfile.gender = (target.dataset.gender || "nam") as "nam" | "nu";
+  updateSvgPreview();
 });
 
 outfitChips?.addEventListener("click", (e) => {
@@ -198,6 +221,7 @@ outfitChips?.addEventListener("click", (e) => {
     .forEach((c) => c.classList.remove("active"));
   target.classList.add("active");
   currentProfile.outfit = target.dataset.outfit || "trang-lam";
+  updateSvgPreview();
 });
 
 colorSwatches?.addEventListener("click", (e) => {
@@ -606,6 +630,9 @@ const btnStreak = document.getElementById("btn-streak");
 
 const specialDayBanner = document.getElementById("special-day-banner");
 const specialDayTitle = document.getElementById("special-day-title");
+const specialDayImg = document.getElementById(
+  "special-day-img",
+) as HTMLImageElement | null;
 const modalSolarDate = document.getElementById("modal-solar-date");
 const modalLunarDate = document.getElementById("modal-lunar-date");
 const modalCanchiDate = document.getElementById("modal-canchi-date");
@@ -615,10 +642,20 @@ const queTitle = document.getElementById("que-title");
 const queTagline = document.getElementById("que-tagline");
 const queDesc = document.getElementById("que-desc");
 const quePractice = document.getElementById("que-practice");
+const queImg = document.getElementById("que-img") as HTMLImageElement | null;
 
 const streakIcon = document.getElementById("streak-icon");
 const streakText = document.getElementById("streak-text");
 const streakTier = document.getElementById("streak-tier");
+
+const QUE_TEMPLE_IMAGES = [
+  "./images/thien-online.png",
+  "./images/cay-bo-de.png",
+  "./images/quan-the-am-bo-tat.png",
+  "./images/tha-den-hoa-dang.png",
+  "./images/thap-huong-online.png",
+  "./images/niem-phat-online.png",
+];
 
 function openTodayModal(): void {
   const lunar = getTodayLunar();
@@ -649,6 +686,20 @@ function openTodayModal(): void {
 
   if (lunar.isSpecialDay && specialDayBanner && specialDayTitle) {
     specialDayTitle.textContent = lunar.specialTitle || "Ngày Lễ Phật Giáo";
+    if (specialDayImg) {
+      if (lunar.specialTitle?.includes("Phật Đản")) {
+        specialDayImg.src = "./images/phat-dan.png";
+      } else if (lunar.specialTitle?.includes("Vu Lan")) {
+        specialDayImg.src = "./images/le-vu-lan.png";
+      } else if (
+        lunar.specialTitle?.includes("Rằm") ||
+        lunar.specialTitle?.includes("Mùng một")
+      ) {
+        specialDayImg.src = "./images/ngay-ram-mung-mot.png";
+      } else {
+        specialDayImg.src = "./images/lich-am.png";
+      }
+    }
     specialDayBanner.classList.remove("hidden");
   } else if (specialDayBanner) {
     specialDayBanner.classList.add("hidden");
@@ -659,6 +710,10 @@ function openTodayModal(): void {
   if (queTagline) queTagline.textContent = card.tagline;
   if (queDesc) queDesc.textContent = card.desc;
   if (quePractice) quePractice.textContent = card.practice;
+
+  if (queImg) {
+    queImg.src = QUE_TEMPLE_IMAGES[card.id % QUE_TEMPLE_IMAGES.length];
+  }
 
   const tier = getLotusTier(streak);
   if (streakText) streakText.textContent = `${streak} ngày công phu tinh tấn`;
@@ -689,6 +744,19 @@ btnJourney?.addEventListener("click", openTodayModal);
 btnStreak?.addEventListener("click", openTodayModal);
 btnCloseModal?.addEventListener("click", () => {
   modalToday?.classList.add("hidden");
+});
+
+// 12. Modal Thắng Cảnh & Chiêm Bái Chùa Sen (Gallery)
+const btnGallery = document.getElementById("btn-gallery");
+const modalGallery = document.getElementById("modal-gallery");
+const btnCloseGalleryModal = document.getElementById("btn-close-gallery-modal");
+
+btnGallery?.addEventListener("click", () => {
+  modalGallery?.classList.remove("hidden");
+});
+
+btnCloseGalleryModal?.addEventListener("click", () => {
+  modalGallery?.classList.add("hidden");
 });
 
 // 12. Cập nhật chu kỳ Ngày/Đêm định kỳ mỗi phút

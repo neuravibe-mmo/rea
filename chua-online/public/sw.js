@@ -2,7 +2,7 @@
  * Chùa Sen - Service Worker (PWA Offline Caching & Instant Load)
  */
 
-const CACHE_NAME = "chua-sen-pwa-v2";
+const CACHE_NAME = "chua-sen-pwa-v3";
 const PRECACHE_ASSETS = [
   "./",
   "./index.html",
@@ -12,6 +12,14 @@ const PRECACHE_ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png",
+  "./images/gioi-thieu.png",
+  "./images/huong-dan-di-chua-online.png",
+  "./images/quan-the-am-bo-tat.png",
+  "./images/cay-bo-de.png",
+  "./images/tha-den-hoa-dang.png",
+  "./images/thap-huong-online.png",
+  "./images/thien-online.png",
+  "./images/niem-phat-online.png",
 ];
 
 self.addEventListener("install", (event) => {
