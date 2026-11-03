@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#140d08" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Chùa Sen" />
+    <title>Chùa Sen – Chùa Online 3D</title>
+    <meta
+      name="description"
+      content="Chùa Sen – Chùa online 3D miễn phí: đi chùa, lễ Phật, thắp hương, tụng kinh cùng mọi người ngay trên điện thoại."
+    />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./favicon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <!-- 3D Canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-overlay">
+      <div class="loading-content">
+        <div class="lotus-icon">🪷</div>
+        <h1 class="app-title">Chùa Sen</h1>
+        <p class="app-tagline">Lên chùa mọi lúc, mọi nơi</p>
+        <div class="loading-bar-container">
+          <div id="loading-progress" class="loading-bar"></div>
+        </div>
+        <p id="loading-status" class="loading-status">Đang dựng chánh điện…</p>
+      </div>
+    </div>
+
+    <!-- HUD Overlays -->
+    <div id="hud" class="hud-container hidden">
+      <!-- Top Bar: Room Info & Settings -->
+      <header class="hud-top">
+        <div class="hud-pill room-badge">
+          <span class="status-dot"></span>
+          <span id="room-label">Phòng Chánh Điện (1)</span>
+        </div>
+        <div class="hud-actions-top">
+          <button id="btn-sound" class="btn-icon" aria-label="Âm thanh" title="Âm thanh">
+            🔊
+          </button>
+          <button id="btn-today" class="btn-icon" aria-label="Hôm nay" title="Hôm nay & Quẻ">
+            🪷
+          </button>
+        </div>
+      </header>
+
+      <!-- Toast Notification -->
+      <div id="hud-toast" class="hud-toast hidden"></div>
+
+      <!-- Bottom Bar: Virtual Joystick (Mobile) & Actions -->
+      <footer class="hud-bottom">
+        <!-- Virtual Joystick Area for Touch -->
+        <div id="joystick-zone" class="joystick-zone">
+          <div id="joystick-thumb" class="joystick-thumb"></div>
+        </div>
+
+        <!-- Ritual Action Buttons -->
+        <div class="hud-actions-grid">
+          <button id="btn-bow" class="btn-action">
+            <span class="btn-icon-text">🙏</span>
+            <span class="btn-label">Lễ Phật</span>
+          </button>
+          <button id="btn-incense" class="btn-action">
+            <span class="btn-icon-text">🪔</span>
+            <span class="btn-label">Thắp hương</span>
+          </button>
+          <button id="btn-bell" class="btn-action">
+            <span class="btn-icon-text">🔔</span>
+            <span class="btn-label">Đánh chuông</span>
+          </button>
+          <button id="btn-chant" class="btn-action">
+            <span class="btn-icon-text">🪵</span>
+            <span class="btn-label">Gõ mõ</span>
+          </button>
+          <button id="btn-mala" class="btn-action">
+            <span class="btn-icon-text">📿</span>
+            <span class="btn-label">Lần chuỗi</span>
+          </button>
+          <button id="btn-meditate" class="btn-action">
+            <span class="btn-icon-text">🧘</span>
+            <span class="btn-label">Ngồi thiền</span>
+          </button>
+          <button id="btn-lantern" class="btn-action">
+            <span class="btn-icon-text">🏮</span>
+            <span class="btn-label">Thả hoa đăng</span>
+          </button>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Today / Lunar / Divination Card Modal -->
+    <div id="modal-today" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <button id="btn-close-modal" class="modal-close" aria-label="Đóng">✕</button>
+        
+        <!-- Highlight Ngày Lễ Đặc Biệt (Mùng Một, Rằm, Phật Đản, Vu Lan) -->
+        <div id="special-day-banner" class="special-day-banner hidden">
+          <span class="special-icon">🪷</span>
+          <span id="special-day-title" class="special-title">Đại lễ Phật Đản</span>
+        </div>
+
+        <div class="modal-header">
+          <h2 id="modal-solar-date">Hôm nay</h2>
+          <p id="modal-lunar-date" class="modal-subtitle">Âm lịch</p>
+          <p id="modal-canchi-date" class="modal-canchi"></p>
+        </div>
+
+        <div class="modal-body">
+          <!-- Quẻ Chánh Niệm Hàng Ngày (48 Quẻ) -->
+          <div class="que-card">
+            <div class="que-header">
+              <span id="que-tag" class="que-tag">Quẻ Chánh Niệm</span>
+              <span id="que-card-num" class="que-card-num">#1 / 48</span>
+            </div>
+            <h3 id="que-title" class="que-title">Một hơi thở sâu</h3>
+            <p id="que-tagline" class="que-tagline">Hơi thở là mỏ neo</p>
+            <p id="que-desc" class="que-desc">Dừng lại ba giây, thở vào thật sâu và mỉm cười với hiện tại.</p>
+            <div class="que-practice-box">
+              <span class="practice-label">Thực tập hôm nay:</span>
+              <p id="que-practice" class="practice-text">Mỗi khi chuyển đổi công việc, hãy dừng lại thở 3 hơi chánh niệm.</p>
+            </div>
+          </div>
+
+          <!-- Chuỗi Chuyên Cần & Cấp Bậc Sen -->
+          <div class="streak-box">
+            <span id="streak-icon" class="streak-icon">🪷</span>
+            <div class="streak-info">
+              <p class="streak-count" id="streak-text">1 ngày công phu</p>
+              <p id="streak-tier" class="streak-tier">Cấp 1 · Hạt sen</p>
+            </div>
+          </div>
+
+          <!-- Việc Hôm Nay (Daily Checklist) -->
+          <div class="daily-tasks">
+            <h4 class="tasks-title">Công phu hôm nay</h4>
+            <div class="task-chips">
+              <span id="task-bow" class="task-chip">🙏 Lễ Phật</span>
+              <span id="task-incense" class="task-chip">🪔 Thắp hương</span>
+              <span id="task-mala" class="task-chip">📿 Lần chuỗi</span>
+              <span id="task-meditate" class="task-chip">🧘 Tọa thiền</span>
+              <span id="task-que" class="task-chip done">🪷 Đọc quẻ</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
+

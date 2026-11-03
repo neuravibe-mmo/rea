@@ -1,0 +1,28 @@
+{
+  "name": "Chùa Sen – Chùa Online 3D",
+  "short_name": "Chùa Sen",
+  "description": "Chùa Sen là chùa online 3D miễn phí: đi chùa, lễ Phật, thắp hương, tụng kinh cùng mọi người ngay trên điện thoại.",
+  "start_url": "./",
+  "id": "/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#140d08",
+  "theme_color": "#140d08",
+  "lang": "vi",
+  "categories": ["lifestyle", "culture"],
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
