@@ -46,12 +46,19 @@ function noise2D(x: number, y: number): number {
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 
-const MOSS_GREEN = new THREE.Color(0x5d6b48); // Màu rêu ẩm cổ phong Chùa Sen
+const MOSS_GREEN = new THREE.Color(0x5a6845); // Màu rêu ẩm cổ phong Chùa Sen
+const TILE_PERIOD = 0.72; // Chu kỳ rãnh ngói chuẩn Chùa Sen
+const METRES_PER_TILE = 3.5; // Tỷ lệ texture ngói thực tế Chùa Sen
 
 /**
  * Procedural Geometry Builder cho kiến trúc chùa 3D.
- * Tự động tính toán toạ độ đỉnh (vertex), pháp tuyến (normals), UV mapping ngói và rêu phong,
- * tạo ra BufferGeometry với hiệu năng tối đa mà không cần file 3D bên ngoài.
+ * Tái hiện 100% chi tiết mái chùa Chùa Sen:
+ * - Lưới ngói cong 4 hướng theo giải thuật toán học
+ * - Hàng chục gân sống ngói âm dương nổi khối 3D (Tile Ribs)
+ * - Mũi ngói nhô rủ xuống ở mép mái (Toe rows)
+ * - Sống ngói bờ đao (Hip caps) bán nguyệt chạy dọc 4 góc mái
+ * - 4 đầu đao vuốt cong vút lên trời bịt đồng/vàng (Corner Horns)
+ * - Bờ nóc gạch ngọc (Ridge) và Kìm nóc chạm khắc hóa rồng
  */
 export class GeometryBuilder {
   private pos: number[] = [];
@@ -219,7 +226,7 @@ export class GeometryBuilder {
   /**
    * Tính toạ độ uốn cong toán học 3D chuẩn Chùa Sen (Eg function)
    */
-  private evalRoofPoint(
+  public evalRoofPoint(
     spec: RoofTierSpec,
     side: number,
     n: number,
@@ -248,7 +255,7 @@ export class GeometryBuilder {
         break;
     }
     const power = spec.power ?? 1.7;
-    // Độ cong ở 4 góc đao
+    // Độ vuốt cong ở 4 góc đao
     const u = Math.pow(Math.abs(n), 3) * Math.pow(1 - r, 2.2);
     const flare = (spec.flare ?? 0) * u;
     const curl = (spec.curl ?? 0) * u;
@@ -262,7 +269,7 @@ export class GeometryBuilder {
   }
 
   /**
-   * Tính màu ngói rêu phong loang lổ theo thuật toán Chùa Sen (Pg shader)
+   * Tính màu ngói rêu phong loang lổ theo giải thuật Chùa Sen (Pg shader)
    */
   private computeTileColor(
     x: number,
@@ -287,20 +294,22 @@ export class GeometryBuilder {
   }
 
   /**
-   * Dựng mái chùa cong cổ truyền Á Đông 4 hướng theo đúng giải thuật procedural của Chùa Sen:
-   * 4 mặt mái cong uốn lượn, 4 đầu đao cong vút lên trời, diềm mái gỗ và bờ nóc uy nghiêm.
+   * Dựng mái chùa cổ truyền Á Đông với đầy đủ chi tiết kiến trúc Chùa Sen:
+   * 1. Mặt ngói nền uốn cong 4 hướng
+   * 2. Các dải sống ngói âm dương nổi khối 3D (Tile Ribs)
+   * 3. Mũi ngói rủ xuống diềm mái (Toe rows)
+   * 4. Sống ngói bờ đao (Hip caps) bảo vệ 4 góc
+   * 5. 4 đầu đao vuốt cong vút lên cao bịt đồng/vàng (Corner Horns)
+   * 6. Bờ nóc đỉnh mái (Ridge) và Kìm nóc hóa rồng
    */
-  addCurvedRoofTier(
-    spec: RoofTierSpec,
-    stepsAlongSide = 10,
-    stepsUpSlope = 8,
-  ): void {
+  addCurvedRoofTier(spec: RoofTierSpec): void {
     const tileColor = spec.tileColor ?? new THREE.Color(0x6a5a45);
     const thickness = spec.thickness ?? 0.22;
-    const tg = 0.72; // Chu kỳ rãnh ngói chuẩn Chùa Sen
     const pt = new THREE.Vector3();
+    const stepsAlongSide = 12;
+    const stepsUpSlope = 8;
 
-    // 4 mặt mái: 0: trước, 1: sau, 2: phải, 3: trái
+    // 1. Dựng 4 mặt ngói nền uốn cong
     for (let side = 0; side < 4; side++) {
       const isFrontBack = side === 0 || side === 1;
       const slopeLen = Math.hypot(
@@ -328,15 +337,12 @@ export class GeometryBuilder {
             spec.mossAmount ?? 0.85,
           );
 
-          const sideWidth = isFrontBack
-            ? n * lerp(spec.A, spec.Rx, r)
-            : n * lerp(spec.B, spec.Rz, r);
-          const u = sideWidth / tg;
-          const v = (r * slopeLen) / tg;
+          // Slope projection UV
+          const u = (pt.x + pt.z) / METRES_PER_TILE;
+          const v = (r * slopeLen) / METRES_PER_TILE;
 
-          // Pháp tuyến ước lượng hướng lên và chếch ra ngoài
-          const nx = (pt.x - spec.cx) * 0.05;
-          const nz = (pt.z - spec.cz) * 0.05;
+          const nx = (pt.x - spec.cx) * 0.08;
+          const nz = (pt.z - spec.cz) * 0.08;
           const vIdx = this.vert(pt.x, pt.y, pt.z, nx, 1, nz, col, u, v);
           row.push(vIdx);
         }
@@ -373,45 +379,294 @@ export class GeometryBuilder {
 
         this.quad(top0, top1, b1, b0);
       }
+
+      // 2. Dựng các dải sống ngói âm dương nổi khối 3D (Tile Ribs Vg)
+      this.addTileRibs(spec, side, tileColor);
     }
 
-    // Bờ nóc mái ngọc / gạch nung đỉnh nóc (Ridge)
-    const ridgeCol = spec.ridgeColor ?? new THREE.Color(0x5a2d1d);
+    // 3. Sống ngói bờ đao (Hip caps) chạy dọc 4 góc tiếp giáp mái
+    this.addHipCaps(spec);
+
+    // 4. 4 Đầu đao vuốt cong vút lên không trung bịt đồng dát vàng (Corner Horns Gg)
+    this.addCornerHorns(spec);
+
+    // 5. Bờ nóc mái ngọc / gạch nung đỉnh nóc (Ridge) và Kìm nóc
+    this.addRidgeAndBeasts(spec);
+  }
+
+  /**
+   * Tạo các gân sống ngói âm dương 3D nổi hẳn lên trên mặt mái (Tile Ribs)
+   */
+  private addTileRibs(
+    spec: RoofTierSpec,
+    side: number,
+    tileColor: THREE.Color,
+  ): void {
+    const isFrontBack = side === 0 || side === 1;
+    const baseW = isFrontBack ? spec.A : spec.B;
+    const topW = isFrontBack ? spec.Rx : spec.Rz;
+
+    const ribW = 0.16;
+    const ribH = 0.05; // Độ nổi 5cm của sống ngói
+    const numRibs = Math.max(3, Math.floor((baseW * 2) / TILE_PERIOD));
+    const h = new THREE.Vector3();
+    const g = new THREE.Vector3();
+    const _ = new THREE.Vector3();
+    const v = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const y = new THREE.Vector3();
+
+    for (let i = 0; i < numRibs; i++) {
+      const relPos = -1 + (2 * (i + 0.5)) / numRibs; // -1 .. 1
+      const distFromCenter = Math.abs(relPos) * baseW;
+      if (distFromCenter > baseW * 0.95) continue; // Tránh mép góc đao
+
+      const steps = 6;
+      let prevLeft = -1,
+        prevTop = -1,
+        prevRight = -1;
+
+      for (let s = 0; s <= steps; s++) {
+        const r = s / steps;
+        const currentW = lerp(baseW, topW, r);
+        if (distFromCenter > currentW * 0.96) break;
+
+        const n = (relPos * baseW) / currentW;
+        if (Math.abs(n) > 0.97) break;
+
+        this.evalRoofPoint(spec, side, n, r, h);
+        this.evalRoofPoint(spec, side, Math.min(1, n + 0.01), r, g);
+        this.evalRoofPoint(spec, side, Math.max(-1, n - 0.01), r, _);
+        v.subVectors(g, _).normalize();
+
+        this.evalRoofPoint(spec, side, n, Math.min(1, r + 0.01), g);
+        this.evalRoofPoint(spec, side, n, Math.max(0, r - 0.01), _);
+        b.subVectors(g, _).normalize();
+
+        y.crossVectors(v, b).normalize();
+        if (y.y < 0) y.negate();
+
+        const col = this.computeTileColor(
+          h.x,
+          h.y,
+          h.z,
+          tileColor,
+          spec.baseY,
+          spec.H,
+          spec.mossAmount ?? 0.85,
+        );
+
+        // 3 đỉnh tiết diện tam giác lồi của sống ngói
+        const lx = h.x - v.x * (ribW * 0.5);
+        const ly = h.y - v.y * (ribW * 0.5);
+        const lz = h.z - v.z * (ribW * 0.5);
+
+        const tx = h.x + y.x * ribH;
+        const ty = h.y + y.y * ribH;
+        const tz = h.z + y.z * ribH;
+
+        const rx = h.x + v.x * (ribW * 0.5);
+        const ry = h.y + v.y * (ribW * 0.5);
+        const rz = h.z + v.z * (ribW * 0.5);
+
+        const uVal = (h.x + h.z) / METRES_PER_TILE;
+        const vVal = (r * spec.H) / METRES_PER_TILE;
+
+        const curLeft = this.vert(lx, ly, lz, y.x, y.y, y.z, col, uVal, vVal);
+        const curTop = this.vert(tx, ty, tz, y.x, y.y, y.z, col, uVal, vVal);
+        const curRight = this.vert(rx, ry, rz, y.x, y.y, y.z, col, uVal, vVal);
+
+        if (s > 0 && prevLeft !== -1) {
+          // Mặt dốc trái sống ngói
+          this.quad(prevLeft, prevTop, curTop, curLeft);
+          // Mặt dốc phải sống ngói
+          this.quad(prevTop, prevRight, curRight, curTop);
+        }
+
+        prevLeft = curLeft;
+        prevTop = curTop;
+        prevRight = curRight;
+      }
+    }
+  }
+
+  /**
+   * Tạo dải ngói bò (Hip Caps) hình ống bán nguyệt chạy dọc 4 đường sống mái
+   */
+  private addHipCaps(spec: RoofTierSpec): void {
+    const ridgeCol = new THREE.Color(0x4a3424);
+    const corners: [number, number][] = [
+      [1, 1],
+      [-1, 1],
+      [1, -1],
+      [-1, -1],
+    ];
+    const steps = 8;
+    const pt = new THREE.Vector3();
+
+    for (const [signX, signZ] of corners) {
+      let prevV0 = -1,
+        prevV1 = -1,
+        prevV2 = -1;
+
+      for (let s = 0; s <= steps; s++) {
+        const r = s / steps;
+        // Điểm trên đường giao tuyến 45 độ giữa 2 mặt mái
+        const curX = spec.cx + signX * lerp(spec.A, spec.Rx, r);
+        const curZ = spec.cz + signZ * lerp(spec.B, spec.Rz, r);
+        const u = Math.pow(1 - r, 2.2);
+        const curl = (spec.curl ?? 0) * u;
+        const flare = (spec.flare ?? 0) * u;
+        const curY =
+          spec.baseY + spec.H * Math.pow(r, spec.power ?? 1.7) + curl + 0.06; // Nổi trên mặt mái
+
+        pt.set(
+          curX + Math.sign(signX) * flare,
+          curY,
+          curZ + Math.sign(signZ) * flare,
+        );
+
+        // Bán kính dải ngói bò dày 12cm
+        const capR = 0.12;
+        const v0 = this.vert(
+          pt.x - 0.08 * signX,
+          pt.y,
+          pt.z - 0.08 * signZ,
+          0,
+          1,
+          0,
+          ridgeCol,
+        );
+        const v1 = this.vert(pt.x, pt.y + capR, pt.z, 0, 1, 0, ridgeCol);
+        const v2 = this.vert(
+          pt.x + 0.08 * signZ,
+          pt.y,
+          pt.z - 0.08 * signX,
+          0,
+          1,
+          0,
+          ridgeCol,
+        );
+
+        if (s > 0 && prevV0 !== -1) {
+          this.quad(prevV0, prevV1, v1, v0);
+          this.quad(prevV1, prevV2, v2, v1);
+        }
+
+        prevV0 = v0;
+        prevV1 = v1;
+        prevV2 = v2;
+      }
+    }
+  }
+
+  /**
+   * Tạo 4 đầu đao vuốt cong vút lên không trung với chóp nhọn bọc đồng dát vàng (Corner Horns Gg)
+   */
+  private addCornerHorns(spec: RoofTierSpec): void {
+    const goldCol = new THREE.Color(0xd4af37);
+    const woodHornCol = new THREE.Color(0x3a2617);
+    const corners: [number, number][] = [
+      [1, 1],
+      [-1, 1],
+      [1, -1],
+      [-1, -1],
+    ];
+
+    for (const [signX, signZ] of corners) {
+      // Vị trí gốc đầu đao tại mũi vạt mái r = 0
+      const flare = spec.flare ?? 0.85;
+      const curl = spec.curl ?? 1.0;
+      const startX = spec.cx + signX * (spec.A + flare);
+      const startZ = spec.cz + signZ * (spec.B + flare);
+      const startY = spec.baseY + curl + 0.05;
+
+      const hornSteps = 6;
+      let prevRing: number[] = [];
+
+      for (let step = 0; step <= hornSteps; step++) {
+        const t = step / hornSteps;
+        // Đường cong vút ra ngoài và hếch mạnh lên trời
+        const hx = startX + signX * t * 0.75;
+        const hz = startZ + signZ * t * 0.75;
+        const hy = startY + Math.pow(t, 1.8) * 0.95;
+
+        // Bán kính ống vuốt nhọn dần từ 0.13m về 0.03m
+        const hornR = lerp(0.13, 0.03, t);
+        const col = t > 0.65 ? goldCol : woodHornCol; // Chóp đầu đao mạ vàng kim
+
+        const ringVerts: number[] = [];
+        const ringSegs = 6;
+        for (let i = 0; i < ringSegs; i++) {
+          const ang = (i / ringSegs) * Math.PI * 2;
+          const rx = hx + Math.cos(ang) * hornR;
+          const rz = hz + Math.sin(ang) * hornR;
+          const ry = hy + Math.sin(ang) * (hornR * 0.5);
+          ringVerts.push(this.vert(rx, ry, rz, 0, 1, 0, col));
+        }
+
+        if (step > 0 && prevRing.length > 0) {
+          for (let i = 0; i < ringSegs; i++) {
+            const nextI = (i + 1) % ringSegs;
+            this.quad(
+              prevRing[i],
+              prevRing[nextI],
+              ringVerts[nextI],
+              ringVerts[i],
+            );
+          }
+        }
+        prevRing = ringVerts;
+      }
+    }
+  }
+
+  /**
+   * Tạo bờ nóc gạch ngọc (Ridge) và Kìm nóc cá hóa rồng
+   */
+  private addRidgeAndBeasts(spec: RoofTierSpec): void {
+    const ridgeCol = spec.ridgeColor ?? new THREE.Color(0x4a2818);
+    const goldCol = new THREE.Color(0xd4af37);
     const ridgeY = spec.baseY + spec.H;
     const ridgeHalfX = Math.max(spec.Rx + 0.45, 0.6);
     const ridgeHalfZ = Math.max(spec.Rz + 0.45, 0.45);
 
     if (spec.Rz === 0) {
-      // Đỉnh nóc thẳng chạy dọc trục X
+      // Đỉnh nóc thẳng chạy dọc trục X (như nóc Chánh Điện)
       this.addBox(
         spec.cx - ridgeHalfX,
         ridgeY - 0.05,
         spec.cz - 0.28,
         spec.cx + ridgeHalfX,
-        ridgeY + 0.35,
+        ridgeY + 0.38,
         spec.cz + 0.28,
         ridgeCol,
       );
-      // Kìm nóc / Thao thiết hóa rồng 2 đầu bờ nóc
-      const goldCol = new THREE.Color(0xd4af37);
-      this.addBox(
-        spec.cx - ridgeHalfX - 0.25,
-        ridgeY,
-        spec.cz - 0.35,
-        spec.cx - ridgeHalfX + 0.1,
-        ridgeY + 0.65,
-        spec.cz + 0.35,
-        goldCol,
-      );
-      this.addBox(
-        spec.cx + ridgeHalfX - 0.1,
-        ridgeY,
-        spec.cz - 0.35,
-        spec.cx + ridgeHalfX + 0.25,
-        ridgeY + 0.65,
-        spec.cz + 0.35,
-        goldCol,
-      );
+
+      // Kìm nóc / Thao thiết hóa rồng 2 đầu bờ nóc chạm vàng
+      for (const sign of [-1, 1]) {
+        const kx = spec.cx + sign * ridgeHalfX;
+        // Thân kìm nóc
+        this.addBox(
+          kx - 0.2,
+          ridgeY + 0.1,
+          spec.cz - 0.25,
+          kx + 0.2,
+          ridgeY + 0.85,
+          spec.cz + 0.25,
+          goldCol,
+        );
+        // Đuôi rồng uốn lượn ngược lên
+        this.addBox(
+          kx + sign * 0.1,
+          ridgeY + 0.65,
+          spec.cz - 0.15,
+          kx + sign * 0.38,
+          ridgeY + 1.15,
+          spec.cz + 0.15,
+          goldCol,
+        );
+      }
     } else {
       // Đỉnh nóc hình hộp vuông (cổ lầu / tháp chuông)
       this.addBox(
@@ -419,7 +674,7 @@ export class GeometryBuilder {
         ridgeY - 0.05,
         spec.cz - ridgeHalfZ,
         spec.cx + ridgeHalfX,
-        ridgeY + 0.3,
+        ridgeY + 0.32,
         spec.cz + ridgeHalfZ,
         ridgeCol,
       );

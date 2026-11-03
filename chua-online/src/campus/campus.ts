@@ -47,57 +47,69 @@ export class Campus {
   constructor() {
     const loader = new THREE.TextureLoader();
 
-    // 1. Texture ngói đất nung / ngói rêu phong chính thức RoofingTiles014
-    const roofColor = loader.load("./textures/roof/roof_tile_color.jpg");
+    // 1. Texture ngói đất nung / ngói rêu phong chính thức chuẩn Chùa Sen
+    const roofColor = loader.load("./textures/v1/roof_tiles/color.webp");
     roofColor.wrapS = THREE.RepeatWrapping;
     roofColor.wrapT = THREE.RepeatWrapping;
-    roofColor.repeat.set(2, 2);
+    roofColor.repeat.set(1, 1);
 
-    const roofNormal = loader.load("./textures/roof/roof_tile_normal.jpg");
+    const roofNormal = loader.load("./textures/v1/roof_tiles/normal.webp");
     roofNormal.wrapS = THREE.RepeatWrapping;
     roofNormal.wrapT = THREE.RepeatWrapping;
-    roofNormal.repeat.set(2, 2);
+    roofNormal.repeat.set(1, 1);
 
     const roofRoughness = loader.load(
-      "./textures/roof/roof_tile_roughness.jpg",
+      "./textures/v1/roof_tiles/roughness-512.webp",
     );
     roofRoughness.wrapS = THREE.RepeatWrapping;
     roofRoughness.wrapT = THREE.RepeatWrapping;
-    roofRoughness.repeat.set(2, 2);
+    roofRoughness.repeat.set(1, 1);
 
     this.roofMat = new THREE.MeshStandardMaterial({
       vertexColors: true,
       map: roofColor,
       normalMap: roofNormal,
       roughnessMap: roofRoughness,
-      roughness: 0.75,
-      metalness: 0.1,
+      roughness: 0.88,
+      metalness: 0.12,
     });
 
-    // 2. Texture gỗ sẫm cột kèo chùa chính thức Wood067
-    const woodColor = loader.load("./textures/wood/wood_color.jpg");
+    // 2. Texture gỗ sẫm cột kèo chùa chính thức chuẩn Chùa Sen
+    const woodColor = loader.load("./textures/v1/wood_floor/color.webp");
     woodColor.wrapS = THREE.RepeatWrapping;
     woodColor.wrapT = THREE.RepeatWrapping;
-    woodColor.repeat.set(1, 4);
+    woodColor.repeat.set(1, 3);
 
-    const woodNormal = loader.load("./textures/wood/wood_normal.jpg");
+    const woodNormal = loader.load("./textures/v1/wood_floor/normal.webp");
     woodNormal.wrapS = THREE.RepeatWrapping;
     woodNormal.wrapT = THREE.RepeatWrapping;
-    woodNormal.repeat.set(1, 4);
+    woodNormal.repeat.set(1, 3);
 
     this.woodMat = new THREE.MeshStandardMaterial({
       vertexColors: true,
       map: woodColor,
       normalMap: woodNormal,
       roughness: 0.65,
-      metalness: 0.15,
+      metalness: 0.1,
     });
 
-    // 3. Vật liệu đá phiến / thềm tam cấp / chân tảng
+    // 3. Vật liệu đá phiến / thềm tam cấp / chân tảng chuẩn Chùa Sen
+    const stoneColor = loader.load("./textures/v1/stone_pavers/color.webp");
+    stoneColor.wrapS = THREE.RepeatWrapping;
+    stoneColor.wrapT = THREE.RepeatWrapping;
+    stoneColor.repeat.set(2, 2);
+
+    const stoneNormal = loader.load("./textures/v1/stone_pavers/normal.webp");
+    stoneNormal.wrapS = THREE.RepeatWrapping;
+    stoneNormal.wrapT = THREE.RepeatWrapping;
+    stoneNormal.repeat.set(2, 2);
+
     this.stoneMat = new THREE.MeshStandardMaterial({
       vertexColors: true,
+      map: stoneColor,
+      normalMap: stoneNormal,
       roughness: 0.85,
-      metalness: 0.08,
+      metalness: 0.05,
     });
 
     // 4. Vật liệu mạ vàng tượng Phật Tam Bảo / Chuông đồng
