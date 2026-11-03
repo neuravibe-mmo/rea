@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Chùa Sen" />
-    <title>Chùa Sen – Chùa Online 3D</title>
+    <title>Chùa Sen – Chùa online 3D: đi chùa, lễ Phật, tụng kinh cùng nhau</title>
     <meta
       name="description"
-      content="Chùa Sen – Chùa online 3D miễn phí: đi chùa, lễ Phật, thắp hương, tụng kinh cùng mọi người ngay trên điện thoại."
+      content="Chùa Sen là chùa online 3D miễn phí: đi chùa, lễ Phật, thắp hương, tụng kinh cùng mọi người ngay trên điện thoại, không cần đăng ký, không cần cài đặt."
     />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./favicon.svg" />
@@ -22,87 +22,213 @@
     <!-- 3D Canvas -->
     <canvas id="webgl-canvas"></canvas>
 
-    <!-- Loading Screen -->
-    <div id="loading-screen" class="loading-overlay">
-      <div class="loading-content">
-        <div class="lotus-icon">🪷</div>
-        <h1 class="app-title">Chùa Sen</h1>
-        <p class="app-tagline">Lên chùa mọi lúc, mọi nơi</p>
-        <div class="loading-bar-container">
-          <div id="loading-progress" class="loading-bar"></div>
+    <!-- Màn hình Mở đầu / Boot Splash Screen -->
+    <div id="boot" class="boot">
+      <div class="boot__splash">
+        <svg class="boot__lotus" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="bl-a" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#fbe3a4"></stop>
+              <stop offset="1" stop-color="#dfab52"></stop>
+            </linearGradient>
+            <linearGradient id="bl-b" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#e8bd69"></stop>
+              <stop offset="1" stop-color="#c58f3f"></stop>
+            </linearGradient>
+          </defs>
+          <g stroke="#140d08" stroke-width="1.3" stroke-linejoin="round">
+            <path fill="#a97832" d="M0 0C-8.8-4.3-9.4-15.4 0-24C9.4-15.4 8.8-4.3 0 0Z" transform="translate(32 43) rotate(-66)"></path>
+            <path fill="#a97832" d="M0 0C-8.8-4.3-9.4-15.4 0-24C9.4-15.4 8.8-4.3 0 0Z" transform="translate(32 43) rotate(66)"></path>
+            <path fill="url(#bl-b)" d="M0 0C-11-5.4-11.7-19.2 0-30C11.7-19.2 11-5.4 0 0Z" transform="translate(32 43) rotate(-34)"></path>
+            <path fill="url(#bl-b)" d="M0 0C-11-5.4-11.7-19.2 0-30C11.7-19.2 11-5.4 0 0Z" transform="translate(32 43) rotate(34)"></path>
+            <path fill="url(#bl-a)" d="M0 0C-13-6.5-14-23 0-36C14-23 13-6.5 0 0Z" transform="translate(32 43)"></path>
+          </g>
+          <g fill="none" stroke="#e0b25c" stroke-linecap="round" stroke-width="2.6">
+            <path d="M10 50c3.6-2.6 7.2-2.6 10.8 0s7.2 2.6 10.8 0 7.2-2.6 10.8 0 7.2 2.6 10.8 0"></path>
+            <path opacity=".55" d="M19 56c3.1-2.2 6.2-2.2 9.3 0s6.2 2.2 9.3 0 6.2-2.2 9.3 0"></path>
+          </g>
+        </svg>
+        <h1 class="boot__title">Chùa Sen</h1>
+        <p class="boot__tagline">Lên chùa mọi lúc, mọi nơi</p>
+        <div class="boot__bar" aria-hidden="true">
+          <span class="boot__fill" id="bootFill"></span>
         </div>
-        <p id="loading-status" class="loading-status">Đang dựng chánh điện…</p>
+        <p class="boot__status" id="bootStatus">Đang dựng chánh điện…</p>
       </div>
     </div>
 
-    <!-- HUD Overlays -->
-    <div id="hud" class="hud-container hidden">
-      <!-- Top Bar: Room Info & Settings -->
-      <header class="hud-top">
-        <div class="hud-pill room-badge">
-          <span class="status-dot"></span>
-          <span id="room-label">Phòng Chánh Điện (1)</span>
+    <!-- Onboarding: Chọn Pháp Danh & Ngoại Hình Nhân Vật -->
+    <div id="onboarding-root" class="onb hidden">
+      <div class="onb__card">
+        <header class="onb__head">
+          <h2 class="onb__title">Vào chùa</h2>
+          <p class="onb__lead">Chọn nhanh một nhân vật rồi bước vào sân chùa.</p>
+        </header>
+
+        <div class="onb__preview" aria-hidden="true">
+          <svg class="onb__figure" viewBox="0 0 140 170" focusable="false">
+            <ellipse cx="70" cy="159" rx="54" ry="8.5" fill="rgba(0,0,0,0.3)"></ellipse>
+            <!-- Thân áo -->
+            <path id="svg-robe" d="M51 87C58 82 82 82 89 87L98 136C83 142.5 57 142.5 42 136Z" fill="#5a8ac4"></path>
+            <path d="M42.5 135.5C57 142 83 142 97.5 135.5" stroke="#f3ead6" stroke-width="2" fill="none"></path>
+            <path id="svg-sleeve-l" d="M52 88C41 93 35.5 108 39.5 121C46 126.5 58 123 65.5 113C62.5 105 60.5 96 58.5 89Z" fill="#4d7bb4"></path>
+            <path id="svg-sleeve-r" d="M88 88C99 93 104.5 108 100.5 121C94 126.5 82 123 74.5 113C77.5 105 79.5 96 81.5 89Z" fill="#4d7bb4"></path>
+            <path d="M70 101.5C75.5 106.5 76.5 115 70 122C63.5 115 64.5 106.5 70 101.5Z" fill="#e8cbb1"></path>
+            <!-- Đầu & Khuôn mặt -->
+            <ellipse cx="70" cy="52" rx="30" ry="28" fill="#f0d5be"></ellipse>
+            <path d="M52 56Q58 50 64 56M76 56Q82 50 88 56" stroke="#4a3b32" stroke-width="2.5" stroke-linecap="round" fill="none"></path>
+            <ellipse cx="50" cy="63" rx="5" ry="3" fill="rgba(235,169,187,0.5)"></ellipse>
+            <ellipse cx="90" cy="63" rx="5" ry="3" fill="rgba(235,169,187,0.5)"></ellipse>
+            <path d="M65 64Q70 69 75 64" stroke="#4a3b32" stroke-width="2" stroke-linecap="round" fill="none"></path>
+            <!-- Tóc / Nón lá -->
+            <g id="svg-hair">
+              <path d="M40 50A30 28 0 0 1 100 50C95 38 85 32 70 32C55 32 45 38 40 50Z" fill="#3a2e2b"></path>
+            </g>
+          </svg>
+          <p id="onb-plate" class="onb__plate">Chân Giác</p>
         </div>
-        <div class="hud-actions-top">
-          <button id="btn-sound" class="btn-icon" aria-label="Âm thanh" title="Âm thanh">
-            🔊
+
+        <div class="onb__fields">
+          <div class="onb__field">
+            <label class="onb__label" for="input-dharma-name">Pháp danh</label>
+            <div class="onb__name-row">
+              <input id="input-dharma-name" class="onb__input" type="text" maxlength="24" value="Chân Giác" placeholder="Nhập pháp danh..." />
+              <button id="btn-random-name" type="button" class="onb__dice" title="Gợi ý pháp danh ngẫu nhiên">🎲</button>
+            </div>
+          </div>
+
+          <div class="onb__field">
+            <span class="onb__label">Giới tính</span>
+            <div class="onb__chips" id="gender-chips">
+              <button type="button" class="chip active" data-gender="nam">Nam</button>
+              <button type="button" class="chip" data-gender="nu">Nữ</button>
+            </div>
+          </div>
+
+          <div class="onb__field">
+            <span class="onb__label">Kiểu áo</span>
+            <div class="onb__chips" id="outfit-chips">
+              <button type="button" class="chip active" data-outfit="trang-lam">Tràng lam</button>
+              <button type="button" class="chip" data-outfit="trang-xam">Tràng xám</button>
+              <button type="button" class="chip" data-outfit="ba-ba">Áo bà ba</button>
+              <button type="button" class="chip" data-outfit="ao-dai">Áo dài</button>
+            </div>
+          </div>
+
+          <div class="onb__field">
+            <span class="onb__label">Màu áo</span>
+            <div class="onb__swatches" id="color-swatches">
+              <button type="button" class="onb__swatch active" data-color="#5a8ac4" style="--sw: #5a8ac4;" title="Lam"></button>
+              <button type="button" class="onb__swatch" data-color="#7eaecb" style="--sw: #7eaecb;" title="Thiên thanh"></button>
+              <button type="button" class="onb__swatch" data-color="#6e7278" style="--sw: #6e7278;" title="Xám khói"></button>
+              <button type="button" class="onb__swatch" data-color="#8a5a2b" style="--sw: #8a5a2b;" title="Nâu sồng"></button>
+              <button type="button" class="onb__swatch" data-color="#d4af37" style="--sw: #d4af37;" title="Hoàng yến"></button>
+            </div>
+          </div>
+        </div>
+
+        <button id="btn-enter-temple" type="button" class="btn btn--gold btn--lg">Vào chùa</button>
+      </div>
+    </div>
+
+    <!-- HUD Lớp Giao Diện Chính -->
+    <div id="hud" class="hud hidden">
+      <!-- Thanh HUD Trên (Top Bar) -->
+      <header class="hud__top">
+        <!-- Thông tin phòng chùa bên trái -->
+        <div class="hud-glass hud-room">
+          <div class="hud-room__pill">
+            <span class="hud-room__lotus">🪷</span>
+            <span class="hud-room__temple">Chùa Sen</span>
+            <span class="hud-room__sep" aria-hidden="true"></span>
+            <span class="hud-room__dot" aria-hidden="true"></span>
+            <span id="room-label" class="hud-room__label">Phòng Chánh Điện (1)</span>
+          </div>
+        </div>
+
+        <!-- Bộ công cụ & tiến trình bên phải -->
+        <div class="hud-glass hud-tools">
+          <!-- Cấp bậc hoa sen & Hành trình -->
+          <button id="btn-journey" type="button" class="hud-level__btn" title="Hành trình tu tập & Quẻ chánh niệm">
+            <span id="hud-tier-emblem">🪷</span>
           </button>
-          <button id="btn-today" class="btn-icon" aria-label="Hôm nay" title="Hôm nay & Quẻ">
-            🪷
+
+          <!-- Chuỗi ngày chuyên cần (Streak) -->
+          <div id="btn-streak" class="hud-streak" title="Chuỗi ngày công phu">
+            <span class="flame-icon">🔥</span>
+            <span id="hud-streak-count">1</span>
+          </div>
+
+          <!-- Đổi nhân vật -->
+          <button id="btn-char-custom" type="button" class="hud-round" title="Đổi pháp danh & ngoại hình">
+            👤
+          </button>
+
+          <!-- Âm thanh -->
+          <button id="btn-sound" type="button" class="hud-round" title="Bật / Tắt âm thanh">
+            🔊
           </button>
         </div>
       </header>
 
-      <!-- Toast Notification -->
+      <!-- Toast Thông Báo Nổi -->
       <div id="hud-toast" class="hud-toast hidden"></div>
 
-      <!-- Bottom Bar: Virtual Joystick (Mobile) & Actions -->
-      <footer class="hud-bottom">
+      <!-- Lời nhắc tương tác ngữ cảnh [F] (Hiện khi đứng gần lư hương, chuông, bồ đoàn) -->
+      <div id="hud-context-wrap" class="hud__context hidden">
+        <button id="hud-context-btn" type="button" class="hud-context">
+          <span id="hud-context-text">Dâng hương Tam Bảo</span>
+          <kbd class="hud-context__key">F</kbd>
+        </button>
+      </div>
+
+      <!-- Thanh Dock Điều Khiển & Công Phu Dưới Cùng -->
+      <footer class="hud__dock">
         <!-- Virtual Joystick Area for Touch -->
         <div id="joystick-zone" class="joystick-zone">
           <div id="joystick-thumb" class="joystick-thumb"></div>
         </div>
 
-        <!-- Ritual Action Buttons -->
-        <div class="hud-actions-grid">
-          <button id="btn-bow" class="btn-action">
-            <span class="btn-icon-text">🙏</span>
-            <span class="btn-label">Lễ Phật</span>
+        <!-- Thanh Nút Công Phu Nghi Lễ -->
+        <div class="hud-glass hud-bar" role="group" aria-label="Công phu">
+          <button id="btn-bow" class="hud-bar__btn" type="button">
+            <span class="hud-btn__icon">🙏</span>
+            <span class="hud-btn__label">Lễ Phật</span>
           </button>
-          <button id="btn-incense" class="btn-action">
-            <span class="btn-icon-text">🪔</span>
-            <span class="btn-label">Thắp hương</span>
+          <button id="btn-incense" class="hud-bar__btn" type="button">
+            <span class="hud-btn__icon">🪔</span>
+            <span class="hud-btn__label">Thắp hương</span>
           </button>
-          <button id="btn-bell" class="btn-action">
-            <span class="btn-icon-text">🔔</span>
-            <span class="btn-label">Đánh chuông</span>
+          <button id="btn-bell" class="hud-bar__btn" type="button">
+            <span class="hud-btn__icon">🔔</span>
+            <span class="hud-btn__label">Chuông</span>
           </button>
-          <button id="btn-chant" class="btn-action">
-            <span class="btn-icon-text">🪵</span>
-            <span class="btn-label">Gõ mõ</span>
+          <button id="btn-chant" class="hud-bar__btn" type="button">
+            <span class="hud-btn__icon">🪵</span>
+            <span class="hud-btn__label">Gõ mõ</span>
           </button>
-          <button id="btn-mala" class="btn-action">
-            <span class="btn-icon-text">📿</span>
-            <span class="btn-label">Lần chuỗi</span>
+          <button id="btn-mala" class="hud-bar__btn" type="button">
+            <span class="hud-btn__icon">📿</span>
+            <span class="hud-btn__label">Tràng hạt</span>
           </button>
-          <button id="btn-meditate" class="btn-action">
-            <span class="btn-icon-text">🧘</span>
-            <span class="btn-label">Ngồi thiền</span>
+          <button id="btn-meditate" class="hud-bar__btn" type="button">
+            <span class="hud-btn__icon">🧘</span>
+            <span class="hud-btn__label">Thiền</span>
           </button>
-          <button id="btn-lantern" class="btn-action">
-            <span class="btn-icon-text">🏮</span>
-            <span class="btn-label">Thả hoa đăng</span>
+          <button id="btn-lantern" class="hud-bar__btn" type="button">
+            <span class="hud-btn__icon">🏮</span>
+            <span class="hud-btn__label">Hoa đăng</span>
           </button>
         </div>
       </footer>
     </div>
 
-    <!-- Today / Lunar / Divination Card Modal -->
+    <!-- Modal Hôm Nay, Âm Lịch & 48 Quẻ Chánh Niệm -->
     <div id="modal-today" class="modal-backdrop hidden">
       <div class="modal-card">
         <button id="btn-close-modal" class="modal-close" aria-label="Đóng">✕</button>
         
-        <!-- Highlight Ngày Lễ Đặc Biệt (Mùng Một, Rằm, Phật Đản, Vu Lan) -->
+        <!-- Highlight Ngày Lễ Đặc Biệt (Phật Đản, Vu Lan, Sóc, Vọng...) -->
         <div id="special-day-banner" class="special-day-banner hidden">
           <span class="special-icon">🪷</span>
           <span id="special-day-title" class="special-title">Đại lễ Phật Đản</span>
@@ -115,7 +241,7 @@
         </div>
 
         <div class="modal-body">
-          <!-- Quẻ Chánh Niệm Hàng Ngày (48 Quẻ) -->
+          <!-- Quẻ Chánh Niệm 48 lá -->
           <div class="que-card">
             <div class="que-header">
               <span id="que-tag" class="que-tag">Quẻ Chánh Niệm</span>
@@ -157,4 +283,3 @@
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
-

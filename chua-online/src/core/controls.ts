@@ -13,9 +13,9 @@ export class PlayerController {
   private colliders: CampusCollider[] = [];
 
   // Các bộ phận nhân vật để tạo hoạt họa
-  private bodyMesh!: THREE.Mesh;
-  private headMesh!: THREE.Mesh;
-  private armsGroup!: THREE.Group;
+  public bodyMesh!: THREE.Mesh;
+  public headMesh!: THREE.Mesh;
+  public armsGroup!: THREE.Group;
   private walkTime: number = 0;
   private bowProgress: number = 0;
 

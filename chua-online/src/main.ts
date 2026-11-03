@@ -1,14 +1,11 @@
+import * as THREE from "three";
 import { initViewport } from "./core/viewport.ts";
 import { Engine } from "./core/engine.ts";
 import { AudioManager, triggerHaptic } from "./audio/audioManager.ts";
 import { NetworkClient } from "./net/client.ts";
 import { RITUAL_TYPES, ANIM_TYPES } from "./net/protocol.ts";
 import { getTodayLunar } from "./rituals/lunarCalendar.ts";
-import {
-  getTodayQue,
-  markTaskComplete,
-  type PracticeProgress,
-} from "./rituals/queCards.ts";
+import { getTodayQue, markTaskComplete } from "./rituals/queCards.ts";
 
 // 1. Tối ưu khung nhìn di động
 initViewport();
@@ -28,44 +25,38 @@ engine.onUpdate = (player) => {
     player.position.z,
     player.facing,
   );
+  updateContextPrompt(player.position.x, player.position.z);
 };
 
 // 4. Khởi tạo Mạng WebSocket
 const net = new NetworkClient();
 
-// Đèn trạng thái kết nối trên HUD
-const statusDot = document.querySelector(".status-dot") as HTMLElement;
 const roomLabelEl = document.getElementById("room-label");
 
 net.onConnectionChange = (connected) => {
-  if (statusDot) {
-    statusDot.style.backgroundColor = connected ? "#4ade80" : "#f87171";
-    statusDot.style.boxShadow = connected
-      ? "0 0 8px #4ade80"
-      : "0 0 8px #f87171";
+  const dot = document.querySelector(".hud-room__dot") as HTMLElement;
+  if (dot) {
+    dot.style.backgroundColor = connected ? "var(--jade)" : "#f87171";
+    dot.style.boxShadow = connected ? "0 0 6px var(--jade)" : "0 0 6px #f87171";
   }
   if (!connected && roomLabelEl) {
     roomLabelEl.textContent = "Đang kết nối lại sảnh...";
   }
 };
 
-// Nhận cập nhật danh sách người chơi từ xa
 net.onPlayersUpdate = (remotePlayers) => {
   engine.updateRemotePlayers(remotePlayers);
 };
 
-// Nhận broadcast nghi lễ từ máy chủ (chuông, mõ)
 net.onRitualReceived = (ritualId) => {
   if (ritualId === RITUAL_TYPES.BELL) audio.playBell();
   else if (ritualId === RITUAL_TYPES.CHANT) audio.playMo();
 };
 
-// Nhận broadcast hoa đăng thả trên hồ sen
 net.onLanternReceived = (l) => {
   engine.addLantern(l.id, l.x, l.z);
 };
 
-// Cập nhật tên phòng & số lượng người online lên thanh HUD
 net.onRoomInfoUpdate = (info) => {
   if (roomLabelEl) {
     roomLabelEl.textContent = info.label;
@@ -94,22 +85,233 @@ function showToast(message: string, durationMs = 2400): void {
   }, durationMs);
 }
 
-// 6. Loading Screen
-const loadingScreen = document.getElementById("loading-screen");
-const hud = document.getElementById("hud");
-const progressBar = document.getElementById("loading-progress");
+// 6. Quản Lý Nhân Vật (Onboarding & Character Customization)
+interface CharacterProfile {
+  name: string;
+  gender: "nam" | "nu";
+  outfit: string;
+  color: string;
+}
 
-if (progressBar) progressBar.style.width = "100%";
-setTimeout(() => {
-  if (loadingScreen) {
-    loadingScreen.style.opacity = "0";
-    setTimeout(() => loadingScreen.classList.add("hidden"), 600);
+const CHAR_STORAGE_KEY = "chua-online:character";
+const DHARMA_NAMES = [
+  "Chân Giác",
+  "Tuệ Tâm",
+  "An Nhiên",
+  "Minh Triết",
+  "Thiện Nhân",
+  "Tịnh Độ",
+  "Phúc An",
+  "Diệu Âm",
+  "Tâm An",
+  "Như Nguyện",
+  "Trí Dũng",
+  "Thanh Tịnh",
+  "Bảo Quang",
+  "Liên Hoa",
+  "Từ Bi",
+];
+
+let currentProfile: CharacterProfile = {
+  name: "Chân Giác",
+  gender: "nam",
+  outfit: "trang-lam",
+  color: "#5a8ac4",
+};
+
+const savedChar = localStorage.getItem(CHAR_STORAGE_KEY);
+if (savedChar) {
+  try {
+    currentProfile = JSON.parse(savedChar);
+  } catch {
+    // Bỏ qua lỗi
   }
-  hud?.classList.remove("hidden");
-  engine.start();
-}, 600);
+}
 
-// 7. Kết nối Nút Tương Tác Nghi Lễ & Âm Thanh Xúc Giác
+const bootScreen = document.getElementById("boot");
+const bootFill = document.getElementById("bootFill");
+const bootStatus = document.getElementById("bootStatus");
+const onboardingRoot = document.getElementById("onboarding-root");
+const hud = document.getElementById("hud");
+
+const inputDharmaName = document.getElementById(
+  "input-dharma-name",
+) as HTMLInputElement;
+const btnRandomName = document.getElementById("btn-random-name");
+const onbPlate = document.getElementById("onb-plate");
+const svgRobe = document.getElementById("svg-robe");
+const svgSleeveL = document.getElementById("svg-sleeve-l");
+const svgSleeveR = document.getElementById("svg-sleeve-r");
+const genderChips = document.getElementById("gender-chips");
+const outfitChips = document.getElementById("outfit-chips");
+const colorSwatches = document.getElementById("color-swatches");
+const btnEnterTemple = document.getElementById("btn-enter-temple");
+const btnCharCustom = document.getElementById("btn-char-custom");
+
+function updateSvgPreview(): void {
+  if (svgRobe) svgRobe.setAttribute("fill", currentProfile.color);
+  if (svgSleeveL) svgSleeveL.setAttribute("fill", currentProfile.color);
+  if (svgSleeveR) svgSleeveR.setAttribute("fill", currentProfile.color);
+  if (onbPlate) onbPlate.textContent = currentProfile.name;
+  if (inputDharmaName) inputDharmaName.value = currentProfile.name;
+
+  // Cập nhật màu áo nhân vật trong 3D
+  if (engine.player.bodyMesh) {
+    const mat = engine.player.bodyMesh.material as THREE.MeshStandardMaterial;
+    if (mat && mat.color) {
+      mat.color.setStyle(currentProfile.color);
+    }
+  }
+}
+
+btnRandomName?.addEventListener("click", () => {
+  const rand = DHARMA_NAMES[Math.floor(Math.random() * DHARMA_NAMES.length)];
+  currentProfile.name = rand;
+  updateSvgPreview();
+});
+
+inputDharmaName?.addEventListener("input", () => {
+  currentProfile.name = inputDharmaName.value.trim() || "Chân Giác";
+  if (onbPlate) onbPlate.textContent = currentProfile.name;
+});
+
+genderChips?.addEventListener("click", (e) => {
+  const target = (e.target as HTMLElement).closest(".chip") as HTMLElement;
+  if (!target) return;
+  genderChips
+    .querySelectorAll(".chip")
+    .forEach((c) => c.classList.remove("active"));
+  target.classList.add("active");
+  currentProfile.gender = (target.dataset.gender || "nam") as "nam" | "nu";
+});
+
+outfitChips?.addEventListener("click", (e) => {
+  const target = (e.target as HTMLElement).closest(".chip") as HTMLElement;
+  if (!target) return;
+  outfitChips
+    .querySelectorAll(".chip")
+    .forEach((c) => c.classList.remove("active"));
+  target.classList.add("active");
+  currentProfile.outfit = target.dataset.outfit || "trang-lam";
+});
+
+colorSwatches?.addEventListener("click", (e) => {
+  const target = (e.target as HTMLElement).closest(
+    ".onb__swatch",
+  ) as HTMLElement;
+  if (!target) return;
+  colorSwatches
+    .querySelectorAll(".onb__swatch")
+    .forEach((c) => c.classList.remove("active"));
+  target.classList.add("active");
+  currentProfile.color = target.dataset.color || "#5a8ac4";
+  updateSvgPreview();
+});
+
+function enterTemple(): void {
+  localStorage.setItem(CHAR_STORAGE_KEY, JSON.stringify(currentProfile));
+  updateSvgPreview();
+  onboardingRoot?.classList.add("hidden");
+  hud?.classList.remove("hidden");
+  showToast(`A Di Đà Phật! Chào mừng đạo hữu ${currentProfile.name}`);
+}
+
+btnEnterTemple?.addEventListener("click", enterTemple);
+btnCharCustom?.addEventListener("click", () => {
+  onboardingRoot?.classList.remove("hidden");
+});
+
+// 7. Khởi động Boot Splash & Cảnh 3D
+if (bootFill) bootFill.style.width = "100%";
+if (bootStatus) bootStatus.textContent = "Đang hoàn tất cảnh chùa…";
+
+setTimeout(() => {
+  if (bootScreen) {
+    bootScreen.classList.add("is-hidden");
+    setTimeout(() => bootScreen.remove(), 600);
+  }
+
+  engine.start();
+
+  if (!savedChar) {
+    onboardingRoot?.classList.remove("hidden");
+  } else {
+    hud?.classList.remove("hidden");
+    updateSvgPreview();
+  }
+}, 750);
+
+// 8. Tương Tác Ngữ Cảnh [F] (Context Prompts)
+const hudContextWrap = document.getElementById("hud-context-wrap");
+const hudContextBtn = document.getElementById("hud-context-btn");
+const hudContextText = document.getElementById("hud-context-text");
+
+let currentContextAction:
+  | "incense"
+  | "bell"
+  | "bow"
+  | "lantern"
+  | "meditate"
+  | null = null;
+
+function updateContextPrompt(playerX: number, playerZ: number): void {
+  const dist = (x: number, z: number) => Math.hypot(playerX - x, playerZ - z);
+
+  // 1. Gần Lư hương Tam Bảo (0, -2.5)
+  if (dist(0, -2.5) < 3.8) {
+    showContextPrompt("Dâng một nén tâm hương", "incense");
+    return;
+  }
+  // 2. Gần Tháp Chuông (15.5, 4.0)
+  if (dist(15.5, 4.0) < 4.5) {
+    showContextPrompt("Đánh Đại Hồng Chung", "bell");
+    return;
+  }
+  // 3. Gần Bàn thờ Chánh Điện (0, -18.0)
+  if (dist(0, -18.0) < 4.5) {
+    showContextPrompt("Lễ Phật Tam Bảo", "bow");
+    return;
+  }
+  // 4. Gần Cầu gỗ Hồ sen (0, 18.0)
+  if (dist(0, 18.0) < 5.0) {
+    showContextPrompt("Thả hoa đăng cầu bình an", "lantern");
+    return;
+  }
+
+  hideContextPrompt();
+}
+
+function showContextPrompt(
+  label: string,
+  action: typeof currentContextAction,
+): void {
+  currentContextAction = action;
+  if (hudContextText) hudContextText.textContent = label;
+  hudContextWrap?.classList.remove("hidden");
+}
+
+function hideContextPrompt(): void {
+  currentContextAction = null;
+  hudContextWrap?.classList.add("hidden");
+}
+
+function triggerCurrentContext(): void {
+  if (!currentContextAction) return;
+  if (currentContextAction === "incense") doIncense();
+  else if (currentContextAction === "bell") doBell();
+  else if (currentContextAction === "bow") doBow();
+  else if (currentContextAction === "lantern") doLantern();
+  else if (currentContextAction === "meditate") toggleMeditate();
+}
+
+hudContextBtn?.addEventListener("click", triggerCurrentContext);
+window.addEventListener("keydown", (e) => {
+  if ((e.key === "f" || e.key === "F") && currentContextAction) {
+    triggerCurrentContext();
+  }
+});
+
+// 9. Kết Nối Nút Công Phu & Nghi Lễ
 const btnBow = document.getElementById("btn-bow");
 const btnIncense = document.getElementById("btn-incense");
 const btnBell = document.getElementById("btn-bell");
@@ -118,10 +320,8 @@ const btnMala = document.getElementById("btn-mala");
 const btnMeditate = document.getElementById("btn-meditate");
 const btnLantern = document.getElementById("btn-lantern");
 const btnSound = document.getElementById("btn-sound");
-const btnToday = document.getElementById("btn-today");
 
-// Lễ Phật
-btnBow?.addEventListener("click", () => {
+function doBow(): void {
   engine.player.anim = ANIM_TYPES.BOW;
   triggerHaptic("bead");
   markTaskComplete("bow");
@@ -131,33 +331,29 @@ btnBow?.addEventListener("click", () => {
       engine.player.anim = ANIM_TYPES.IDLE;
     }
   }, 1600);
-});
+}
 
-// Thắp hương
-btnIncense?.addEventListener("click", () => {
+function doIncense(): void {
   triggerHaptic("bead");
   markTaskComplete("incense");
   net.sendRitual(RITUAL_TYPES.INCENSE);
-  showToast("🪔 Đã dâng một nén tâm hương cầu an");
-});
+  showToast("🪔 Đã dâng một nén tâm hương cầu nguyện an lành");
+}
 
-// Đánh chuông chùa (Spatial Sound tại Tháp Chuông + Ducking + Haptic)
-btnBell?.addEventListener("click", () => {
+function doBell(): void {
   audio.playBell();
   net.sendRitual(RITUAL_TYPES.BELL);
   showToast("🔔 Chuông đại hồng ngân vang thức tỉnh lòng người");
-});
+}
 
-// Gõ mõ tụng kinh (Spatial Sound tại Chánh Điện + Ducking + Haptic)
-btnChant?.addEventListener("click", () => {
+function doMo(): void {
   audio.playMo();
   net.sendRitual(RITUAL_TYPES.CHANT);
   showToast("🪵 Tiếng mõ thanh tịnh nhịp nhàng");
-});
+}
 
-// Lần chuỗi hạt Bồ đề 108 hạt (Chime + Haptic từng hạt)
 let malaCount = 0;
-btnMala?.addEventListener("click", () => {
+function doMala(): void {
   malaCount = (malaCount % 108) + 1;
   audio.playChime();
   markTaskComplete("mala");
@@ -170,25 +366,38 @@ btnMala?.addEventListener("click", () => {
   } else {
     showToast(`📿 Lần chuỗi hạt: ${malaCount} / 108`);
   }
-});
+}
 
-// Ngồi thiền (Audio Ducking sâu xuống 12% + Hoạt họa Sit)
 let isMeditating = false;
-btnMeditate?.addEventListener("click", () => {
+function toggleMeditate(): void {
   isMeditating = !isMeditating;
   if (isMeditating) {
     engine.player.anim = ANIM_TYPES.SIT;
-    audio.updateAudioLevels(false, true); // Giảm âm nền xuống 12%
+    audio.updateAudioLevels(false, true); // Duck âm nền xuống 12%
     markTaskComplete("meditate");
-    btnMeditate.style.borderColor = "var(--accent-gold)";
+    btnMeditate?.classList.add("active");
     showToast("🧘 Đang ngồi thiền tĩnh tâm (Nhạc nền giảm sâu 12%)");
   } else {
     engine.player.anim = ANIM_TYPES.IDLE;
-    audio.updateAudioLevels(false, false); // Trở về mức âm nền thông thường
-    btnMeditate.style.borderColor = "";
+    audio.updateAudioLevels(false, false);
+    btnMeditate?.classList.remove("active");
     showToast("Đã xả thiền");
   }
-});
+}
+
+function doLantern(): void {
+  triggerHaptic("bead");
+  net.sendLantern();
+  showToast("🏮 Đã thả hoa đăng lung linh cầu an lành trên hồ sen");
+}
+
+btnBow?.addEventListener("click", doBow);
+btnIncense?.addEventListener("click", doIncense);
+btnBell?.addEventListener("click", doBell);
+btnChant?.addEventListener("click", doMo);
+btnMala?.addEventListener("click", doMala);
+btnMeditate?.addEventListener("click", toggleMeditate);
+btnLantern?.addEventListener("click", doLantern);
 
 // Nếu người chơi di chuyển trong lúc ngồi thiền -> tự động xả thiền
 const origPlayerUpdate = engine.player.update.bind(engine.player);
@@ -197,25 +406,17 @@ engine.player.update = (deltaSec: number, cameraYaw: number) => {
   if (isMeditating && engine.player.anim === ANIM_TYPES.WALK) {
     isMeditating = false;
     audio.updateAudioLevels(false, false);
-    if (btnMeditate) btnMeditate.style.borderColor = "";
+    btnMeditate?.classList.remove("active");
   }
 };
 
-// Thả hoa đăng trên hồ sen
-btnLantern?.addEventListener("click", () => {
-  triggerHaptic("bead");
-  net.sendLantern();
-  showToast("🏮 Đã thả hoa đăng lung linh cầu an lành trên hồ sen");
-});
-
-// Bật / Tắt âm thanh
 btnSound?.addEventListener("click", () => {
   const muted = audio.toggleMute();
   if (btnSound) btnSound.textContent = muted ? "🔇" : "🔊";
   showToast(muted ? "🔇 Đã tắt âm thanh" : "🔊 Đã bật âm thanh");
 });
 
-// 8. Cấp bậc hoa sen theo Streak (Giống Chùa Sen)
+// 10. Cập Nhật Tiến Trình & Cấp Bậc Lên HUD
 function getLotusTier(streak: number): { name: string; icon: string } {
   if (streak >= 50) return { name: "Cấp 7 · Sen ngàn cánh", icon: "🪷" };
   if (streak >= 30) return { name: "Cấp 6 · Sen nở", icon: "🪷" };
@@ -226,21 +427,23 @@ function getLotusTier(streak: number): { name: string; icon: string } {
   return { name: "Cấp 1 · Hạt sen", icon: "🌰" };
 }
 
-function updateTaskChips(tasks: PracticeProgress["tasksDone"]): void {
-  document.getElementById("task-bow")?.classList.toggle("done", tasks.bow);
-  document
-    .getElementById("task-incense")
-    ?.classList.toggle("done", tasks.incense);
-  document.getElementById("task-mala")?.classList.toggle("done", tasks.mala);
-  document
-    .getElementById("task-meditate")
-    ?.classList.toggle("done", tasks.meditate);
-  document.getElementById("task-que")?.classList.toggle("done", tasks.que);
+function syncHudProgress(): void {
+  const { streak } = getTodayQue();
+  const tier = getLotusTier(streak);
+  const hudStreakCount = document.getElementById("hud-streak-count");
+  const hudTierEmblem = document.getElementById("hud-tier-emblem");
+  if (hudStreakCount) hudStreakCount.textContent = String(streak);
+  if (hudTierEmblem) hudTierEmblem.textContent = tier.icon;
 }
 
-// 9. Modal Hôm nay & Quẻ Chánh Niệm Hàng Ngày (Giai đoạn 6)
+syncHudProgress();
+
+// 11. Modal Hôm Nay, Âm Lịch & 48 Quẻ Chánh Niệm
 const modalToday = document.getElementById("modal-today");
 const btnCloseModal = document.getElementById("btn-close-modal");
+const btnJourney = document.getElementById("btn-journey");
+const btnStreak = document.getElementById("btn-streak");
+
 const specialDayBanner = document.getElementById("special-day-banner");
 const specialDayTitle = document.getElementById("special-day-title");
 const modalSolarDate = document.getElementById("modal-solar-date");
@@ -257,15 +460,11 @@ const streakIcon = document.getElementById("streak-icon");
 const streakText = document.getElementById("streak-text");
 const streakTier = document.getElementById("streak-tier");
 
-btnToday?.addEventListener("click", () => {
-  // Lấy lịch âm Hồ Ngọc Đức chính xác
+function openTodayModal(): void {
   const lunar = getTodayLunar();
-
-  // Đánh dấu nhiệm vụ đọc quẻ hôm nay
   const updatedProgress = markTaskComplete("que");
   const { card, streak } = getTodayQue();
 
-  // Dương lịch
   const now = new Date();
   const days = [
     "Chủ nhật",
@@ -281,7 +480,6 @@ btnToday?.addEventListener("click", () => {
     modalSolarDate.textContent = `${days[now.getDay()]}, ${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
   }
 
-  // Âm lịch & Can Chi
   if (modalLunarDate) {
     modalLunarDate.textContent = `Âm lịch: Ngày ${lunar.day} tháng ${lunar.month}, năm ${lunar.canChiYear}`;
   }
@@ -289,7 +487,6 @@ btnToday?.addEventListener("click", () => {
     modalCanchiDate.textContent = `Ngày ${lunar.canChiDay} · Tháng ${lunar.canChiMonth} · Tiết ${lunar.solarTerm}`;
   }
 
-  // Highlight ngày lễ đặc biệt (Phật Đản, Vu Lan, Sóc, Vọng...)
   if (lunar.isSpecialDay && specialDayBanner && specialDayTitle) {
     specialDayTitle.textContent = lunar.specialTitle || "Ngày Lễ Phật Giáo";
     specialDayBanner.classList.remove("hidden");
@@ -297,39 +494,53 @@ btnToday?.addEventListener("click", () => {
     specialDayBanner.classList.add("hidden");
   }
 
-  // Quẻ Chánh Niệm 48 lá
   if (queCardNum) queCardNum.textContent = `#${card.id} / 48`;
   if (queTitle) queTitle.textContent = card.title;
   if (queTagline) queTagline.textContent = card.tagline;
   if (queDesc) queDesc.textContent = card.desc;
   if (quePractice) quePractice.textContent = card.practice;
 
-  // Streak & Cấp Bậc Sen
   const tier = getLotusTier(streak);
   if (streakText) streakText.textContent = `${streak} ngày công phu tinh tấn`;
   if (streakTier) streakTier.textContent = tier.name;
   if (streakIcon) streakIcon.textContent = tier.icon;
 
-  // Cập nhật checklist
-  updateTaskChips(updatedProgress.tasksDone);
+  document
+    .getElementById("task-bow")
+    ?.classList.toggle("done", updatedProgress.tasksDone.bow);
+  document
+    .getElementById("task-incense")
+    ?.classList.toggle("done", updatedProgress.tasksDone.incense);
+  document
+    .getElementById("task-mala")
+    ?.classList.toggle("done", updatedProgress.tasksDone.mala);
+  document
+    .getElementById("task-meditate")
+    ?.classList.toggle("done", updatedProgress.tasksDone.meditate);
+  document
+    .getElementById("task-que")
+    ?.classList.toggle("done", updatedProgress.tasksDone.que);
 
   modalToday?.classList.remove("hidden");
-});
+  syncHudProgress();
+}
 
+btnJourney?.addEventListener("click", openTodayModal);
+btnStreak?.addEventListener("click", openTodayModal);
 btnCloseModal?.addEventListener("click", () => {
   modalToday?.classList.add("hidden");
 });
 
-// 10. Cập nhật chu kỳ Ngày/Đêm định kỳ mỗi phút
+// 12. Cập nhật chu kỳ Ngày/Đêm định kỳ mỗi phút
 setInterval(() => {
   engine.sky.updateTimeOfDay();
 }, 60000);
 
-// 11. Đăng ký Service Worker (PWA Offline Caching & Tải Ngay Lập Tức)
+// 13. Đăng ký Service Worker PWA Offline
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").catch((err) => {
-      console.warn("[PWA] Đăng ký Service Worker không thành công:", err);
+      console.warn("[PWA] Service Worker registration failed:", err);
     });
   });
 }
