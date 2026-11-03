@@ -41,6 +41,8 @@ export class Campus {
 
   public roofMat: THREE.MeshStandardMaterial;
   public woodMat: THREE.MeshStandardMaterial;
+  public stoneMat: THREE.MeshStandardMaterial;
+  public goldMat: THREE.MeshStandardMaterial;
 
   constructor() {
     const loader = new THREE.TextureLoader();
@@ -89,6 +91,20 @@ export class Campus {
       normalMap: woodNormal,
       roughness: 0.65,
       metalness: 0.15,
+    });
+
+    // 3. Vật liệu đá phiến / thềm tam cấp / chân tảng
+    this.stoneMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.85,
+      metalness: 0.08,
+    });
+
+    // 4. Vật liệu mạ vàng tượng Phật Tam Bảo / Chuông đồng
+    this.goldMat = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.35,
+      metalness: 0.75,
     });
 
     this.buildCourtyards();
@@ -193,13 +209,15 @@ export class Campus {
    * 3. Cổng Tam Quan (Tam Quan Gate) cổ kính
    */
   private buildTamQuanGate(): void {
-    const b = new GeometryBuilder();
+    const stoneB = new GeometryBuilder();
+    const woodB = new GeometryBuilder();
+    const roofB = new GeometryBuilder();
     const gz = 52.5;
 
-    // 4 trụ cổng tam quan
+    // 4 trụ cổng tam quan bằng đá
     const gatePillars = [-5.2, -1.8, 1.8, 5.2];
     for (const px of gatePillars) {
-      b.addBox(
+      stoneB.addBox(
         px - 0.45,
         0,
         gz - 0.45,
@@ -217,16 +235,64 @@ export class Campus {
     }
 
     // Xà ngang nối các trụ
-    b.addBox(-5.5, 4.6, gz - 0.5, 5.5, 5.2, gz + 0.5, PALETTE.woodDark);
+    woodB.addBox(-5.5, 4.6, gz - 0.5, 5.5, 5.2, gz + 0.5, PALETTE.woodDark);
 
-    // Mái cổng chính và 2 mái phụ
-    b.addCurvedRoof(0, 5.2, gz, 5.5, 3.2, 1.6, 0.8, 6, PALETTE.tileWarm);
-    b.addCurvedRoof(-3.5, 4.2, gz, 3.2, 2.6, 1.2, 0.6, 5, PALETTE.tileDark);
-    b.addCurvedRoof(3.5, 4.2, gz, 3.2, 2.6, 1.2, 0.6, 5, PALETTE.tileDark);
+    // Mái ngói Cổng Tam Quan chuẩn thuật toán Chùa Sen
+    // Tầng 1: Mái hạ
+    roofB.addCurvedRoofTier({
+      cx: 0,
+      cz: gz,
+      baseY: 4.8,
+      A: 7.6,
+      B: 2.7,
+      Rx: 3.9,
+      Rz: 1.2,
+      H: 1.3,
+      power: 1.6,
+      curl: 0.6,
+      flare: 0.6,
+      tileColor: new THREE.Color(0x6a5a45),
+      mossAmount: 0.9,
+    });
 
-    const geom = b.build();
-    if (geom) {
-      const mesh = new THREE.Mesh(geom, this.roofMat);
+    // Tầng 2: Mái thượng cổ kính
+    roofB.addCurvedRoofTier({
+      cx: 0,
+      cz: gz,
+      baseY: 7.6,
+      A: 5.6,
+      B: 2.5,
+      Rx: 2.8,
+      Rz: 0.0,
+      H: 1.5,
+      power: 1.7,
+      curl: 0.7,
+      flare: 0.7,
+      tileColor: new THREE.Color(0x8a6b4b),
+      mossAmount: 0.8,
+    });
+
+    const sGeom = stoneB.build();
+    if (sGeom) {
+      const mesh = new THREE.Mesh(sGeom, this.stoneMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+      this.root.add(mesh);
+    }
+
+    const wGeom = woodB.build();
+    if (wGeom) {
+      const mesh = new THREE.Mesh(wGeom, this.woodMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+      this.root.add(mesh);
+    }
+
+    const rGeom = roofB.build();
+    if (rGeom) {
+      const mesh = new THREE.Mesh(rGeom, this.roofMat);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
@@ -238,7 +304,11 @@ export class Campus {
    * 4. Chánh Điện Toà Đại Bi (Main Hall - Kiến trúc Chồng Diêm 2 Tầng Mái Ngói Mũi Hài)
    */
   private buildMainHall(): void {
-    const b = new GeometryBuilder();
+    const stoneB = new GeometryBuilder();
+    const woodB = new GeometryBuilder();
+    const roofB = new GeometryBuilder();
+    const goldB = new GeometryBuilder();
+
     const bx0 = -10.6,
       bx1 = 10.6,
       bz0 = -23.4,
@@ -246,10 +316,10 @@ export class Campus {
       by = 0.8;
 
     // Bệ đá tam cấp chánh điện cao 0.8m
-    b.addBox(bx0, 0, bz0, bx1, by, bz1, PALETTE.stoneDark);
+    stoneB.addBox(bx0, 0, bz0, bx1, by, bz1, PALETTE.stoneDark);
     // Bậc tam cấp trước cửa chánh điện
-    b.addBox(-3.6, 0, -8.2, 3.6, 0.3, -6.8, PALETTE.stone);
-    b.addBox(-3.2, 0.3, -8.2, 3.2, 0.55, -7.4, PALETTE.stoneLight);
+    stoneB.addBox(-3.6, 0, -8.2, 3.6, 0.3, -6.8, PALETTE.stone);
+    stoneB.addBox(-3.2, 0.3, -8.2, 3.2, 0.55, -7.4, PALETTE.stoneLight);
 
     // Hệ thống 22 Cột Gỗ Chịu Lực theo ma trận h()
     const pillarPositions: [number, number][] = [
@@ -281,9 +351,18 @@ export class Campus {
     const pillarTop = 6.6;
     for (const [px, pz] of pillarPositions) {
       // Chân tảng đá kê chân cột
-      b.addCylinder(px, pz, by, by + 0.3, 0.58, 0.48, 12, PALETTE.stoneLight);
+      stoneB.addCylinder(
+        px,
+        pz,
+        by,
+        by + 0.3,
+        0.58,
+        0.48,
+        12,
+        PALETTE.stoneLight,
+      );
       // Thân cột gỗ tròn thuôn
-      b.addCylinder(
+      woodB.addCylinder(
         px,
         pz,
         by + 0.3,
@@ -294,7 +373,7 @@ export class Campus {
         PALETTE.wood,
       );
       // Đầu cột / Đấu củng đỡ xà
-      b.addCylinder(
+      woodB.addCylinder(
         px,
         pz,
         by + pillarTop - 0.4,
@@ -313,7 +392,7 @@ export class Campus {
     }
 
     // Xà gồ & Rường cột liên kết
-    b.addBox(
+    woodB.addBox(
       -9.8,
       by + pillarTop,
       -22.6,
@@ -324,77 +403,98 @@ export class Campus {
     );
 
     // Tường hậu và 2 bên chánh điện
-    b.addBox(-9.6, by, -22.6, 9.6, by + 5.5, -22.0, PALETTE.woodDark); // Tường hậu
-    b.addBox(-9.8, by, -22.6, -9.2, by + 5.5, -9.6, PALETTE.woodDark); // Tường tây
-    b.addBox(9.2, by, -22.6, 9.8, by + 5.5, -9.6, PALETTE.woodDark); // Tường đông
+    woodB.addBox(-9.6, by, -22.6, 9.6, by + 5.5, -22.0, PALETTE.woodDark); // Tường hậu
+    woodB.addBox(-9.8, by, -22.6, -9.2, by + 5.5, -9.6, PALETTE.woodDark); // Tường tây
+    woodB.addBox(9.2, by, -22.6, 9.8, by + 5.5, -9.6, PALETTE.woodDark); // Tường đông
     this.colliders.push({ minX: -10.2, maxX: 10.2, minZ: -23.0, maxZ: -21.8 });
     this.colliders.push({ minX: -10.2, maxX: -8.8, minZ: -22.6, maxZ: -9.4 });
     this.colliders.push({ minX: 8.8, maxX: 10.2, minZ: -22.6, maxZ: -9.4 });
 
-    // Tầng Mái 1 (Mái hạ xòe rộng 4 hướng)
-    const roof1Y = by + 6.75;
-    b.addCurvedRoof(
-      0,
-      roof1Y,
-      -16.0,
-      22.0,
-      16.0,
-      3.6,
-      2.2,
-      10,
-      PALETTE.tileWarm,
-    );
-
     // Cổ diêm thông sáng giữa 2 tầng mái với chấn song gỗ
-    b.addBox(
+    woodB.addBox(
       -7.5,
-      roof1Y + 2.8,
+      by + 9.5,
       -19.5,
       7.5,
-      roof1Y + 5.4,
+      by + 12.1,
       -12.5,
       PALETTE.woodDark,
     );
 
-    // Tầng Mái 2 (Mái thượng đỉnh nóc uy nghiêm)
-    const roof2Y = roof1Y + 5.2;
-    b.addCurvedRoof(
-      0,
-      roof2Y,
-      -16.0,
-      16.0,
-      11.5,
-      3.2,
-      1.8,
-      8,
-      PALETTE.tileWarm,
-    );
+    // DỰNG 2 TẦNG MÁI CHÙA CHÁNH ĐIỆN THEO ĐÚNG HỆ THÔNG SỐ CHÙA SEN
+    // Tầng Mái 1 (Mái hạ xòe rộng 4 hướng che hiên và hàng cột)
+    roofB.addCurvedRoofTier({
+      cx: 0,
+      cz: -16.0,
+      baseY: by + 6.15,
+      A: 11.4,
+      B: 8.2,
+      Rx: 7.2,
+      Rz: 3.0,
+      H: 3.5,
+      power: 1.7,
+      curl: 1.0,
+      flare: 0.85,
+      tileColor: new THREE.Color(0x6a5a45),
+      mossAmount: 0.95,
+    });
 
-    // Bờ nóc & Kìm nóc đỉnh mái
-    b.addBox(
-      -7.0,
-      roof2Y + 3.1,
-      -16.2,
-      7.0,
-      roof2Y + 3.6,
-      -15.8,
-      PALETTE.tileDark,
-    );
+    // Tầng Mái 2 (Mái thượng đỉnh nóc uy nghiêm với bờ nóc ngói ngọc và kìm nóc cá hóa rồng)
+    roofB.addCurvedRoofTier({
+      cx: 0,
+      cz: -16.0,
+      baseY: by + 11.9,
+      A: 9.0,
+      B: 4.6,
+      Rx: 5.2,
+      Rz: 0.0,
+      H: 3.2,
+      power: 1.7,
+      curl: 1.05,
+      flare: 0.9,
+      tileColor: new THREE.Color(0x8a6b4b),
+      mossAmount: 0.75,
+    });
 
     // 5. Nội điện: Tượng Đức Phật Thích Ca Mâu Ni & 2 Tôn Giả
-    this.buildBuddhaAltar(b, 0, by, -20.3);
+    this.buildBuddhaAltar(goldB, 0, by, -20.3);
 
     // 6. Đại Hồng Chung (Chuông) và Trống/Mõ lớn tại (5.25, -18)
-    this.buildHallBellAndMo(b, 5.25, by, -18.0);
+    this.buildHallBellAndMo(goldB, 5.25, by, -18.0);
 
     // 7. Hàng bồ đoàn thiền tọa
     this.buildCushionRows();
 
-    const geom = b.build();
-    if (geom) {
-      const mesh = new THREE.Mesh(geom, this.roofMat);
+    const sGeom = stoneB.build();
+    if (sGeom) {
+      const mesh = new THREE.Mesh(sGeom, this.stoneMat);
+      mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+      this.root.add(mesh);
+    }
+
+    const wGeom = woodB.build();
+    if (wGeom) {
+      const mesh = new THREE.Mesh(wGeom, this.woodMat);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+      this.root.add(mesh);
+    }
+
+    const rGeom = roofB.build();
+    if (rGeom) {
+      const mesh = new THREE.Mesh(rGeom, this.roofMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+      this.root.add(mesh);
+    }
+
+    const gGeom = goldB.build();
+    if (gGeom) {
+      const mesh = new THREE.Mesh(gGeom, this.goldMat);
+      mesh.castShadow = true;
       mesh.matrixAutoUpdate = false;
       this.root.add(mesh);
     }
@@ -860,15 +960,18 @@ export class Campus {
   }
 
   /**
-   * 8. Tháp Chuông Bát Giác Cổ Kính tại (x: 15.5, z: 4)
+   * 8. Tháp Chuông Cổ Kính tại (x: 15.5, z: 4)
    */
   private buildBellTower(): void {
-    const b = new GeometryBuilder();
+    const stoneB = new GeometryBuilder();
+    const woodB = new GeometryBuilder();
+    const goldB = new GeometryBuilder();
+    const roofB = new GeometryBuilder();
     const bx = 15.5,
       bz = 4.0;
 
-    // Bệ tháp chuông bát giác đá cao 0.6m
-    b.addCylinder(bx, bz, 0.08, 0.68, 3.2, 3.0, 8, PALETTE.stone);
+    // Bệ tháp chuông bát giác đá cao 0.68m
+    stoneB.addCylinder(bx, bz, 0.08, 0.68, 3.2, 3.0, 8, PALETTE.stone);
 
     // 8 cột gỗ lầu chuông
     const colR = 2.4;
@@ -876,14 +979,46 @@ export class Campus {
       const a = (i / 8) * Math.PI * 2;
       const cx = bx + Math.cos(a) * colR;
       const cz = bz + Math.sin(a) * colR;
-      b.addCylinder(cx, cz, 0.68, 5.2, 0.28, 0.22, 8, PALETTE.wood);
+      woodB.addCylinder(cx, cz, 0.68, 5.2, 0.28, 0.22, 8, PALETTE.wood);
     }
 
     // Quả Đại Hồng Chung bằng đồng treo ở giữa lầu
-    b.addCylinder(bx, bz, 2.8, 4.2, 0.65, 0.4, 12, PALETTE.bronze);
+    goldB.addCylinder(bx, bz, 2.4, 3.8, 0.65, 0.4, 12, PALETTE.bronze);
 
-    // Mái ngói tháp chuông bát giác vuốt cong
-    b.addCylinder(bx, bz, 5.2, 7.4, 4.2, 0.4, 8, PALETTE.tileDark);
+    // 2 Tầng mái cong tháp chuông chuẩn giải thuật Chùa Sen
+    // Tầng 1 (baseY: 3.95)
+    roofB.addCurvedRoofTier({
+      cx: bx,
+      cz: bz,
+      baseY: 3.95,
+      A: 3.1,
+      B: 3.1,
+      Rx: 1.5,
+      Rz: 1.5,
+      H: 0.9,
+      power: 1.5,
+      curl: 0.45,
+      flare: 0.45,
+      tileColor: new THREE.Color(0x6a5a45),
+      mossAmount: 0.8,
+    });
+
+    // Tầng 2 đỉnh tháp (baseY: 6.8)
+    roofB.addCurvedRoofTier({
+      cx: bx,
+      cz: bz,
+      baseY: 6.8,
+      A: 2.5,
+      B: 2.5,
+      Rx: 0.2,
+      Rz: 0.2,
+      H: 1.4,
+      power: 1.6,
+      curl: 0.6,
+      flare: 0.6,
+      tileColor: new THREE.Color(0x8a6b4b),
+      mossAmount: 0.7,
+    });
 
     this.colliders.push({
       minX: bx - 3.2,
@@ -892,9 +1027,34 @@ export class Campus {
       maxZ: bz + 3.2,
     });
 
-    const geom = b.build();
-    if (geom) {
-      const mesh = new THREE.Mesh(geom, this.roofMat);
+    const sGeom = stoneB.build();
+    if (sGeom) {
+      const mesh = new THREE.Mesh(sGeom, this.stoneMat);
+      mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+      this.root.add(mesh);
+    }
+
+    const wGeom = woodB.build();
+    if (wGeom) {
+      const mesh = new THREE.Mesh(wGeom, this.woodMat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.matrixAutoUpdate = false;
+      this.root.add(mesh);
+    }
+
+    const gGeom = goldB.build();
+    if (gGeom) {
+      const mesh = new THREE.Mesh(gGeom, this.goldMat);
+      mesh.castShadow = true;
+      mesh.matrixAutoUpdate = false;
+      this.root.add(mesh);
+    }
+
+    const rGeom = roofB.build();
+    if (rGeom) {
+      const mesh = new THREE.Mesh(rGeom, this.roofMat);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
