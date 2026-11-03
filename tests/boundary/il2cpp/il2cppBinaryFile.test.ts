@@ -18,6 +18,7 @@ import {
 } from "../../../src/il2cpp/Il2cppBinaryGenerics.js";
 import {
   createElfFixture,
+  createLargeElfRelativeFixture,
   createIl2cppBinaryFixture,
   createIl2cppDyldBindFixture,
   createIl2cppRegistrationTailFixture,
@@ -907,6 +908,19 @@ it("links an ELF shared object after applying its RELATIVE relocations", () => {
 });
 
 it.each([183, 62])(
+  "streams more than 65536 file-backed relative writes without shrinking IL2CPP capacity (machine %s)",
+  (machine) => {
+    const source = createIl2cppBinaryFixture();
+    const bytes = createLargeElfRelativeFixture(source, 65_537, machine);
+    const snapshot = Buffer.from(bytes);
+    expect(link(bytes).method_addresses).toEqual(
+      link(createElfFixture(source, { machine })).method_addresses,
+    );
+    expect(bytes.equals(snapshot)).toBe(true);
+  },
+);
+
+it.each([183, 62])(
   "links ELF relocations using the resolved PN_XNUM program count (machine %s)",
   (machine) => {
     const original = createElfFixture(createIl2cppBinaryFixture(), { machine });
@@ -1159,7 +1173,9 @@ it.each([1, 0xff])(
   (padding) => {
     const bytes = createIl2cppBinaryFixture();
     bytes.fill(padding, 0x604, 0x608);
-    expect(link(bytes)).toEqual(link(createIl2cppBinaryFixture()));
+    const linked = link(bytes);
+    expect(linked.method_addresses).toEqual(expectedAddresses);
+    expect(linked).toEqual(link(createIl2cppBinaryFixture()));
     bytes.writeUInt32LE(3, 0x600);
     expect(failure(bytes).reason).toBe("code-registration-not-found");
   },
@@ -1818,12 +1834,6 @@ it("keeps a capacity refusal while naming a generic row a refusal", () => {
   expect(tableChecked).toBe(true);
   expect(failure).toBeInstanceOf(Il2cppBinaryFormatFailure);
   expect((failure as Il2cppBinaryFormatFailure).kind).toBe("capacity");
-});
-
-it("ignores CodeRegistration count alignment padding", () => {
-  const bytes = createIl2cppBinaryFixture();
-  bytes.fill(0xff, 0x604, 0x608);
-  expect(link(bytes).method_addresses).toEqual(expectedAddresses);
 });
 
 it.each([0, 8, 16])(
