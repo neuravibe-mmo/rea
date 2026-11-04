@@ -737,6 +737,7 @@ export class Campus {
         tileColor: new THREE.Color(0x6a5a45),
         mossAmount: 0.95,
         horns: true,
+        hasDragons: true,
       },
       goldB,
     );
@@ -758,6 +759,7 @@ export class Campus {
         tileColor: new THREE.Color(0x8a6b4b),
         mossAmount: 0.75,
         horns: true,
+        hasDragons: true,
       },
       goldB,
     );
@@ -1583,7 +1585,8 @@ export class Campus {
       flare: 0.45,
       tileColor: new THREE.Color(0x6a5a45),
       mossAmount: 0.8,
-      horns: false, // Tháp chuông không dùng sừng rời bay lơ lửng
+      horns: false,
+      hasDragons: false,
     });
 
     // 5. Cổ lầu sàn gỗ tầng 2 nối khít tuyệt đối giữa 2 tầng mái (y: 4.7 đến 4.85m)
@@ -1597,18 +1600,185 @@ export class Campus {
       PALETTE.woodDark,
     );
 
+    // Bổ sung: Lan can tay vịn và con tiện gỗ lim bao quanh sàn tầng 2 (an toàn và chuẩn lầu chuông cổ)
+    const railY = 5.28;
+    // Tay vịn 4 cạnh
+    woodB.addBox(
+      bx - 1.48,
+      railY,
+      bz - 1.48,
+      bx + 1.48,
+      railY + 0.06,
+      bz - 1.42,
+      PALETTE.woodDark,
+    ); // Sau
+    woodB.addBox(
+      bx - 1.48,
+      railY,
+      bz - 1.48,
+      bx - 1.42,
+      railY + 0.06,
+      bz + 1.48,
+      PALETTE.woodDark,
+    ); // Trái
+    woodB.addBox(
+      bx + 1.42,
+      railY,
+      bz - 1.48,
+      bx + 1.48,
+      railY + 0.06,
+      bz + 1.48,
+      PALETTE.woodDark,
+    ); // Phải
+    // Mặt trước chừa cửa vào ở giữa (x: -0.5..0.5)
+    woodB.addBox(
+      bx - 1.48,
+      railY,
+      bz + 1.42,
+      bx - 0.5,
+      railY + 0.06,
+      bz + 1.48,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx + 0.5,
+      railY,
+      bz + 1.42,
+      bx + 1.48,
+      railY + 0.06,
+      bz + 1.48,
+      PALETTE.woodDark,
+    );
+
+    // Gờ chân lan can
+    const baseRailY = 4.88;
+    woodB.addBox(
+      bx - 1.48,
+      baseRailY,
+      bz - 1.48,
+      bx + 1.48,
+      baseRailY + 0.05,
+      bz - 1.42,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 1.48,
+      baseRailY,
+      bz - 1.48,
+      bx - 1.42,
+      baseRailY + 0.05,
+      bz + 1.48,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx + 1.42,
+      baseRailY,
+      bz - 1.48,
+      bx + 1.48,
+      baseRailY + 0.05,
+      bz + 1.48,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 1.48,
+      baseRailY,
+      bz + 1.42,
+      bx - 0.5,
+      baseRailY + 0.05,
+      bz + 1.48,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx + 0.5,
+      baseRailY,
+      bz + 1.42,
+      bx + 1.48,
+      baseRailY + 0.05,
+      bz + 1.48,
+      PALETTE.woodDark,
+    );
+
+    // Hàng con tiện gỗ lim tiện tròn dọc các mặt lan can
+    for (let pos = -1.35; pos <= 1.35; pos += 0.3) {
+      // Mặt sau
+      woodB.addCylinder(
+        bx + pos,
+        bz - 1.45,
+        baseRailY + 0.05,
+        railY,
+        0.025,
+        0.025,
+        6,
+        PALETTE.wood,
+      );
+      // Mặt trái
+      woodB.addCylinder(
+        bx - 1.45,
+        bz + pos,
+        baseRailY + 0.05,
+        railY,
+        0.025,
+        0.025,
+        6,
+        PALETTE.wood,
+      );
+      // Mặt phải
+      woodB.addCylinder(
+        bx + 1.45,
+        bz + pos,
+        baseRailY + 0.05,
+        railY,
+        0.025,
+        0.025,
+        6,
+        PALETTE.wood,
+      );
+      // Mặt trước (chừa cửa vào)
+      if (Math.abs(pos) > 0.55) {
+        woodB.addCylinder(
+          bx + pos,
+          bz + 1.45,
+          baseRailY + 0.05,
+          railY,
+          0.025,
+          0.025,
+          6,
+          PALETTE.wood,
+        );
+      }
+    }
+
     // 6. 4 Cột gỗ tầng 2 đỡ mái thượng (y: 4.85 đến 6.85m)
     for (const e of [-1, 1]) {
       for (const t of [-1, 1]) {
-        woodB.addCylinder(
-          bx + e * 1.1,
-          bz + t * 1.1,
-          4.85,
-          6.85,
-          0.14,
+        const cx = bx + e * 1.1;
+        const cz = bz + t * 1.1;
+        woodB.addCylinder(cx, cz, 4.85, 6.85, 0.14, 0.12, 8, PALETTE.wood);
+
+        // Bổ sung: Tay bảy đỡ mái chìa góc 45 độ vươn ra đỡ vạt mái thượng
+        woodB.addLimb(
+          new THREE.Vector3(cx, 6.6, cz),
+          new THREE.Vector3(cx + e * 0.65, 7.0, cz + t * 0.65),
+          0.09,
+          0.05,
+          5,
+          PALETTE.woodDark,
+        );
+      }
+    }
+
+    // Bổ sung: Tay bảy đỡ vạt mái tầng 1 từ 4 cột chính
+    for (const t of [-1, 1]) {
+      for (const n of [-1, 1]) {
+        const px = bx + t * 1.6;
+        const pz = bz + n * 1.6;
+        woodB.addLimb(
+          new THREE.Vector3(px, 3.4, pz),
+          new THREE.Vector3(px + t * 0.85, 3.85, pz + n * 0.85),
           0.12,
-          8,
-          PALETTE.wood,
+          0.06,
+          5,
+          PALETTE.woodDark,
         );
       }
     }
@@ -1700,29 +1870,29 @@ export class Campus {
       PALETTE.woodDark,
     );
 
-    // 10. Tầng mái thượng (Tầng 2) chóp nón nhọn tụ vào tâm (Rx: 0, Rz: 0)
-    roofB.addCurvedRoofTier({
-      cx: bx,
-      cz: bz,
-      baseY: 7.2,
-      A: 2.5,
-      B: 2.5,
-      Rx: 0.0,
-      Rz: 0.0, // Chóp nón đỉnh nhọn chuẩn Chùa Sen
-      H: 1.4,
-      power: 1.6,
-      curl: 0.6,
-      flare: 0.6,
-      tileColor: new THREE.Color(0x8a6b4b),
-      mossAmount: 0.7,
-      horns: false,
-    });
+    // 10. Tầng mái thượng (Tầng 2) chóp nón nhọn tụ vào tâm (Rx: 0, Rz: 0, không có rồng)
+    roofB.addCurvedRoofTier(
+      {
+        cx: bx,
+        cz: bz,
+        baseY: 7.2,
+        A: 2.5,
+        B: 2.5,
+        Rx: 0.0,
+        Rz: 0.0, // Chóp nón đỉnh nhọn chuẩn Chùa Sen
+        H: 1.4,
+        power: 1.6,
+        curl: 0.6,
+        flare: 0.6,
+        tileColor: new THREE.Color(0x8a6b4b),
+        mossAmount: 0.7,
+        horns: false,
+        hasDragons: false, // TUYỆT ĐỐI KHÔNG CÓ RỒNG TRÊN THÁP CHUÔNG
+      },
+      goldB,
+    );
 
-    // 11. Quả hồ lô mạ vàng đỉnh tháp chuông (y: 8.6 đến 9.35m)
-    goldB.addCylinder(bx, bz, 8.6, 8.95, 0.22, 0.14, 10, PALETTE.gold);
-    goldB.addCylinder(bx, bz, 8.95, 9.35, 0.16, 0.02, 8, PALETTE.goldLight);
-
-    // 12. Quả Đại Hồng Chung bằng đồng treo tại tâm lầu chuông
+    // 11. Quả Đại Hồng Chung bằng đồng treo tại tâm lầu chuông
     goldB.addCylinder(bx, bz, 5.2, 6.5, 0.58, 0.34, 14, PALETTE.bronze);
     goldB.addCylinder(bx, bz, 6.5, 6.65, 0.12, 0.12, 8, PALETTE.gold); // Quai treo chuông
 
