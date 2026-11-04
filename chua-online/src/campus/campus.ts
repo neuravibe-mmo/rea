@@ -548,13 +548,37 @@ export class Campus {
     );
 
     // Khung xà gồ viền quanh cổ diêm (Xà hạ & Xà thượng cổ diêm)
-    woodB.addBox(-7.75, by + 9.55, -12.65, 7.75, by + 9.9, -12.25, PALETTE.woodDark);
-    woodB.addBox(-7.75, by + 12.15, -12.65, 7.75, by + 12.6, -12.25, PALETTE.woodDark);
+    woodB.addBox(
+      -7.75,
+      by + 9.55,
+      -12.65,
+      7.75,
+      by + 9.9,
+      -12.25,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      -7.75,
+      by + 12.15,
+      -12.65,
+      7.75,
+      by + 12.6,
+      -12.25,
+      PALETTE.woodDark,
+    );
 
     // 4 Cột góc cổ diêm
     for (const sx of [-7.6, 7.6]) {
       for (const sz of [-19.5, -12.5]) {
-        woodB.addBox(sx - 0.22, by + 9.5, sz - 0.22, sx + 0.22, by + 12.6, sz + 0.22, PALETTE.woodDark);
+        woodB.addBox(
+          sx - 0.22,
+          by + 9.5,
+          sz - 0.22,
+          sx + 0.22,
+          by + 12.6,
+          sz + 0.22,
+          PALETTE.woodDark,
+        );
       }
     }
 
@@ -644,10 +668,37 @@ export class Campus {
         PALETTE.bronze,
       );
       // Chân hạc
-      goldB.addCylinder(hx - 0.06, hz, by + 0.28, by + 1.25, 0.02, 0.02, 6, PALETTE.gold);
-      goldB.addCylinder(hx + 0.06, hz, by + 0.28, by + 1.25, 0.02, 0.02, 6, PALETTE.gold);
+      goldB.addCylinder(
+        hx - 0.06,
+        hz,
+        by + 0.28,
+        by + 1.25,
+        0.02,
+        0.02,
+        6,
+        PALETTE.gold,
+      );
+      goldB.addCylinder(
+        hx + 0.06,
+        hz,
+        by + 0.28,
+        by + 1.25,
+        0.02,
+        0.02,
+        6,
+        PALETTE.gold,
+      );
       // Thân chim hạc
-      goldB.addCylinder(hx, hz, by + 1.25, by + 1.75, 0.18, 0.12, 8, PALETTE.gold);
+      goldB.addCylinder(
+        hx,
+        hz,
+        by + 1.25,
+        by + 1.75,
+        0.18,
+        0.12,
+        8,
+        PALETTE.gold,
+      );
       // Cổ hạc vươn cao uốn cong thanh thoát
       goldB.addLimb(
         new THREE.Vector3(hx, by + 1.7, hz + 0.05),
@@ -670,38 +721,46 @@ export class Campus {
 
     // DỰNG 2 TẦNG MÁI CHÙA CHÁNH ĐIỆN THEO ĐÚNG HỆ THÔNG SỐ CHÙA SEN
     // Tầng Mái 1 (Mái hạ xòe rộng 4 hướng che hiên và hàng cột, trần rui mè kín khít)
-    roofB.addCurvedRoofTier({
-      cx: 0,
-      cz: -16.0,
-      baseY: by + 6.15,
-      A: 11.4,
-      B: 8.2,
-      Rx: 7.2,
-      Rz: 3.0,
-      H: 3.5,
-      power: 1.7,
-      curl: 1.0,
-      flare: 0.85,
-      tileColor: new THREE.Color(0x6a5a45),
-      mossAmount: 0.95,
-    }, goldB);
+    roofB.addCurvedRoofTier(
+      {
+        cx: 0,
+        cz: -16.0,
+        baseY: by + 6.15,
+        A: 11.4,
+        B: 8.2,
+        Rx: 7.2,
+        Rz: 3.0,
+        H: 3.5,
+        power: 1.7,
+        curl: 1.0,
+        flare: 0.85,
+        tileColor: new THREE.Color(0x6a5a45),
+        mossAmount: 0.95,
+        horns: true,
+      },
+      goldB,
+    );
 
     // Tầng Mái 2 (Mái thượng đỉnh nóc uy nghiêm với bờ nóc ngói ngọc và Phù điêu Lưỡng Long Chầu Nguyệt dát vàng)
-    roofB.addCurvedRoofTier({
-      cx: 0,
-      cz: -16.0,
-      baseY: by + 11.9,
-      A: 9.0,
-      B: 4.6,
-      Rx: 5.2,
-      Rz: 0.0,
-      H: 3.2,
-      power: 1.7,
-      curl: 1.05,
-      flare: 0.9,
-      tileColor: new THREE.Color(0x8a6b4b),
-      mossAmount: 0.75,
-    }, goldB);
+    roofB.addCurvedRoofTier(
+      {
+        cx: 0,
+        cz: -16.0,
+        baseY: by + 11.9,
+        A: 9.0,
+        B: 4.6,
+        Rx: 5.2,
+        Rz: 0.0,
+        H: 3.2,
+        power: 1.7,
+        curl: 1.05,
+        flare: 0.9,
+        tileColor: new THREE.Color(0x8a6b4b),
+        mossAmount: 0.75,
+        horns: true,
+      },
+      goldB,
+    );
 
     // 5. Nội điện: Tượng Đức Phật Thích Ca Mâu Ni & 2 Tôn Giả
     this.buildBuddhaAltar(goldB, 0, by, -20.3);
@@ -1411,7 +1470,19 @@ export class Campus {
   }
 
   /**
-   * 8. Tháp Chuông Cổ Kính tại (x: 15.5, z: 4)
+   * 8. Tháp Chuông Cổ Kính tại (x: 15.5, z: 4) chuẩn 100% kiến trúc Chùa Sen:
+   * - Bệ đá vuông 2 tầng kiên cố
+   * - 4 Chân tảng đá kê cột
+   * - 4 Cột gỗ lim tầng 1 cao 3.5m dừng khít dưới xà ngang
+   * - Hệ xà ngang vững chãi đỡ tầng mái hạ
+   * - Tầng mái 1 (Mái hạ xòe rộng rêu phong, không bị đâm que vàng)
+   * - Cổ lầu sàn gỗ tầng 2 nối khít giữa 2 tầng mái (y: 4.7..4.85)
+   * - 4 Cột gỗ tầng 2 đỡ mái thượng (y: 4.85..6.85)
+   * - Cổ diêm vách gỗ và xà gồ đỡ trực tiếp tầng mái thượng
+   * - Xà treo chuông và Quả Đại Hồng Chung bằng đồng nguyên khối
+   * - Trống chùa lớn bằng gỗ và da bò mạ viền vàng đặt ở tầng 1
+   * - Tầng mái thượng (Mái tầng 2 chóp nón vuốt nhọn tụ vào tâm)
+   * - Quả hồ lô vàng đỉnh tháp chuông uy nghiêm
    */
   private buildBellTower(): void {
     const stoneB = new GeometryBuilder();
@@ -1421,23 +1492,83 @@ export class Campus {
     const bx = 15.5,
       bz = 4.0;
 
-    // Bệ tháp chuông bát giác đá cao 0.68m
-    stoneB.addCylinder(bx, bz, 0.08, 0.68, 3.2, 3.0, 8, PALETTE.stone);
+    // 1. Bệ đá vuông 2 tầng Chùa Sen
+    stoneB.addBox(
+      bx - 2.2,
+      -0.1,
+      bz - 2.2,
+      bx + 2.2,
+      0.4,
+      bz + 2.2,
+      PALETTE.stoneDark,
+    );
+    stoneB.addBox(
+      bx - 2.0,
+      0.4,
+      bz - 2.0,
+      bx + 2.0,
+      0.5,
+      bz + 2.0,
+      PALETTE.stone,
+    );
 
-    // 8 cột gỗ lầu chuông
-    const colR = 2.4;
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const cx = bx + Math.cos(a) * colR;
-      const cz = bz + Math.sin(a) * colR;
-      woodB.addCylinder(cx, cz, 0.68, 5.2, 0.28, 0.22, 8, PALETTE.wood);
+    // 2. 4 Chân tảng đá kê cột & 4 Cột gỗ tầng 1 (y: 0.7 đến 3.5m)
+    for (const t of [-1, 1]) {
+      for (const n of [-1, 1]) {
+        const px = bx + t * 1.6;
+        const pz = bz + n * 1.6;
+        stoneB.addBox(
+          px - 0.3,
+          0.5,
+          pz - 0.3,
+          px + 0.3,
+          0.7,
+          pz + 0.3,
+          PALETTE.stoneDark,
+        );
+        woodB.addCylinder(px, pz, 0.7, 3.5, 0.2, 0.17, 10, PALETTE.woodDark);
+      }
     }
 
-    // Quả Đại Hồng Chung bằng đồng treo ở giữa lầu
-    goldB.addCylinder(bx, bz, 2.4, 3.8, 0.65, 0.4, 12, PALETTE.bronze);
+    // 3. Hệ 4 Xà ngang tầng 1 đỡ mái hạ (y: 3.5 đến 4.0m)
+    woodB.addBox(
+      bx - 1.85,
+      3.5,
+      bz - 1.75,
+      bx + 1.85,
+      4.0,
+      bz - 1.45,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 1.85,
+      3.5,
+      bz + 1.45,
+      bx + 1.85,
+      4.0,
+      bz + 1.75,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 1.75,
+      3.5,
+      bz - 1.45,
+      bx - 1.45,
+      4.0,
+      bz + 1.45,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx + 1.45,
+      3.5,
+      bz - 1.45,
+      bx + 1.75,
+      4.0,
+      bz + 1.45,
+      PALETTE.woodDark,
+    );
 
-    // 2 Tầng mái cong tháp chuông chuẩn giải thuật Chùa Sen
-    // Tầng 1 (baseY: 3.95)
+    // 4. Tầng mái hạ (Tầng 1) xòe rộng 4 hướng
     roofB.addCurvedRoofTier({
       cx: bx,
       cz: bz,
@@ -1452,30 +1583,187 @@ export class Campus {
       flare: 0.45,
       tileColor: new THREE.Color(0x6a5a45),
       mossAmount: 0.8,
+      horns: false, // Tháp chuông không dùng sừng rời bay lơ lửng
     });
 
-    // Tầng 2 đỉnh tháp (baseY: 6.8)
+    // 5. Cổ lầu sàn gỗ tầng 2 nối khít tuyệt đối giữa 2 tầng mái (y: 4.7 đến 4.85m)
+    woodB.addBox(
+      bx - 1.5,
+      4.7,
+      bz - 1.5,
+      bx + 1.5,
+      4.85,
+      bz + 1.5,
+      PALETTE.woodDark,
+    );
+
+    // 6. 4 Cột gỗ tầng 2 đỡ mái thượng (y: 4.85 đến 6.85m)
+    for (const e of [-1, 1]) {
+      for (const t of [-1, 1]) {
+        woodB.addCylinder(
+          bx + e * 1.1,
+          bz + t * 1.1,
+          4.85,
+          6.85,
+          0.14,
+          0.12,
+          8,
+          PALETTE.wood,
+        );
+      }
+    }
+
+    // 7. Xà ngang giằng tầng 2 (y: 5.45 đến 5.55m)
+    woodB.addBox(
+      bx - 1.1,
+      5.45,
+      bz - 1.14,
+      bx + 1.1,
+      5.55,
+      bz - 1.06,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 1.1,
+      5.45,
+      bz + 1.06,
+      bx + 1.1,
+      5.55,
+      bz + 1.14,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 1.14,
+      5.45,
+      bz - 1.1,
+      bx - 1.06,
+      5.55,
+      bz + 1.1,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx + 1.06,
+      5.45,
+      bz - 1.1,
+      bx + 1.14,
+      5.55,
+      bz + 1.1,
+      PALETTE.woodDark,
+    );
+
+    // 8. Cổ diêm vách gỗ tầng 2 đỡ trực tiếp tầng mái thượng (y: 6.85 đến 7.25m)
+    woodB.addBox(
+      bx - 1.25,
+      6.85,
+      bz - 1.2,
+      bx + 1.25,
+      7.25,
+      bz - 1.0,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 1.25,
+      6.85,
+      bz + 1.0,
+      bx + 1.25,
+      7.25,
+      bz + 1.2,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 1.2,
+      6.85,
+      bz - 1.0,
+      bx - 1.0,
+      7.25,
+      bz + 1.0,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx + 1.0,
+      6.85,
+      bz - 1.0,
+      bx + 1.2,
+      7.25,
+      bz + 1.0,
+      PALETTE.woodDark,
+    );
+
+    // 9. Xà gồ treo Đại Hồng Chung (y: 6.6 đến 6.78m)
+    woodB.addBox(
+      bx - 1.1,
+      6.6,
+      bz - 0.09,
+      bx + 1.1,
+      6.78,
+      bz + 0.09,
+      PALETTE.woodDark,
+    );
+
+    // 10. Tầng mái thượng (Tầng 2) chóp nón nhọn tụ vào tâm (Rx: 0, Rz: 0)
     roofB.addCurvedRoofTier({
       cx: bx,
       cz: bz,
-      baseY: 6.8,
+      baseY: 7.2,
       A: 2.5,
       B: 2.5,
-      Rx: 0.2,
-      Rz: 0.2,
+      Rx: 0.0,
+      Rz: 0.0, // Chóp nón đỉnh nhọn chuẩn Chùa Sen
       H: 1.4,
       power: 1.6,
       curl: 0.6,
       flare: 0.6,
       tileColor: new THREE.Color(0x8a6b4b),
       mossAmount: 0.7,
+      horns: false,
     });
 
+    // 11. Quả hồ lô mạ vàng đỉnh tháp chuông (y: 8.6 đến 9.35m)
+    goldB.addCylinder(bx, bz, 8.6, 8.95, 0.22, 0.14, 10, PALETTE.gold);
+    goldB.addCylinder(bx, bz, 8.95, 9.35, 0.16, 0.02, 8, PALETTE.goldLight);
+
+    // 12. Quả Đại Hồng Chung bằng đồng treo tại tâm lầu chuông
+    goldB.addCylinder(bx, bz, 5.2, 6.5, 0.58, 0.34, 14, PALETTE.bronze);
+    goldB.addCylinder(bx, bz, 6.5, 6.65, 0.12, 0.12, 8, PALETTE.gold); // Quai treo chuông
+
+    // 13. Trống Bát Nhã lớn đặt ở tầng 1 trên giá đỡ gỗ
+    woodB.addCylinder(
+      bx,
+      bz,
+      1.05,
+      1.65,
+      0.62,
+      0.62,
+      16,
+      new THREE.Color(0x8b2500),
+    );
+    goldB.addCylinder(bx, bz, 1.03, 1.05, 0.64, 0.64, 16, PALETTE.goldLight);
+    goldB.addCylinder(bx, bz, 1.65, 1.67, 0.64, 0.64, 16, PALETTE.goldLight);
+    // Giá đỡ chân quỳ
+    woodB.addBox(
+      bx - 0.7,
+      0.5,
+      bz - 0.5,
+      bx + 0.7,
+      0.8,
+      bz - 0.3,
+      PALETTE.woodDark,
+    );
+    woodB.addBox(
+      bx - 0.7,
+      0.5,
+      bz + 0.3,
+      bx + 0.7,
+      0.8,
+      bz + 0.5,
+      PALETTE.woodDark,
+    );
+
     this.colliders.push({
-      minX: bx - 3.2,
-      maxX: bx + 3.2,
-      minZ: bz - 3.2,
-      maxZ: bz + 3.2,
+      minX: bx - 2.5,
+      maxX: bx + 2.5,
+      minZ: bz - 2.5,
+      maxZ: bz + 2.5,
     });
 
     const sGeom = stoneB.build();

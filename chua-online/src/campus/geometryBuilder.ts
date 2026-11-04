@@ -16,6 +16,7 @@ export interface RoofTierSpec {
   tileColor?: THREE.Color;
   mossAmount?: number;
   ridgeColor?: THREE.Color;
+  horns?: boolean; // Chỉ bật đầu đao khi được chỉ định rõ (như Chánh Điện)
 }
 
 function lerp(a: number, b: number, t: number): number {
@@ -415,7 +416,9 @@ export class GeometryBuilder {
     this.addHipCaps(spec);
 
     // 4. 4 Đầu đao vuốt cong vút lên không trung bịt đồng dát vàng (Corner Horns Gg)
-    this.addCornerHorns(spec, goldB);
+    if (spec.horns) {
+      this.addCornerHorns(spec, goldB);
+    }
 
     // 5. Bờ nóc mái ngọc / gạch nung đỉnh nóc (Ridge) và Phù điêu Lưỡng Long Chầu Nguyệt
     this.addRidgeAndBeasts(spec, goldB);
@@ -588,54 +591,65 @@ export class GeometryBuilder {
   }
 
   /**
-   * Tạo 4 đầu đao vuốt cong vút lên không trung với chóp nhọn bọc đồng dát vàng (Corner Horns Gg)
+   * Tạo 4 đầu đao vuốt cong vút lên không trung chuẩn 100% thuật toán Chùa Sen (Ug spline & Gg horns)
+   * Gắn chặt khít vào đúng 4 góc mái r = 0, tuyệt đối không bị lệch hay bay lơ lửng.
    */
   private addCornerHorns(spec: RoofTierSpec, goldB?: GeometryBuilder): void {
-    const goldCol = new THREE.Color(0xffd700);
     const woodHornCol = new THREE.Color(0x3a2617);
-    const targetGold = goldB ?? this;
-    const corners: [number, number][] = [
-      [1, 1],
-      [-1, 1],
-      [1, -1],
-      [-1, -1],
+    const goldCol = new THREE.Color(0xffd700);
+    const ugSpline: [number, number][] = [
+      [0, -0.04],
+      [0.22, 0.03],
+      [0.48, 0.17],
+      [0.72, 0.44],
+      [0.86, 0.82],
+      [0.9, 1.05],
     ];
+    const sInv = Math.SQRT1_2; // 1 / sqrt(2)
+    const scale = clamp(0.35 + 0.12 * Math.min(spec.A, spec.B), 0.6, 1.6);
+    const baseR = 0.08 + 0.06 * scale;
 
-    for (const [signX, signZ] of corners) {
-      // Vị trí gốc đầu đao tại mũi vạt mái r = 0
-      const flare = spec.flare ?? 0.85;
-      const curl = spec.curl ?? 1.0;
-      const startX = spec.cx + signX * (spec.A + flare);
-      const startZ = spec.cz + signZ * (spec.B + flare);
-      const startY = spec.baseY + curl + 0.05;
+    const cornerConfigs: { side: number; n: number; sx: number; sz: number }[] =
+      [
+        { side: 0, n: 1, sx: 1, sz: 1 }, // Trước phải
+        { side: 0, n: -1, sx: -1, sz: 1 }, // Trước trái
+        { side: 1, n: -1, sx: 1, sz: -1 }, // Sau phải
+        { side: 1, n: 1, sx: -1, sz: -1 }, // Sau trái
+      ];
 
-      const hornSteps = 8;
+    const cornerPt = new THREE.Vector3();
+
+    for (const { side, n, sx, sz } of cornerConfigs) {
+      // 1. Tọa độ chính xác tại đỉnh góc mái vạt r = 0
+      this.evalRoofPoint(spec, side, n, 0, cornerPt);
+
+      // 2. Tạo đường spline uốn vút lên trời chuẩn Chùa Sen
+      const splinePts: THREE.Vector3[] = ugSpline.map(([e, t]) => {
+        return new THREE.Vector3(
+          cornerPt.x + sx * sInv * e * scale,
+          cornerPt.y + t * scale,
+          cornerPt.z + sz * sInv * e * scale,
+        );
+      });
+
+      // 3. Dựng thân ống đao vuốt nhọn chạy dọc spline
       let prevRing: number[] = [];
-
-      for (let step = 0; step <= hornSteps; step++) {
-        const t = step / hornSteps;
-        // Đường cong vút ra ngoài và hếch mạnh lên trời chuẩn kiến trúc đao cong Chùa Sen
-        const hx = startX + signX * (t * 0.95 + Math.pow(t, 2.5) * 0.35);
-        const hz = startZ + signZ * (t * 0.95 + Math.pow(t, 2.5) * 0.35);
-        const hy = startY + Math.pow(t, 1.95) * 1.35;
-
-        // Bán kính ống vuốt nhọn dần từ 0.14m về 0.025m
-        const hornR = lerp(0.14, 0.025, t);
-        const isGoldTip = t > 0.6;
-        const col = isGoldTip ? goldCol : woodHornCol; // Chóp ngoài cùng bọc đồng dát vàng kim
-        const builder = isGoldTip && goldB ? targetGold : this;
+      const ringSegs = 6;
+      for (let step = 0; step < splinePts.length; step++) {
+        const pt = splinePts[step];
+        const t = step / (splinePts.length - 1);
+        const radius = baseR * lerp(1.0, 0.28, t);
 
         const ringVerts: number[] = [];
-        const ringSegs = 6;
         for (let i = 0; i < ringSegs; i++) {
           const ang = (i / ringSegs) * Math.PI * 2;
-          const rx = hx + Math.cos(ang) * hornR;
-          const rz = hz + Math.sin(ang) * hornR;
-          const ry = hy + Math.sin(ang) * (hornR * 0.5);
-          ringVerts.push(builder.vert(rx, ry, rz, 0, 1, 0, col));
+          const rx = pt.x + Math.cos(ang) * radius;
+          const rz = pt.z + Math.sin(ang) * radius;
+          const ry = pt.y + Math.sin(ang) * (radius * 0.5);
+          ringVerts.push(this.vert(rx, ry, rz, 0, 1, 0, woodHornCol));
         }
 
-        if (step > 0 && prevRing.length > 0 && builder === this) {
+        if (step > 0 && prevRing.length > 0) {
           for (let i = 0; i < ringSegs; i++) {
             const nextI = (i + 1) % ringSegs;
             this.quad(
@@ -647,6 +661,18 @@ export class GeometryBuilder {
           }
         }
         prevRing = ringVerts;
+      }
+
+      // 4. Nếu có goldB, bịt chóp đao bằng ngọn đồng dát vàng kim
+      if (goldB && splinePts.length >= 2) {
+        const lastPt = splinePts[splinePts.length - 1];
+        const secondLastPt = splinePts[splinePts.length - 2];
+        const dir = new THREE.Vector3()
+          .subVectors(lastPt, secondLastPt)
+          .normalize();
+        const tipStart = lastPt.clone().addScaledVector(dir, -0.15 * scale);
+        const tipEnd = lastPt.clone().addScaledVector(dir, 0.22 * scale);
+        goldB.addLimb(tipStart, tipEnd, baseR * 0.35, 0.01, 5, goldCol);
       }
     }
   }
@@ -802,8 +828,16 @@ export class GeometryBuilder {
         for (let i = 0; i < dragonCtrl.length - 1; i++) {
           const [x0, y0] = dragonCtrl[i];
           const [x1, y1] = dragonCtrl[i + 1];
-          const p0 = new THREE.Vector3(spec.cx + sign * x0, ridgeY + y0, spec.cz);
-          const p1 = new THREE.Vector3(spec.cx + sign * x1, ridgeY + y1, spec.cz);
+          const p0 = new THREE.Vector3(
+            spec.cx + sign * x0,
+            ridgeY + y0,
+            spec.cz,
+          );
+          const p1 = new THREE.Vector3(
+            spec.cx + sign * x1,
+            ridgeY + y1,
+            spec.cz,
+          );
 
           // Bán kính thân rồng thuôn dần từ cổ (0.16m) về đuôi (0.05m)
           const r0 = lerp(0.16, 0.05, i / (dragonCtrl.length - 1));
@@ -814,23 +848,67 @@ export class GeometryBuilder {
           const finP = new THREE.Vector3().lerpVectors(p0, p1, 0.5);
           const finTip = finP
             .clone()
-            .add(new THREE.Vector3(0, 0.22 * (1 - (i / dragonCtrl.length) * 0.35), 0));
+            .add(
+              new THREE.Vector3(
+                0,
+                0.22 * (1 - (i / dragonCtrl.length) * 0.35),
+                0,
+              ),
+            );
           targetGold.addLimb(finP, finTip, 0.045, 0.006, 4, goldDeep);
         }
 
         // Móng vuốt rồng (Claws) bám trên bờ nóc
-        const frontClawBase = new THREE.Vector3(spec.cx + sign * 2.35, ridgeY + 0.95, spec.cz);
-        const frontClawFoot = new THREE.Vector3(spec.cx + sign * 2.25, ridgeY + 0.44, spec.cz + 0.12);
-        targetGold.addLimb(frontClawBase, frontClawFoot, 0.06, 0.035, 5, goldDeep);
+        const frontClawBase = new THREE.Vector3(
+          spec.cx + sign * 2.35,
+          ridgeY + 0.95,
+          spec.cz,
+        );
+        const frontClawFoot = new THREE.Vector3(
+          spec.cx + sign * 2.25,
+          ridgeY + 0.44,
+          spec.cz + 0.12,
+        );
+        targetGold.addLimb(
+          frontClawBase,
+          frontClawFoot,
+          0.06,
+          0.035,
+          5,
+          goldDeep,
+        );
 
-        const rearClawBase = new THREE.Vector3(spec.cx + sign * 3.95, ridgeY + 0.85, spec.cz);
-        const rearClawFoot = new THREE.Vector3(spec.cx + sign * 3.85, ridgeY + 0.44, spec.cz + 0.12);
-        targetGold.addLimb(rearClawBase, rearClawFoot, 0.055, 0.03, 5, goldDeep);
+        const rearClawBase = new THREE.Vector3(
+          spec.cx + sign * 3.95,
+          ridgeY + 0.85,
+          spec.cz,
+        );
+        const rearClawFoot = new THREE.Vector3(
+          spec.cx + sign * 3.85,
+          ridgeY + 0.44,
+          spec.cz + 0.12,
+        );
+        targetGold.addLimb(
+          rearClawBase,
+          rearClawFoot,
+          0.055,
+          0.03,
+          5,
+          goldDeep,
+        );
 
         // Chi tiết Đầu Rồng (Head, Snout, Horns, Whiskers)
-        const headPos = new THREE.Vector3(spec.cx + sign * 1.35, ridgeY + 1.25, spec.cz);
+        const headPos = new THREE.Vector3(
+          spec.cx + sign * 1.35,
+          ridgeY + 1.25,
+          spec.cz,
+        );
         // Mõm rồng há ngậm ngọc hướng vào Mặt Nguyệt
-        const snoutPos = new THREE.Vector3(spec.cx + sign * 0.92, ridgeY + 1.22, spec.cz);
+        const snoutPos = new THREE.Vector3(
+          spec.cx + sign * 0.92,
+          ridgeY + 1.22,
+          spec.cz,
+        );
         targetGold.addLimb(headPos, snoutPos, 0.13, 0.075, 6, goldCol);
 
         // Viên ngọc Minh Châu ngậm ở khóe miệng
@@ -1090,8 +1168,28 @@ export class GeometryBuilder {
 
     // Mặt trên cánh sen
     const tBase = this.vert(bx, by, bz, 0, 1, 0, color, 0.5, 0);
-    const tMidL = this.vert(midL_x, midY, midL_z, -sideX, 1, -sideZ, color, 0, 0.5);
-    const tMidR = this.vert(midR_x, midY, midR_z, sideX, 1, sideZ, color, 1, 0.5);
+    const tMidL = this.vert(
+      midL_x,
+      midY,
+      midL_z,
+      -sideX,
+      1,
+      -sideZ,
+      color,
+      0,
+      0.5,
+    );
+    const tMidR = this.vert(
+      midR_x,
+      midY,
+      midR_z,
+      sideX,
+      1,
+      sideZ,
+      color,
+      1,
+      0.5,
+    );
     const tTip = this.vert(tipX, tipY, tipZ, dirX, 1, dirZ, color, 0.5, 1);
 
     this.tri(tBase, tMidL, tTip);
@@ -1099,9 +1197,39 @@ export class GeometryBuilder {
 
     // Mặt dưới cánh sen (cách một khoảng thickness)
     const bBase = this.vert(bx, by - thickness, bz, 0, -1, 0, color, 0.5, 0);
-    const bMidL = this.vert(midL_x, midY - thickness, midL_z, -sideX, -1, -sideZ, color, 0, 0.5);
-    const bMidR = this.vert(midR_x, midY - thickness, midR_z, sideX, -1, sideZ, color, 1, 0.5);
-    const bTip = this.vert(tipX, tipY - thickness, tipZ, dirX, -1, dirZ, color, 0.5, 1);
+    const bMidL = this.vert(
+      midL_x,
+      midY - thickness,
+      midL_z,
+      -sideX,
+      -1,
+      -sideZ,
+      color,
+      0,
+      0.5,
+    );
+    const bMidR = this.vert(
+      midR_x,
+      midY - thickness,
+      midR_z,
+      sideX,
+      -1,
+      sideZ,
+      color,
+      1,
+      0.5,
+    );
+    const bTip = this.vert(
+      tipX,
+      tipY - thickness,
+      tipZ,
+      dirX,
+      -1,
+      dirZ,
+      color,
+      0.5,
+      1,
+    );
 
     this.tri(bBase, bTip, bMidL);
     this.tri(bBase, bMidR, bTip);
@@ -1123,11 +1251,11 @@ export class GeometryBuilder {
     color: THREE.Color,
   ): void {
     const leafPolygon: [number, number][] = [
-      [0, 0.95],      // Đuôi nhọn của lá bồ đề
+      [0, 0.95], // Đuôi nhọn của lá bồ đề
       [0.4, 0.25],
       [0.54, -0.15],
       [0.3, -0.45],
-      [0, -0.28],     // Vết khuyết cuống lá hình tim
+      [0, -0.28], // Vết khuyết cuống lá hình tim
       [-0.3, -0.45],
       [-0.54, -0.15],
       [-0.4, 0.25],
@@ -1138,7 +1266,9 @@ export class GeometryBuilder {
         ? new THREE.Vector3(0, 1, 0)
         : new THREE.Vector3(1, 0, 0);
     const side = new THREE.Vector3().crossVectors(normal, up).normalize();
-    const bitangent = new THREE.Vector3().crossVectors(side, normal).normalize();
+    const bitangent = new THREE.Vector3()
+      .crossVectors(side, normal)
+      .normalize();
 
     // Điểm tâm cuống lá
     const cIdx = this.vert(
