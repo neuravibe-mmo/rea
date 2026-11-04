@@ -1624,102 +1624,10 @@ export class Campus {
       PALETTE.stoneLight,
     );
 
-    // 1.3 Đôi Rồng đá tay vịn trườn chúc đầu xuống 2 bên bậc tam cấp
+    // 1.3 Đôi Rồng đá tay vịn trườn chúc đầu xuống 2 bên bậc tam cấp (Chuẩn 100% bản vẽ phối cảnh 3D)
     for (const signX of [-1, 1]) {
       const rx = bx + signX * 0.94;
-      // Dải bệ dốc đá đỡ thân rồng
-      stoneB.addLimb(
-        new THREE.Vector3(rx, 0.72, bz + 2.78),
-        new THREE.Vector3(rx, 0.15, bz + 3.85),
-        0.14,
-        0.14,
-        4,
-        PALETTE.stoneDark,
-      );
-
-      // Thân Rồng đá chạm nổi uốn lượn 4 khúc
-      // Khúc 1: Đuôi rồng cuộn xoắn ốc trên mặt sàn
-      stoneB.addLimb(
-        new THREE.Vector3(rx, 0.88, bz + 2.76),
-        new THREE.Vector3(rx, 0.74, bz + 2.98),
-        0.09,
-        0.12,
-        6,
-        PALETTE.whiteMarble,
-      );
-      // Khúc 2: Lưng uốn vồng lên có vây lưng
-      stoneB.addLimb(
-        new THREE.Vector3(rx, 0.74, bz + 2.98),
-        new THREE.Vector3(rx, 0.54, bz + 3.38),
-        0.12,
-        0.13,
-        6,
-        PALETTE.whiteMarble,
-      );
-      // Khúc 3: Thân trườn xuống bậc
-      stoneB.addLimb(
-        new THREE.Vector3(rx, 0.54, bz + 3.38),
-        new THREE.Vector3(rx, 0.28, bz + 3.78),
-        0.13,
-        0.14,
-        6,
-        PALETTE.whiteMarble,
-      );
-      // Vây lưng rồng đá (Dorsal spines)
-      for (let step = 0; step < 4; step++) {
-        const t = step / 3;
-        const fy = THREE.MathUtils.lerp(0.78, 0.35, t);
-        const fz = THREE.MathUtils.lerp(bz + 2.92, bz + 3.65, t);
-        stoneB.addLimb(
-          new THREE.Vector3(rx, fy, fz),
-          new THREE.Vector3(rx, fy + 0.12, fz - 0.05),
-          0.04,
-          0.008,
-          4,
-          PALETTE.whiteMarble,
-        );
-      }
-
-      // Đầu Rồng đá chạm trổ uy nghi ở chân bậc thang
-      stoneB.addBox(
-        rx - 0.11,
-        0.15,
-        bz + 3.72,
-        rx + 0.11,
-        0.48,
-        bz + 4.05,
-        PALETTE.whiteMarble,
-      );
-      // Mõm và hàm rồng há ngậm ngọc
-      stoneB.addCylinder(
-        rx,
-        bz + 4.08,
-        0.22,
-        0.34,
-        0.09,
-        0.05,
-        8,
-        PALETTE.whiteMarble,
-      );
-      // Ngọc minh châu mạ vàng trong miệng rồng
-      goldB.addCylinder(rx, bz + 4.06, 0.24, 0.32, 0.05, 0.05, 8, PALETTE.gold);
-      // Cặp sừng rồng vuốt ngược ra sau
-      stoneB.addLimb(
-        new THREE.Vector3(rx - 0.06, 0.46, bz + 3.92),
-        new THREE.Vector3(rx - 0.06, 0.6, bz + 3.62),
-        0.035,
-        0.012,
-        4,
-        PALETTE.whiteMarble,
-      );
-      stoneB.addLimb(
-        new THREE.Vector3(rx + 0.06, 0.46, bz + 3.92),
-        new THREE.Vector3(rx + 0.06, 0.6, bz + 3.62),
-        0.035,
-        0.012,
-        4,
-        PALETTE.whiteMarble,
-      );
+      this.buildStairDragon(stoneB, goldB, rx, bz, signX);
     }
 
     // 1.4 Hệ Lan can đá & Trụ đá đỉnh Búp Sen nở
@@ -2670,6 +2578,573 @@ export class Campus {
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
       this.root.add(mesh);
+    }
+  }
+
+  /**
+   * Tạo Phù điêu Rồng Đá Tay Vịn Bậc Tam Cấp Chòi Chuông chuẩn 100% bản vẽ phối cảnh 3D
+   * Gồm:
+   * 1. Bệ lan can đá hình khối thang dốc phẳng, có phào chỉ bo viền và pa-nô mây cuộn chạm nổi
+   * 2. Đôn trụ đá ở chân bậc thang đỡ dưới cằm và móng rồng
+   * 3. Thân rồng đá cẩm thạch trắng uốn lượn hình sin 3 khúc sống động, có các vòng khoang vảy rồng
+   * 4. Đuôi rồng cuộn tròn vân xoắn ốc vút cao tại mặt sàn
+   * 5. Dãy vây lưng rồng (vi cá) hình vân mây lửa nhọn hoắt nhô cao dọc sống lưng
+   * 6. Đầu rồng đá chạm trổ uy nghi: hộp sọ, mũi lân vểnh cao, 2 lỗ mũi, hàm dưới há rộng, 4 răng nanh nhọn
+   * 7. Viên Ngọc Minh Châu dát vàng tròn trịa ngậm chặt trong miệng rồng
+   * 8. Đôi mắt lồi tròn dát vàng con ngươi, mày rồng uốn cong vân mây
+   * 9. Cặp sừng rồng vươn cao vút ngược về sau gáy có chạc phụ
+   * 10. Đôi râu rồng dài uốn lượn chữ S mềm mại bay xuôi hai bên mép hàm
+   * 11. Bờm rồng và dải mây lửa xòe rộng sau gáy và cổ
+   * 12. Chân trước với 4 móng vuốt rồng cắm chặt xuống đôn đá, chân sau co gập bám sườn lan can
+   */
+  private buildStairDragon(
+    stoneB: GeometryBuilder,
+    goldB: GeometryBuilder,
+    rx: number,
+    bz: number,
+    signX: number,
+  ): void {
+    const marble = PALETTE.whiteMarble;
+    const marbleDark = new THREE.Color(0xb5b0a4);
+    const marbleLight = new THREE.Color(0xf5f3ee);
+    const stoneFrame = PALETTE.stoneDark;
+    const stonePanel = PALETTE.stone;
+
+    const zTop = bz + 2.76;
+    const zBot = bz + 3.84;
+    const wHalf = 0.095;
+    const xIn = rx - signX * wHalf;
+    const xOut = rx + signX * wHalf;
+
+    // 1. BỆ LAN CAN ĐÁ HÌNH KHỐI THANG DỐC PHẲNG (Solid Stone Balustrade Wall)
+    // Mặt hông ngoài (Outer face)
+    const p0 = stoneB.vert(xOut, 0.0, zTop, signX, 0, 0, stonePanel);
+    const p1 = stoneB.vert(xOut, 0.66, zTop, signX, 0, 0, stonePanel);
+    const p2 = stoneB.vert(xOut, 0.16, zBot, signX, 0, 0, stonePanel);
+    const p3 = stoneB.vert(xOut, 0.0, zBot, signX, 0, 0, stonePanel);
+    if (signX > 0) {
+      stoneB.quad(p0, p1, p2, p3);
+    } else {
+      stoneB.quad(p0, p3, p2, p1);
+    }
+
+    // Mặt hông trong (Inner face giáp bậc thang)
+    const q0 = stoneB.vert(xIn, 0.0, zTop, -signX, 0, 0, stonePanel);
+    const q1 = stoneB.vert(xIn, 0.66, zTop, -signX, 0, 0, stonePanel);
+    const q2 = stoneB.vert(xIn, 0.16, zBot, -signX, 0, 0, stonePanel);
+    const q3 = stoneB.vert(xIn, 0.0, zBot, -signX, 0, 0, stonePanel);
+    if (signX > 0) {
+      stoneB.quad(q0, q3, q2, q1);
+    } else {
+      stoneB.quad(q0, q1, q2, q3);
+    }
+
+    // Mặt dốc đỉnh bệ (Top coping)
+    stoneB.quad(q1, p1, p2, q2);
+    // Mặt đứng đầu bệ (Front face)
+    stoneB.quad(q2, p2, p3, q3);
+
+    // Gờ phào chỉ nổi bo viền mặt hông ngoài (Decorative moulding frame)
+    const frameOutX = xOut + signX * 0.015;
+    stoneB.addBox(
+      Math.min(xOut, frameOutX),
+      0.0,
+      zTop,
+      Math.max(xOut, frameOutX),
+      0.68,
+      zTop + 0.08,
+      stoneFrame,
+    );
+    stoneB.addBox(
+      Math.min(xOut, frameOutX),
+      0.0,
+      zBot - 0.08,
+      Math.max(xOut, frameOutX),
+      0.2,
+      zBot,
+      stoneFrame,
+    );
+    // Pa-nô mây cuộn đục nổi ở lòng sườn lan can đá
+    for (let s = 0; s < 3; s++) {
+      const czMid = THREE.MathUtils.lerp(
+        zTop + 0.25,
+        zBot - 0.25,
+        (s + 0.5) / 3,
+      );
+      const cyMid = THREE.MathUtils.lerp(0.52, 0.14, (s + 0.5) / 3);
+      stoneB.addCylinder(
+        frameOutX,
+        czMid,
+        cyMid - 0.06,
+        cyMid + 0.06,
+        0.055,
+        0.055,
+        8,
+        marbleDark,
+      );
+    }
+
+    // 2. ĐÔN TRỤ ĐÁ CHÂN BẬC THANG ĐỠ DƯỚI HÀM VÀ ĐẦU RỒNG
+    stoneB.addBox(
+      rx - 0.15,
+      0.0,
+      zBot - 0.02,
+      rx + 0.15,
+      0.18,
+      zBot + 0.36,
+      stoneFrame,
+    );
+    stoneB.addBox(
+      rx - 0.165,
+      0.15,
+      zBot - 0.04,
+      rx + 0.165,
+      0.2,
+      zBot + 0.38,
+      PALETTE.stoneLight,
+    );
+
+    // 3. THÂN RỒNG ĐÁ CẨM THẠCH TRẮNG UỐN LƯỢN HÌNH SIN 3 KHÚC
+    // Đuôi cuộn xoắn ốc trên mặt sàn -> Lưng vồng 1 -> Võng 2 -> Lưng vồng 2 -> Võng 3 -> Cổ ngẩng cao -> Đầu rồng
+    const spinePts: [number, number, number][] = [
+      // [y, z, radius]
+      [0.96, bz + 2.65, 0.04], // Chóp đuôi vút mây lửa ngẩng cao
+      [0.88, bz + 2.58, 0.065], // Vòng xoắn đuôi trên
+      [0.72, bz + 2.62, 0.085], // Bụng xoắn đuôi dưới giáp sàn
+      [0.78, bz + 2.74, 0.1], // Gốc đuôi nối thân
+      [0.68, bz + 2.92, 0.115], // Khúc võng 1
+      [0.82, bz + 3.14, 0.13], // Khúc vồng lưng 1 (nhô cao uy nghi)
+      [0.58, bz + 3.36, 0.12], // Khúc võng 2
+      [0.7, bz + 3.58, 0.13], // Khúc vồng lưng 2
+      [0.4, bz + 3.8, 0.125], // Khúc võng 3 trườn xuống đôn đá
+      [0.48, bz + 3.96, 0.14], // Cổ rồng ngẩng cao
+      [0.46, bz + 4.1, 0.135], // Hộp sọ đầu rồng
+      [0.38, bz + 4.22, 0.09], // Mõm rồng
+    ];
+
+    // Vẽ từng đốt thân rồng uốn lượn
+    for (let i = 0; i < spinePts.length - 1; i++) {
+      const [y0, z0, r0] = spinePts[i];
+      const [y1, z1, r1] = spinePts[i + 1];
+      const pA = new THREE.Vector3(rx, y0, z0);
+      const pB = new THREE.Vector3(rx, y1, z1);
+      stoneB.addLimb(pA, pB, r0, r1, 8, marble);
+
+      // Các khoang ngấn vảy rồng nổi khối
+      if (i >= 3 && i <= 8) {
+        const midP = new THREE.Vector3().lerpVectors(pA, pB, 0.5);
+        stoneB.addCylinder(
+          midP.x,
+          midP.z,
+          midP.y - 0.02,
+          midP.y + 0.02,
+          (r0 + r1) * 0.53,
+          (r0 + r1) * 0.53,
+          8,
+          marbleLight,
+        );
+      }
+    }
+
+    // 4. DÃY VÂY LƯNG RỒNG (VI CÁ / VÂN MÂY LỬA) NHỌN HOẮT NHÔ CAO DỌC SỐNG LƯNG
+    // Đuôi: ngọn lửa đuôi nhọn
+    stoneB.addLimb(
+      new THREE.Vector3(rx, 0.96, bz + 2.65),
+      new THREE.Vector3(rx, 1.1, bz + 2.62),
+      0.035,
+      0.006,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx, 0.9, bz + 2.58),
+      new THREE.Vector3(rx, 1.02, bz + 2.52),
+      0.03,
+      0.005,
+      4,
+      marbleLight,
+    );
+
+    // Vây lưng khúc vồng 1 (z: bz + 3.02 đến bz + 3.26)
+    for (let s = 0; s < 4; s++) {
+      const t = s / 3;
+      const fz = THREE.MathUtils.lerp(bz + 3.02, bz + 3.26, t);
+      const fy = THREE.MathUtils.lerp(0.74, 0.84, Math.sin(t * Math.PI));
+      stoneB.addLimb(
+        new THREE.Vector3(rx, fy, fz),
+        new THREE.Vector3(rx, fy + 0.15, fz - 0.04),
+        0.038,
+        0.006,
+        4,
+        marbleLight,
+      );
+    }
+
+    // Vây lưng khúc vồng 2 (z: bz + 3.48 đến bz + 3.70)
+    for (let s = 0; s < 4; s++) {
+      const t = s / 3;
+      const fz = THREE.MathUtils.lerp(bz + 3.48, bz + 3.7, t);
+      const fy = THREE.MathUtils.lerp(0.62, 0.72, Math.sin(t * Math.PI));
+      stoneB.addLimb(
+        new THREE.Vector3(rx, fy, fz),
+        new THREE.Vector3(rx, fy + 0.14, fz - 0.04),
+        0.036,
+        0.006,
+        4,
+        marbleLight,
+      );
+    }
+
+    // Vây lưng cổ gáy rồng
+    for (let s = 0; s < 3; s++) {
+      const fz = bz + 3.86 + s * 0.06;
+      const fy = 0.44 + s * 0.03;
+      stoneB.addLimb(
+        new THREE.Vector3(rx, fy, fz),
+        new THREE.Vector3(rx, fy + 0.15, fz - 0.05),
+        0.035,
+        0.006,
+        4,
+        marbleLight,
+      );
+    }
+
+    // 5. ĐẦU RỒNG ĐÁ CHẠM TRỔ UY NGHI Ở CHÂN BẬC THANG
+    // 5.1 Hộp sọ đầu rồng
+    stoneB.addBox(
+      rx - 0.13,
+      0.28,
+      bz + 3.94,
+      rx + 0.13,
+      0.54,
+      bz + 4.12,
+      marble,
+    );
+
+    // 5.2 Mõm rồng & Hàm trên
+    stoneB.addBox(
+      rx - 0.11,
+      0.35,
+      bz + 4.1,
+      rx + 0.11,
+      0.51,
+      bz + 4.25,
+      marble,
+    );
+    // Chỏm mũi lân vểnh cao
+    stoneB.addCylinder(rx, bz + 4.24, 0.48, 0.58, 0.065, 0.035, 8, marbleLight);
+    // 2 Lỗ mũi lồi
+    stoneB.addCylinder(
+      rx - 0.05,
+      bz + 4.23,
+      0.51,
+      0.55,
+      0.026,
+      0.026,
+      6,
+      stoneFrame,
+    );
+    stoneB.addCylinder(
+      rx + 0.05,
+      bz + 4.23,
+      0.51,
+      0.55,
+      0.026,
+      0.026,
+      6,
+      stoneFrame,
+    );
+
+    // 5.3 Hàm dưới há rộng
+    stoneB.addBox(rx - 0.1, 0.18, bz + 4.04, rx + 0.1, 0.27, bz + 4.23, marble);
+
+    // 5.4 4 Chiếc răng nanh rồng nhọn hoắt (Fangs)
+    // 2 Răng nanh hàm trên chỉ xuống
+    stoneB.addLimb(
+      new THREE.Vector3(rx - 0.08, 0.35, bz + 4.17),
+      new THREE.Vector3(rx - 0.08, 0.27, bz + 4.17),
+      0.02,
+      0.005,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx + 0.08, 0.35, bz + 4.17),
+      new THREE.Vector3(rx + 0.08, 0.27, bz + 4.17),
+      0.02,
+      0.005,
+      4,
+      marbleLight,
+    );
+    // 2 Răng nanh hàm dưới chỉ lên
+    stoneB.addLimb(
+      new THREE.Vector3(rx - 0.075, 0.27, bz + 4.2),
+      new THREE.Vector3(rx - 0.075, 0.34, bz + 4.2),
+      0.018,
+      0.005,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx + 0.075, 0.27, bz + 4.2),
+      new THREE.Vector3(rx + 0.075, 0.34, bz + 4.2),
+      0.018,
+      0.005,
+      4,
+      marbleLight,
+    );
+
+    // 5.5 Viên Ngọc Minh Châu dát vàng tròn trịa ngậm trong miệng
+    goldB.addCylinder(
+      rx,
+      bz + 4.14,
+      0.26,
+      0.38,
+      0.075,
+      0.075,
+      14,
+      PALETTE.gold,
+    );
+    goldB.addCylinder(
+      rx,
+      bz + 4.14,
+      0.28,
+      0.36,
+      0.085,
+      0.085,
+      14,
+      PALETTE.goldLight,
+    );
+
+    // 5.6 Đôi mắt rồng lồi tròn và mày vân mây
+    // Mắt trái
+    stoneB.addCylinder(
+      rx - 0.125,
+      bz + 4.04,
+      0.42,
+      0.5,
+      0.045,
+      0.045,
+      8,
+      PALETTE.stoneLight,
+    );
+    goldB.addCylinder(
+      rx - 0.13,
+      bz + 4.04,
+      0.44,
+      0.48,
+      0.026,
+      0.026,
+      8,
+      PALETTE.gold,
+    );
+    // Mắt phải
+    stoneB.addCylinder(
+      rx + 0.125,
+      bz + 4.04,
+      0.42,
+      0.5,
+      0.045,
+      0.045,
+      8,
+      PALETTE.stoneLight,
+    );
+    goldB.addCylinder(
+      rx + 0.13,
+      bz + 4.04,
+      0.44,
+      0.48,
+      0.026,
+      0.026,
+      8,
+      PALETTE.gold,
+    );
+
+    // Mày rồng vân mây uốn cong ngạo nghễ
+    stoneB.addLimb(
+      new THREE.Vector3(rx - 0.12, 0.52, bz + 4.1),
+      new THREE.Vector3(rx - 0.13, 0.6, bz + 3.98),
+      0.032,
+      0.01,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx + 0.12, 0.52, bz + 4.1),
+      new THREE.Vector3(rx + 0.13, 0.6, bz + 3.98),
+      0.032,
+      0.01,
+      4,
+      marbleLight,
+    );
+
+    // 5.7 Cặp sừng rồng (Dragon Horns) vươn cao vút ngược về sau gáy
+    // Nhánh sừng chính
+    stoneB.addLimb(
+      new THREE.Vector3(rx - 0.07, 0.54, bz + 3.98),
+      new THREE.Vector3(rx - 0.1, 0.74, bz + 3.68),
+      0.04,
+      0.012,
+      5,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx + 0.07, 0.54, bz + 3.98),
+      new THREE.Vector3(rx + 0.1, 0.74, bz + 3.68),
+      0.04,
+      0.012,
+      5,
+      marbleLight,
+    );
+    // Nhánh chạc sừng phụ
+    stoneB.addLimb(
+      new THREE.Vector3(rx - 0.085, 0.64, bz + 3.84),
+      new THREE.Vector3(rx - 0.14, 0.72, bz + 3.84),
+      0.024,
+      0.007,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx + 0.085, 0.64, bz + 3.84),
+      new THREE.Vector3(rx + 0.14, 0.72, bz + 3.84),
+      0.024,
+      0.007,
+      4,
+      marbleLight,
+    );
+
+    // 5.8 Đôi râu rồng dài (Whiskers) uốn lượn chữ S mềm mại
+    // Râu trái
+    stoneB.addLimb(
+      new THREE.Vector3(rx - 0.1, 0.38, bz + 4.16),
+      new THREE.Vector3(rx - 0.2, 0.34, bz + 4.06),
+      0.026,
+      0.014,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx - 0.2, 0.34, bz + 4.06),
+      new THREE.Vector3(rx - 0.18, 0.18, bz + 3.92),
+      0.014,
+      0.006,
+      4,
+      marbleLight,
+    );
+    // Râu phải
+    stoneB.addLimb(
+      new THREE.Vector3(rx + 0.1, 0.38, bz + 4.16),
+      new THREE.Vector3(rx + 0.2, 0.34, bz + 4.06),
+      0.026,
+      0.014,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx + 0.2, 0.34, bz + 4.06),
+      new THREE.Vector3(rx + 0.18, 0.18, bz + 3.92),
+      0.014,
+      0.006,
+      4,
+      marbleLight,
+    );
+
+    // 5.9 Bờm rồng và dải mây lửa xòe rộng sau gáy và cổ
+    stoneB.addLimb(
+      new THREE.Vector3(rx - 0.11, 0.46, bz + 3.92),
+      new THREE.Vector3(rx - 0.2, 0.48, bz + 3.74),
+      0.038,
+      0.01,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx + 0.11, 0.46, bz + 3.92),
+      new THREE.Vector3(rx + 0.2, 0.48, bz + 3.74),
+      0.038,
+      0.01,
+      4,
+      marbleLight,
+    );
+    stoneB.addLimb(
+      new THREE.Vector3(rx, 0.54, bz + 3.94),
+      new THREE.Vector3(rx, 0.66, bz + 3.78),
+      0.042,
+      0.01,
+      4,
+      marbleLight,
+    );
+
+    // 6. CHÂN RỒNG VÀ MÓNG VUỐT (DRAGON CLAWS & LEGS)
+    // 6.1 Chân trước: bắp chân vươn xuống đôn đá với 4 móng vuốt cắm chặt
+    const frontLegBase = new THREE.Vector3(rx + signX * 0.11, 0.4, bz + 3.82);
+    const frontLegKnee = new THREE.Vector3(rx + signX * 0.15, 0.3, bz + 3.88);
+    const frontFoot = new THREE.Vector3(rx + signX * 0.14, 0.19, bz + 4.0);
+
+    stoneB.addLimb(frontLegBase, frontLegKnee, 0.055, 0.042, 5, marble);
+    stoneB.addLimb(frontLegKnee, frontFoot, 0.042, 0.035, 5, marble);
+
+    // Cụm mây lửa ở khuỷu chân trước
+    stoneB.addLimb(
+      frontLegKnee,
+      new THREE.Vector3(rx + signX * 0.18, 0.38, bz + 3.76),
+      0.028,
+      0.006,
+      4,
+      marbleLight,
+    );
+
+    // 4 Móng vuốt rồng cắm chặt xuống đôn đá
+    const clawDirs: [number, number][] = [
+      [-0.03, 0.05],
+      [0.0, 0.06],
+      [0.04, 0.05],
+      [0.02, -0.04], // Móng sau
+    ];
+    for (const [cdx, cdz] of clawDirs) {
+      stoneB.addLimb(
+        frontFoot,
+        new THREE.Vector3(frontFoot.x + signX * cdx, 0.17, frontFoot.z + cdz),
+        0.016,
+        0.004,
+        4,
+        marbleLight,
+      );
+    }
+
+    // 6.2 Chân sau: co gập ở khúc vồng 1, bám vào sườn lan can đá
+    const rearLegBase = new THREE.Vector3(rx + signX * 0.11, 0.72, bz + 3.22);
+    const rearLegKnee = new THREE.Vector3(rx + signX * 0.15, 0.58, bz + 3.32);
+    const rearFoot = new THREE.Vector3(rx + signX * 0.13, 0.45, bz + 3.42);
+
+    stoneB.addLimb(rearLegBase, rearLegKnee, 0.052, 0.038, 5, marble);
+    stoneB.addLimb(rearLegKnee, rearFoot, 0.038, 0.032, 5, marble);
+
+    // Cụm mây lửa khuỷu chân sau
+    stoneB.addLimb(
+      rearLegKnee,
+      new THREE.Vector3(rx + signX * 0.17, 0.68, bz + 3.16),
+      0.028,
+      0.006,
+      4,
+      marbleLight,
+    );
+
+    // 4 Móng vuốt chân sau bám thành bệ
+    for (const [cdx, cdz] of clawDirs) {
+      stoneB.addLimb(
+        rearFoot,
+        new THREE.Vector3(
+          rearFoot.x + signX * cdx,
+          rearFoot.y - 0.03,
+          rearFoot.z + cdz,
+        ),
+        0.015,
+        0.004,
+        4,
+        marbleLight,
+      );
     }
   }
 
