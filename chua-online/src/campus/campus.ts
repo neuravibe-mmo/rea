@@ -1507,11 +1507,6 @@ export class Campus {
     const woodLimDark = new THREE.Color(0x693b1d);
     const woodLimLight = new THREE.Color(0xb26f3f);
 
-    // Gam màu đồng cổ truyền Đại Hồng Chung (đồng thanh ánh vàng cổ kính)
-    const bronzeCol = new THREE.Color(0x96764d); // Đồng thanh đúc cổ ánh đồng ấm
-    const bronzeHighlight = new THREE.Color(0xdfb768); // Gờ nổi kinh văn và nhũ chuông mạ vàng
-    const ironChain = new THREE.Color(0x383533); // Xích sắt rèn thủ công
-
     // =========================================================================
     // PHẦN 1: BỆ NỀN TAM CẤP, HỆ LAN CAN TRỤ BÚP SEN & ĐÔI RỒNG ĐÁ TAY VỊN
     // =========================================================================
@@ -2130,145 +2125,9 @@ export class Campus {
     }
 
     // =========================================================================
-    // PHẦN 4: QUẢ ĐẠI HỒNG CHUNG BẰNG ĐỒNG CỔ & CHÀY KÌNH (TẠI TÂM TẦNG 1)
+    // PHẦN 4: QUẢ ĐẠI HỒNG CHUNG BẰNG ĐỒNG CỔ ÁNH KIM & CHÀY KÌNH (TẠI TÂM TẦNG 1)
     // =========================================================================
-    // 4.1 Quai chuông hình Rồng Bồ Lao (Dragon crown loop)
-    bronzeB.addCylinder(bx, bz, 3.18, 3.46, 0.22, 0.16, 12, bronzeCol);
-    // 2 Quai vòm rồng uốn cong
-    bronzeB.addLimb(
-      new THREE.Vector3(bx - 0.15, 3.22, bz),
-      new THREE.Vector3(bx, 3.52, bz),
-      0.065,
-      0.05,
-      6,
-      bronzeHighlight,
-    );
-    bronzeB.addLimb(
-      new THREE.Vector3(bx + 0.15, 3.22, bz),
-      new THREE.Vector3(bx, 3.52, bz),
-      0.065,
-      0.05,
-      6,
-      bronzeHighlight,
-    );
-
-    // 4.2 Hai sợi xích sắt song song treo quả chuông lên xà mái trần
-    bronzeB.addCylinder(bx - 0.08, bz, 3.48, 3.84, 0.025, 0.025, 6, ironChain);
-    bronzeB.addCylinder(bx + 0.08, bz, 3.48, 3.84, 0.025, 0.025, 6, ironChain);
-
-    // 4.3 Thân Đại Hồng Chung (Từ y: 1.35m đến 3.18m)
-    // Vai chuông cong vòm với băng cánh sen úp
-    bronzeB.addCylinder(bx, bz, 2.92, 3.18, 0.44, 0.28, 18, bronzeCol);
-    bronzeB.addCylinder(bx, bz, 2.96, 3.02, 0.46, 0.46, 18, bronzeHighlight);
-
-    // Thân trên có 4 ô minh văn khắc chữ Hán/Kinh Phật
-    bronzeB.addCylinder(bx, bz, 2.25, 2.92, 0.52, 0.44, 18, bronzeCol);
-    // Băng gờ phân cách các ô minh văn
-    bronzeB.addCylinder(bx, bz, 2.56, 2.62, 0.5, 0.5, 18, bronzeHighlight);
-
-    // Thân giữa với 4 núm gõ chuông (Bell strike bosses)
-    bronzeB.addCylinder(bx, bz, 1.85, 2.25, 0.58, 0.52, 18, bronzeCol);
-    for (const [nx, nz] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const bossX = bx + nx * 0.55;
-      const bossZ = bz + nz * 0.55;
-      bronzeB.addCylinder(
-        bossX,
-        bossZ,
-        2.0,
-        2.1,
-        0.08,
-        0.04,
-        8,
-        bronzeHighlight,
-      );
-    }
-
-    // Miệng chuông loe rộng cánh sen rủ (Flared mouth rim)
-    bronzeB.addCylinder(bx, bz, 1.48, 1.85, 0.65, 0.58, 18, bronzeCol);
-    bronzeB.addCylinder(bx, bz, 1.35, 1.48, 0.68, 0.65, 18, bronzeHighlight);
-
-    // 4.4 CHÀY KÌNH (DÙI GỖ ĐẤM CHUÔNG) TREO NẰM NGANG BẰNG 2 SỢI XÍCH SẮT
-    const strikerX = bx + 0.88;
-    const strikerY = 2.05;
-    // Thân khúc gỗ tròn nằm ngang
-    woodB.addLimb(
-      new THREE.Vector3(strikerX, strikerY, bz - 0.45),
-      new THREE.Vector3(strikerX, strikerY, bz + 0.45),
-      0.085,
-      0.085,
-      8,
-      woodLimDark,
-    );
-    // Hai chỏm bo tròn 2 đầu chày
-    woodB.addCylinder(
-      strikerX,
-      bz - 0.45,
-      strikerY - 0.08,
-      strikerY + 0.08,
-      0.085,
-      0.03,
-      8,
-      woodLimLight,
-    );
-    woodB.addCylinder(
-      strikerX,
-      bz + 0.45,
-      strikerY - 0.08,
-      strikerY + 0.08,
-      0.085,
-      0.03,
-      8,
-      woodLimLight,
-    );
-
-    // 2 Đai đồng bọc cố định dùi gắn khoen xích
-    bronzeB.addCylinder(
-      strikerX,
-      bz - 0.28,
-      strikerY - 0.09,
-      strikerY + 0.09,
-      0.092,
-      0.092,
-      8,
-      bronzeHighlight,
-    );
-    bronzeB.addCylinder(
-      strikerX,
-      bz + 0.28,
-      strikerY - 0.09,
-      strikerY + 0.09,
-      0.092,
-      0.092,
-      8,
-      bronzeHighlight,
-    );
-
-    // 2 Sợi xích sắt song song treo dùi từ xà trần (y: 3.82) xuống khoen chày (y: 2.05)
-    bronzeB.addCylinder(
-      strikerX,
-      bz - 0.28,
-      strikerY,
-      3.82,
-      0.014,
-      0.014,
-      4,
-      ironChain,
-    );
-    bronzeB.addCylinder(
-      strikerX,
-      bz + 0.28,
-      strikerY,
-      3.82,
-      0.014,
-      0.014,
-      4,
-      ironChain,
-    );
+    this.buildGreatBell(bronzeB, woodB, goldB, bx, bz);
 
     // =========================================================================
     // PHẦN 5: TẦNG MÁI HẠ (TẦNG 1) VỚI 4 ĐẦU ĐAO VÂN MÂY ĐÁ XÁM TRẮNG
@@ -2556,13 +2415,15 @@ export class Campus {
       this.root.add(mesh);
     }
 
-    // Mesh Đại Hồng Chung bằng đồng thanh đúc cổ (không bị neon chói)
+    // Mesh Đại Hồng Chung bằng đồng thanh đúc cổ ánh kim
     const bGeom = bronzeB.build();
     if (bGeom) {
       const bronzeMat = new THREE.MeshStandardMaterial({
         vertexColors: true,
-        roughness: 0.42,
-        metalness: 0.78,
+        roughness: 0.36,
+        metalness: 0.42,
+        emissive: new THREE.Color(0x5a3e18),
+        emissiveIntensity: 0.35,
       });
       const mesh = new THREE.Mesh(bGeom, bronzeMat);
       mesh.castShadow = true;
@@ -2578,6 +2439,415 @@ export class Campus {
       mesh.receiveShadow = true;
       mesh.matrixAutoUpdate = false;
       this.root.add(mesh);
+    }
+  }
+
+  /**
+   * Tạo Đại Hồng Chung bằng đồng thanh cổ ánh kim và Chày Kình chuẩn 100% bản vẽ phối cảnh 3D
+   * Gồm:
+   * 1. Độ cao treo chuông thanh thoát, miệng chuông cách sàn 1.07m tạo tầm nhìn thông thoáng
+   * 2. Miệng chuông loe rộng lượn sóng viền cánh sen nổi và gờ chỉ đồng vàng
+   * 3. Thân chuông thon thả chuẩn tỉ lệ cổ truyền với 4 núm gõ chuông (Nguyệt chuông) hình hoa sen bát giác
+   * 4. Thân trên chia 4 ô Minh Văn viền vàng chạm nổi các dòng kinh kệ Phật pháp
+   * 5. Vai chuông uốn cong mềm mại phủ lớp cánh sen úp 16 cánh
+   * 6. Quai chuông hình Linh thú Rồng Bồ Lao 2 đầu uốn cong uy nghiêm, sừng và vây lửa dát vàng
+   * 7. Xích sắt rèn đôi treo vững chãi từ trần xà mái xuống quai chuông
+   * 8. Chày Kình (dùi gỗ lim đấm chuông) dáng trụ tiện tròn, 2 đai đồng vàng, treo ngang bằng 2 sợi xích sắt đối diện núm chuông
+   */
+  private buildGreatBell(
+    bronzeB: GeometryBuilder,
+    woodB: GeometryBuilder,
+    goldB: GeometryBuilder,
+    bx: number,
+    bz: number,
+  ): void {
+    // Bảng màu đồng cổ ánh kim, hoa văn dát vàng & sắt rèn
+    const bronzeBody = new THREE.Color(0xbba068); // Đồng thanh cổ ánh sáng ấm
+    const bronzeDark = new THREE.Color(0x755d32); // Rãnh hoa văn chìm / lòng chuông
+    const goldRelief = new THREE.Color(0xf6d672); // Hoa văn, núm gõ, minh văn dát vàng
+    const ironChain = new THREE.Color(0x36383c); // Sắt rèn cổ đen xám
+    const ironRing = new THREE.Color(0x52555c); // Khoen sắt rèn
+    const woodStriker = new THREE.Color(0x562b14); // Gỗ lim nâu đậm nguyên khối
+    const woodCap = new THREE.Color(0x7c4222); // Đầu tiện gỗ tròn
+    const bronzeFitting = new THREE.Color(0xdcae4e); // Đai đồng bọc dùi chuông
+
+    // -------------------------------------------------------------------------
+    // 1. MIỆNG CHUÔNG (Vành loe sóng sen, y: 1.72m -> 1.88m, r: 0.64m -> 0.57m)
+    // -------------------------------------------------------------------------
+    // Vành môi chuông dát vàng (Flared lip rim)
+    goldB.addCylinder(bx, bz, 1.72, 1.78, 0.64, 0.61, 24, goldRelief);
+    bronzeB.addCylinder(bx, bz, 1.78, 1.88, 0.61, 0.57, 24, bronzeBody);
+
+    // 24 Cánh sen nhô viền quanh mép miệng chuông (Scalloped lotus petal rim)
+    const rimCount = 24;
+    for (let i = 0; i < rimCount; i++) {
+      const a = (i / rimCount) * Math.PI * 2;
+      const cos = Math.cos(a);
+      const sin = Math.sin(a);
+      const px = bx + cos * 0.625;
+      const pz = bz + sin * 0.625;
+      goldB.addLimb(
+        new THREE.Vector3(px, 1.71, pz),
+        new THREE.Vector3(bx + cos * 0.59, 1.76, bz + sin * 0.59),
+        0.025,
+        0.015,
+        4,
+        goldRelief,
+      );
+    }
+    // Gờ đai chỉ nổi chân miệng chuông
+    goldB.addCylinder(bx, bz, 1.86, 1.9, 0.58, 0.58, 24, goldRelief);
+
+    // -------------------------------------------------------------------------
+    // 2. THÂN DƯỚI & 4 NÚM GÕ CHUÔNG (Hạ chuông, y: 1.88m -> 2.44m)
+    // -------------------------------------------------------------------------
+    // Phần eo thon thu vào rồi loe nhẹ
+    bronzeB.addCylinder(bx, bz, 1.88, 2.12, 0.57, 0.51, 24, bronzeBody);
+    bronzeB.addCylinder(bx, bz, 2.12, 2.44, 0.51, 0.525, 24, bronzeBody);
+
+    // 4 Núm chuông (Nguyệt chuông) tại 4 phương Đông - Tây - Nam - Bắc (y = 2.22m)
+    const bossDirections = [
+      { dx: 1, dz: 0 },
+      { dx: -1, dz: 0 },
+      { dx: 0, dz: 1 },
+      { dx: 0, dz: -1 },
+    ];
+    for (const dir of bossDirections) {
+      const bossRadius = 0.518;
+      const cx = bx + dir.dx * bossRadius;
+      const cz = bz + dir.dz * bossRadius;
+      const by = 2.22;
+
+      // Đĩa nguyệt chuông viền nổi dát vàng
+      goldB.addLimb(
+        new THREE.Vector3(cx - dir.dx * 0.02, by, cz - dir.dz * 0.02),
+        new THREE.Vector3(cx + dir.dx * 0.04, by, cz + dir.dz * 0.04),
+        0.09,
+        0.08,
+        8,
+        goldRelief,
+      );
+      // Núm tròn gõ chuông nhô ra phía ngoài
+      goldB.addLimb(
+        new THREE.Vector3(cx + dir.dx * 0.03, by, cz + dir.dz * 0.03),
+        new THREE.Vector3(cx + dir.dx * 0.075, by, cz + dir.dz * 0.075),
+        0.055,
+        0.04,
+        8,
+        goldRelief,
+      );
+
+      // 8 Cánh sen hoa văn tỏa tròn quanh đĩa nguyệt
+      const tanX = -dir.dz;
+      const tanZ = dir.dx;
+      for (let p = 0; p < 8; p++) {
+        const pa = (p / 8) * Math.PI * 2;
+        const pr = 0.115;
+        const petX = cx + tanX * Math.cos(pa) * pr;
+        const petY = by + Math.sin(pa) * pr;
+        const petZ = cz + tanZ * Math.cos(pa) * pr;
+        goldB.addLimb(
+          new THREE.Vector3(cx, by, cz),
+          new THREE.Vector3(petX, petY, petZ),
+          0.02,
+          0.008,
+          4,
+          goldRelief,
+        );
+      }
+    }
+
+    // Đai gờ phân cách Thân dưới và Thân trên
+    goldB.addCylinder(bx, bz, 2.44, 2.48, 0.53, 0.53, 24, goldRelief);
+    bronzeB.addCylinder(bx, bz, 2.45, 2.47, 0.536, 0.536, 24, bronzeDark);
+
+    // -------------------------------------------------------------------------
+    // 3. THÂN TRÊN & 4 Ô MINH VĂN KHẮC KINH PHẬT (y: 2.48m -> 2.92m, r: 0.525m -> 0.46m)
+    // -------------------------------------------------------------------------
+    bronzeB.addCylinder(bx, bz, 2.48, 2.92, 0.525, 0.46, 24, bronzeBody);
+
+    // 4 Cột gờ nổi ngăn cách 4 ô Minh Văn ở 4 góc chéo (45°, 135°, 225°, 315°)
+    const ribAngles = [
+      Math.PI / 4,
+      (3 * Math.PI) / 4,
+      (5 * Math.PI) / 4,
+      (7 * Math.PI) / 4,
+    ];
+    for (const ra of ribAngles) {
+      const cos = Math.cos(ra);
+      const sin = Math.sin(ra);
+      goldB.addLimb(
+        new THREE.Vector3(bx + cos * 0.53, 2.47, bz + sin * 0.53),
+        new THREE.Vector3(bx + cos * 0.465, 2.93, bz + sin * 0.465),
+        0.02,
+        0.016,
+        4,
+        goldRelief,
+      );
+    }
+
+    // Các dòng Minh Văn chữ Phạn / Hán Nôm đắp nổi dát vàng trong từng ô
+    const textRows = [2.56, 2.66, 2.76, 2.84];
+    for (const ty of textRows) {
+      const tr = 0.525 - ((ty - 2.48) / (2.92 - 2.48)) * (0.525 - 0.46);
+      for (const dir of bossDirections) {
+        const panelCos = dir.dx;
+        const panelSin = dir.dz;
+        const tanX = -panelSin;
+        const tanZ = panelCos;
+        // Dải kinh văn chạm nổi
+        goldB.addLimb(
+          new THREE.Vector3(
+            bx + panelCos * tr - tanX * 0.16,
+            ty,
+            bz + panelSin * tr - tanZ * 0.16,
+          ),
+          new THREE.Vector3(
+            bx + panelCos * tr + tanX * 0.16,
+            ty,
+            bz + panelSin * tr + tanZ * 0.16,
+          ),
+          0.012,
+          0.012,
+          4,
+          goldRelief,
+        );
+      }
+    }
+
+    // Đai gờ vai chuông dát vàng
+    goldB.addCylinder(bx, bz, 2.9, 2.94, 0.468, 0.468, 24, goldRelief);
+
+    // -------------------------------------------------------------------------
+    // 4. VAI CHUÔNG & BĂNG CÁNH SEN ÚP (y: 2.94m -> 3.28m, r: 0.46m -> 0.23m)
+    // -------------------------------------------------------------------------
+    bronzeB.addCylinder(bx, bz, 2.94, 3.12, 0.46, 0.38, 24, bronzeBody);
+    bronzeB.addCylinder(bx, bz, 3.12, 3.28, 0.38, 0.23, 24, bronzeBody);
+
+    // 16 Cánh sen úp phủ từ đỉnh vòm vai chuông rủ xuống (Downward drooping lotus petals)
+    const shoulderPetalCount = 16;
+    for (let i = 0; i < shoulderPetalCount; i++) {
+      const pa = (i / shoulderPetalCount) * Math.PI * 2;
+      const cos = Math.cos(pa);
+      const sin = Math.sin(pa);
+      // Gân cánh sen dát vàng uốn lượn cong theo vai chuông
+      goldB.addLimb(
+        new THREE.Vector3(bx + cos * 0.24, 3.26, bz + sin * 0.24),
+        new THREE.Vector3(bx + cos * 0.39, 3.11, bz + sin * 0.39),
+        0.022,
+        0.018,
+        4,
+        goldRelief,
+      );
+      goldB.addLimb(
+        new THREE.Vector3(bx + cos * 0.39, 3.11, bz + sin * 0.39),
+        new THREE.Vector3(bx + cos * 0.455, 2.95, bz + sin * 0.455),
+        0.018,
+        0.012,
+        4,
+        goldRelief,
+      );
+    }
+
+    // Cổ ngai đỉnh chuông (Crown collar)
+    goldB.addCylinder(bx, bz, 3.28, 3.36, 0.235, 0.21, 16, goldRelief);
+    bronzeB.addCylinder(bx, bz, 3.32, 3.35, 0.242, 0.242, 16, bronzeDark);
+
+    // -------------------------------------------------------------------------
+    // 5. QUAI RỒNG BỒ LAO (Linh thú Bồ Lao 2 đầu uốn cong vòm, y: 3.34m -> 3.66m)
+    // -------------------------------------------------------------------------
+    // Thân rồng uốn vòm cầu nối đỉnh quả chuông dọc theo trục Z
+    const archPts = [
+      new THREE.Vector3(bx, 3.34, bz - 0.22),
+      new THREE.Vector3(bx, 3.48, bz - 0.16),
+      new THREE.Vector3(bx, 3.61, bz - 0.08),
+      new THREE.Vector3(bx, 3.66, bz),
+      new THREE.Vector3(bx, 3.61, bz + 0.08),
+      new THREE.Vector3(bx, 3.48, bz + 0.16),
+      new THREE.Vector3(bx, 3.34, bz + 0.22),
+    ];
+    for (let k = 0; k < archPts.length - 1; k++) {
+      bronzeB.addLimb(
+        archPts[k],
+        archPts[k + 1],
+        0.065 - Math.abs(k - 3) * 0.005,
+        0.065 - Math.abs(k + 1 - 3) * 0.005,
+        8,
+        bronzeBody,
+      );
+      // Gân sống lưng rồng dát vàng
+      goldB.addLimb(
+        new THREE.Vector3(archPts[k].x, archPts[k].y + 0.04, archPts[k].z),
+        new THREE.Vector3(
+          archPts[k + 1].x,
+          archPts[k + 1].y + 0.04,
+          archPts[k + 1].z,
+        ),
+        0.02,
+        0.02,
+        4,
+        goldRelief,
+      );
+    }
+
+    // Vi cá / vây lửa rồng nhọn hoắt trên đỉnh quai
+    for (const [fx, fy, fz] of [
+      [bx, 3.68, bz - 0.06],
+      [bx, 3.71, bz],
+      [bx, 3.68, bz + 0.06],
+    ]) {
+      goldB.addLimb(
+        new THREE.Vector3(fx, fy - 0.05, fz),
+        new THREE.Vector3(fx, fy + 0.05, fz),
+        0.022,
+        0.004,
+        4,
+        goldRelief,
+      );
+    }
+
+    // 2 Đầu Rồng Bồ Lao ngoảnh ra 2 phía (+Z và -Z)
+    for (const headSign of [-1, 1]) {
+      const hz = bz + headSign * 0.22;
+      // Hộp sọ & mõm rồng hướng ra ngoài
+      goldB.addLimb(
+        new THREE.Vector3(bx, 3.38, hz),
+        new THREE.Vector3(bx, 3.36, hz + headSign * 0.09),
+        0.06,
+        0.042,
+        6,
+        goldRelief,
+      );
+      // Hàm dưới cắn vào cổ ngai chuông
+      bronzeB.addLimb(
+        new THREE.Vector3(bx, 3.32, hz),
+        new THREE.Vector3(bx, 3.33, hz + headSign * 0.07),
+        0.038,
+        0.025,
+        4,
+        bronzeDark,
+      );
+      // Cặp sừng rồng vút ngược lên trời
+      goldB.addLimb(
+        new THREE.Vector3(bx - 0.035, 3.42, hz),
+        new THREE.Vector3(bx - 0.05, 3.53, hz - headSign * 0.04),
+        0.022,
+        0.008,
+        4,
+        goldRelief,
+      );
+      goldB.addLimb(
+        new THREE.Vector3(bx + 0.035, 3.42, hz),
+        new THREE.Vector3(bx + 0.05, 3.53, hz - headSign * 0.04),
+        0.022,
+        0.008,
+        4,
+        goldRelief,
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. XÍCH TREO CHUÔNG BẰNG SẮT RÈN ĐÔI (y: 3.64m -> 3.82m)
+    // -------------------------------------------------------------------------
+    // Khoen xích tròn luồn qua bụng quai Rồng Bồ Lao
+    bronzeB.addLimb(
+      new THREE.Vector3(bx - 0.07, 3.62, bz),
+      new THREE.Vector3(bx + 0.07, 3.62, bz),
+      0.025,
+      0.025,
+      6,
+      ironRing,
+    );
+    // 2 Sợi xích sắt song song treo từ xà mái trần (y: 3.82m) xuống quai chuông
+    for (const chainOffset of [-0.055, 0.055]) {
+      const cx = bx + chainOffset;
+      // Trụ xích rèn nhiều mắt
+      for (let cy = 3.64; cy < 3.82; cy += 0.036) {
+        bronzeB.addCylinder(cx, bz, cy, cy + 0.032, 0.022, 0.022, 6, ironChain);
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. CHÀY KÌNH (DÙI GỖ ĐẤM CHUÔNG TREO NGANG) TẠI TẦNG 1
+    // -------------------------------------------------------------------------
+    // Đặt chày kình đối diện ngay núm chuông phía Đông (bx + 0.76m, y: 2.22m)
+    const strikerX = bx + 0.76;
+    const strikerY = 2.22;
+    const strikerZ0 = bz - 0.46;
+    const strikerZ1 = bz + 0.46;
+
+    // Thân dùi gỗ lim tiện tròn nhẵn bóng
+    woodB.addLimb(
+      new THREE.Vector3(strikerX, strikerY, strikerZ0),
+      new THREE.Vector3(strikerX, strikerY, strikerZ1),
+      0.095,
+      0.095,
+      12,
+      woodStriker,
+    );
+
+    // 2 Đầu chày kình tiện bo tròn vòm cầu
+    woodB.addLimb(
+      new THREE.Vector3(strikerX, strikerY, strikerZ0),
+      new THREE.Vector3(strikerX, strikerY, strikerZ0 - 0.04),
+      0.095,
+      0.045,
+      10,
+      woodCap,
+    );
+    woodB.addLimb(
+      new THREE.Vector3(strikerX, strikerY, strikerZ1),
+      new THREE.Vector3(strikerX, strikerY, strikerZ1 + 0.04),
+      0.095,
+      0.045,
+      10,
+      woodCap,
+    );
+
+    // 2 Vòng đai đồng vàng bọc thân dùi có khoen treo
+    const collarZPositions = [bz - 0.26, bz + 0.26];
+    for (const cz of collarZPositions) {
+      // Đai đồng ôm chặt thân gỗ
+      bronzeB.addLimb(
+        new THREE.Vector3(strikerX, strikerY, cz - 0.03),
+        new THREE.Vector3(strikerX, strikerY, cz + 0.03),
+        0.103,
+        0.103,
+        10,
+        bronzeFitting,
+      );
+      // Chỉ viền đai dát vàng
+      goldB.addLimb(
+        new THREE.Vector3(strikerX, strikerY, cz - 0.035),
+        new THREE.Vector3(strikerX, strikerY, cz + 0.035),
+        0.106,
+        0.106,
+        10,
+        goldRelief,
+      );
+      // Tai khoen sắt phía trên để xỏ xích
+      bronzeB.addLimb(
+        new THREE.Vector3(strikerX, strikerY + 0.09, cz),
+        new THREE.Vector3(strikerX, strikerY + 0.13, cz),
+        0.02,
+        0.02,
+        6,
+        ironRing,
+      );
+
+      // Sợi xích sắt rèn treo thẳng đứng từ xà trần (y: 3.82m) xuống tai dùi (y: 2.33m)
+      for (let cy = strikerY + 0.12; cy < 3.82; cy += 0.036) {
+        bronzeB.addCylinder(
+          strikerX,
+          cz,
+          cy,
+          cy + 0.032,
+          0.016,
+          0.016,
+          6,
+          ironChain,
+        );
+      }
     }
   }
 
