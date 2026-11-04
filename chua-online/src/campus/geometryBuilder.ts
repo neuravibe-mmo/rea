@@ -693,11 +693,11 @@ export class GeometryBuilder {
 
   /**
    * Tạo 4 Đầu đao vân mây cuộn bằng đá/vôi vữa xám trắng (Cloud/Dragon Finials) vút cao ở 4 góc mái
-   * Chuẩn theo ảnh mẫu 3D Chòi Chuông Chùa
+   * Tỷ lệ nhỏ gọn, trang nhã, đúng chuẩn phù điêu đá truyền thống Chòi Chuông Chùa
    */
   private addCloudFinials(spec: RoofTierSpec, stoneB: GeometryBuilder): void {
-    const stoneCol = new THREE.Color(0xdad5cb); // Màu đá xám trắng cẩm thạch sáng
-    const stoneShade = new THREE.Color(0xb5b0a4); // Viền gờ bóng đổ mộc mạc
+    const stoneCol = new THREE.Color(0xd6d1c7); // Màu đá xám trắng cẩm thạch sáng
+    const stoneShade = new THREE.Color(0xbab4a8); // Viền gờ bóng đổ mộc mạc
     const corners: [number, number][] = [
       [1, 1],
       [-1, 1],
@@ -713,74 +713,68 @@ export class GeometryBuilder {
       // Tọa độ mũi góc mái tại r = 0
       const baseCornerX = spec.cx + signX * (spec.A + (spec.flare ?? 0));
       const baseCornerZ = spec.cz + signZ * (spec.B + (spec.flare ?? 0));
-      const baseCornerY = spec.baseY + (spec.curl ?? 0) + 0.05;
+      const baseCornerY = spec.baseY + (spec.curl ?? 0) + 0.06;
 
-      // Chuỗi điểm uốn lượn hình chữ S mềm mại vút cao lên trời và cuộn xoắn ốc ở đỉnh
+      // Chuỗi điểm uốn lượn hình chữ S mềm mại, chiều cao chỉ ~0.45m ôm khít sống ngói
       const pts: THREE.Vector3[] = [
-        // p0: Gốc đao ăn ngàm vào sống ngói bò
+        // p0: Nằm trên sống ngói bò cách mép mái 40cm
         new THREE.Vector3(
-          baseCornerX - dx * 0.45,
-          baseCornerY - 0.08,
-          baseCornerZ - dz * 0.45,
+          baseCornerX - dx * 0.4,
+          baseCornerY + 0.08,
+          baseCornerZ - dz * 0.4,
         ),
-        // p1: Thân đao bắt đầu vểnh lên
+        // p1: Men theo sống ngói xuống mép
         new THREE.Vector3(
-          baseCornerX - dx * 0.15,
-          baseCornerY + 0.02,
-          baseCornerZ - dz * 0.15,
+          baseCornerX - dx * 0.18,
+          baseCornerY + 0.04,
+          baseCornerZ - dz * 0.18,
         ),
-        // p2: Vươn ra khỏi mép mái
+        // p2: Ngay mũi vạt mái
         new THREE.Vector3(
-          baseCornerX + dx * 0.22,
-          baseCornerY + 0.18,
-          baseCornerZ + dz * 0.22,
+          baseCornerX + dx * 0.06,
+          baseCornerY + 0.06,
+          baseCornerZ + dz * 0.06,
         ),
-        // p3: Uốn cong vút lên cao
+        // p3: Bắt đầu lượn cong vút lên
         new THREE.Vector3(
-          baseCornerX + dx * 0.52,
-          baseCornerY + 0.45,
-          baseCornerZ + dz * 0.52,
+          baseCornerX + dx * 0.18,
+          baseCornerY + 0.14,
+          baseCornerZ + dz * 0.18,
         ),
-        // p4: Dựng dốc đứng vút lên
+        // p4: Thân đao vút lên cao
         new THREE.Vector3(
-          baseCornerX + dx * 0.72,
-          baseCornerY + 0.78,
-          baseCornerZ + dz * 0.72,
+          baseCornerX + dx * 0.28,
+          baseCornerY + 0.28,
+          baseCornerZ + dz * 0.28,
         ),
         // p5: Đỉnh vòm cong cao nhất của đầu đao
         new THREE.Vector3(
-          baseCornerX + dx * 0.75,
-          baseCornerY + 1.12,
-          baseCornerZ + dz * 0.75,
+          baseCornerX + dx * 0.32,
+          baseCornerY + 0.42,
+          baseCornerZ + dz * 0.32,
         ),
         // p6: Uốn cong lượn ngược vào trong
         new THREE.Vector3(
-          baseCornerX + dx * 0.6,
-          baseCornerY + 1.3,
-          baseCornerZ + dz * 0.6,
+          baseCornerX + dx * 0.26,
+          baseCornerY + 0.48,
+          baseCornerZ + dz * 0.26,
         ),
-        // p7: Cuộn tròn thành xoắn ốc hoa văn mây
+        // p7: Cuộn tròn thành xoắn ốc mây
         new THREE.Vector3(
-          baseCornerX + dx * 0.38,
-          baseCornerY + 1.32,
-          baseCornerZ + dz * 0.38,
+          baseCornerX + dx * 0.18,
+          baseCornerY + 0.46,
+          baseCornerZ + dz * 0.18,
         ),
-        // p8: Đỉnh xoắn ốc cuộn xuống
+        // p8: Tâm xoắn ốc vân mây
         new THREE.Vector3(
-          baseCornerX + dx * 0.25,
-          baseCornerY + 1.18,
-          baseCornerZ + dz * 0.25,
-        ),
-        // p9: Tâm xoắn ốc vân mây
-        new THREE.Vector3(
-          baseCornerX + dx * 0.32,
-          baseCornerY + 1.05,
-          baseCornerZ + dz * 0.32,
+          baseCornerX + dx * 0.15,
+          baseCornerY + 0.38,
+          baseCornerZ + dz * 0.15,
         ),
       ];
 
       const radii = [
-        0.15, 0.14, 0.13, 0.115, 0.095, 0.08, 0.065, 0.05, 0.038, 0.025,
+        0.06, 0.058, 0.055, 0.05, 0.042, 0.035, 0.028, 0.02, 0.012,
       ];
 
       for (let i = 0; i < pts.length - 1; i++) {
@@ -794,31 +788,29 @@ export class GeometryBuilder {
         );
       }
 
-      // Các gờ vây mây / cánh mây phụ (Cloud spurs / Dorsal fins) nhô ra sau gáy đao
-      // Vây phụ 1: Nhô ra ở điểm p3
+      // Các gờ vây mây / cánh mây phụ (Cloud spurs) nhô ra sau gáy đao
       stoneB.addLimb(
         pts[3],
-        pts[3].clone().add(new THREE.Vector3(dx * 0.28, 0.12, dz * 0.28)),
-        0.065,
-        0.015,
+        pts[3].clone().add(new THREE.Vector3(dx * 0.1, 0.06, dz * 0.1)),
+        0.032,
+        0.008,
         4,
         stoneCol,
       );
-      // Vây phụ 2: Nhô ra ở gáy lưng p4
       stoneB.addLimb(
         pts[4],
-        pts[4].clone().add(new THREE.Vector3(dx * 0.22, 0.18, dz * 0.22)),
-        0.055,
-        0.012,
+        pts[4].clone().add(new THREE.Vector3(dx * 0.08, 0.08, dz * 0.08)),
+        0.028,
+        0.006,
         4,
         stoneCol,
       );
-      // Vây phụ 3: Mỏ mây cuộn phụ bên dưới thân đao ở p2
+      // Mỏ mây cuộn phụ bên dưới thân đao ở p2 ôm lấy diềm mái
       stoneB.addLimb(
         pts[2],
-        pts[2].clone().add(new THREE.Vector3(-dx * 0.14, -0.1, -dz * 0.14)),
-        0.05,
-        0.018,
+        pts[2].clone().add(new THREE.Vector3(-dx * 0.06, -0.05, -dz * 0.06)),
+        0.035,
+        0.012,
         4,
         stoneCol,
       );
@@ -844,10 +836,10 @@ export class GeometryBuilder {
       this.addCylinder(
         spec.cx,
         spec.cz,
-        ridgeY - 0.05,
-        ridgeY + 0.2,
-        0.42,
-        0.28,
+        ridgeY - 0.04,
+        ridgeY + 0.1,
+        0.32,
+        0.24,
         8,
         ridgeCol,
       );
@@ -857,103 +849,103 @@ export class GeometryBuilder {
       stoneTarget.addCylinder(
         spec.cx,
         spec.cz,
-        ridgeY + 0.16,
-        ridgeY + 0.38,
-        0.36,
+        ridgeY + 0.08,
+        ridgeY + 0.18,
         0.26,
+        0.22,
         8,
-        new THREE.Color(0xdad5cb),
+        new THREE.Color(0xd6d1c7),
       );
       // 4 Cánh mây cuộn đá xám trắng áp 4 góc sống mái vươn lên
       for (const sx of [-1, 1]) {
         for (const sz of [-1, 1]) {
           const cloudBase = new THREE.Vector3(
-            spec.cx + sx * 0.26,
-            ridgeY + 0.15,
-            spec.cz + sz * 0.26,
+            spec.cx + sx * 0.2,
+            ridgeY + 0.06,
+            spec.cz + sz * 0.2,
           );
           const cloudMid = new THREE.Vector3(
-            spec.cx + sx * 0.34,
-            ridgeY + 0.35,
-            spec.cz + sz * 0.34,
+            spec.cx + sx * 0.25,
+            ridgeY + 0.18,
+            spec.cz + sz * 0.25,
           );
           const cloudTip = new THREE.Vector3(
-            spec.cx + sx * 0.22,
-            ridgeY + 0.54,
-            spec.cz + sz * 0.22,
+            spec.cx + sx * 0.16,
+            ridgeY + 0.28,
+            spec.cz + sz * 0.16,
           );
           stoneTarget.addLimb(
             cloudBase,
             cloudMid,
-            0.075,
-            0.06,
+            0.045,
+            0.035,
             5,
-            new THREE.Color(0xdad5cb),
+            new THREE.Color(0xd6d1c7),
           );
           stoneTarget.addLimb(
             cloudMid,
             cloudTip,
-            0.06,
-            0.02,
+            0.035,
+            0.015,
             5,
-            new THREE.Color(0xdad5cb),
+            new THREE.Color(0xd6d1c7),
           );
         }
       }
 
-      // 1.3 Quả bầu Hồ Lô phong thủy dát vàng ngự đỉnh chóp thanh thoát (TUYỆT ĐỐI KHÔNG CÓ RỒNG)
+      // 1.3 Quả bầu Hồ Lô phong thủy dát vàng ngự đỉnh chóp (dáng tròn phình căng mọng chuẩn Chùa Sen)
       if (goldB) {
-        // Bầu dưới tròn phình
+        // Bầu dưới tròn phình căng mọng
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 0.34,
-          ridgeY + 0.74,
-          0.26,
-          0.2,
-          14,
+          ridgeY + 0.16,
+          ridgeY + 0.44,
+          0.24,
+          0.18,
+          16,
           goldCol,
         );
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 0.48,
-          ridgeY + 0.64,
-          0.29,
-          0.28,
-          14,
+          ridgeY + 0.24,
+          ridgeY + 0.38,
+          0.26,
+          0.25,
+          16,
           new THREE.Color(0xf5d77f), // Gờ sáng vàng óng giữa bầu
         );
         // Cổ thắt eo hồ lô
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 0.74,
-          ridgeY + 0.85,
-          0.13,
-          0.13,
+          ridgeY + 0.44,
+          ridgeY + 0.52,
+          0.11,
+          0.11,
           10,
           goldDeep,
         );
-        // Bầu trên thuôn tròn búp sen
+        // Bầu trên thuôn tròn hình búp sen
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 0.85,
-          ridgeY + 1.2,
-          0.18,
-          0.11,
-          12,
+          ridgeY + 0.52,
+          ridgeY + 0.74,
+          0.16,
+          0.09,
+          14,
           goldCol,
         );
         // Chóp búp sen đỉnh hồ lô
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 1.2,
-          ridgeY + 1.38,
-          0.11,
-          0.04,
+          ridgeY + 0.74,
+          ridgeY + 0.84,
+          0.09,
+          0.03,
           8,
           goldCol,
         );
@@ -963,10 +955,10 @@ export class GeometryBuilder {
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 1.38,
-          ridgeY + 1.46,
-          0.04,
-          0.025,
+          ridgeY + 0.84,
+          ridgeY + 0.9,
+          0.03,
+          0.02,
           8,
           goldDeep,
         );
@@ -974,10 +966,10 @@ export class GeometryBuilder {
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 1.46,
-          ridgeY + 2.55,
-          0.022,
-          0.006,
+          ridgeY + 0.9,
+          ridgeY + 1.55,
+          0.016,
+          0.004,
           8,
           new THREE.Color(0xfbf3b5), // Sắc vàng kim sáng lấp lánh
         );
@@ -985,9 +977,9 @@ export class GeometryBuilder {
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 2.55,
-          ridgeY + 2.85,
-          0.006,
+          ridgeY + 1.55,
+          ridgeY + 1.72,
+          0.004,
           0.001,
           6,
           goldCol,
