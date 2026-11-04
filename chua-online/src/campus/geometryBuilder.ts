@@ -721,59 +721,99 @@ export class GeometryBuilder {
    * Tạo 4 đầu đao vuốt cong vút lên không trung chuẩn 100% thuật toán Chùa Sen (Ug spline & Gg horns)
    * Gắn chặt khít vào đúng 4 góc mái r = 0, tuyệt đối không bị lệch hay bay lơ lửng.
    */
+  /**
+   * Tạo 4 Đầu đao góc mái uốn lượn hình chữ S mềm mại chuẩn phong cách Chùa Sen cổ truyền
+   * Gồm:
+   * 1. Phần chân đao chạy dọc sống ngói bò (Hip Ridge Cap) ôm khít mặt ngói, không bị đứt rời hay lơ lửng
+   * 2. Bệ phù điêu mây cuộn nâng đỡ dưới bụng đao ở mũi mép mái
+   * 3. Thân đao 3D dày dặn vút cong cánh sen lên cao mềm mại
+   * 4. Gờ sống lưng đao dát vàng kim chạy dọc sống lưng
+   * 5. Chóp ngọn đao vuốt nhọn uốn cong thanh thoát dát vàng vút lên bầu trời
+   */
   private addCornerHorns(spec: RoofTierSpec, goldB?: GeometryBuilder): void {
-    const woodHornCol = new THREE.Color(0x3a2617);
-    const goldCol = new THREE.Color(0xffd700);
-    const ugSpline: [number, number][] = [
-      [0, -0.04],
-      [0.22, 0.03],
-      [0.48, 0.17],
-      [0.72, 0.44],
-      [0.86, 0.82],
-      [0.9, 1.05],
+    const targetGold = goldB ?? this;
+    const hornCol = new THREE.Color(0x8f482d); // Màu ngói nung cổ truyền viền bờ đao
+    const hornRidgeCol = new THREE.Color(0xb5653b); // Sống ngói đao
+    const goldCol = new THREE.Color(0xffdf55); // Dát vàng gờ sống đao và chóp
+    const goldDeep = new THREE.Color(0xd98218); // Gờ nổi mây lửa đậm
+
+    const corners: [number, number][] = [
+      [1, 1], // Trước phải
+      [-1, 1], // Trước trái
+      [1, -1], // Sau phải
+      [-1, -1], // Sau trái
     ];
-    const sInv = Math.SQRT1_2; // 1 / sqrt(2)
-    const scale = clamp(0.35 + 0.12 * Math.min(spec.A, spec.B), 0.6, 1.6);
-    const baseR = 0.08 + 0.06 * scale;
 
-    const cornerConfigs: { side: number; n: number; sx: number; sz: number }[] =
-      [
-        { side: 0, n: 1, sx: 1, sz: 1 }, // Trước phải
-        { side: 0, n: -1, sx: -1, sz: 1 }, // Trước trái
-        { side: 1, n: -1, sx: 1, sz: -1 }, // Sau phải
-        { side: 1, n: 1, sx: -1, sz: -1 }, // Sau trái
-      ];
+    // Tỉ lệ đầu đao co giãn theo quy mô mái
+    const scale = clamp(spec.A / 7.0, 0.85, 1.4);
+    const baseR = 0.16 * scale;
 
-    const cornerPt = new THREE.Vector3();
+    // Biên dạng 2D uốn lượn chữ S mềm mại:
+    // u: khoảng cách dọc phương đường chéo (u < 0: trườn trên sống ngói bò; u > 0: vươn ra ngoài mép mái vút cao)
+    // v: cao độ so với góc mép mái
+    // rRatio: tỉ lệ độ dày thân đao
+    const splineProfile: [number, number, number][] = [
+      [-1.5 * scale, 0.42 * scale, 1.15], // Chân đao ôm chặt sống ngói bò trên mái
+      [-1.1 * scale, 0.28 * scale, 1.1], // Tầng mây đắp nổi ôm sống ngói 1
+      [-0.7 * scale, 0.17 * scale, 1.05], // Tầng mây đắp nổi ôm sống ngói 2
+      [-0.3 * scale, 0.07 * scale, 1.0], // Sát mép góc mái
+      [0.05 * scale, 0.02 * scale, 0.95], // Mũi mép mái
+      [0.28 * scale, 0.09 * scale, 0.9], // Vươn ra khỏi mép mái, võng nhẹ cánh sen
+      [0.52 * scale, 0.26 * scale, 0.82], // Bắt đầu vút vểnh lên
+      [0.72 * scale, 0.52 * scale, 0.72], // Thân đao vươn cao
+      [0.85 * scale, 0.85 * scale, 0.6], // Vút cong thanh thoát
+      [0.9 * scale, 1.15 * scale, 0.45], // Đỉnh vòm đao
+      [0.82 * scale, 1.38 * scale, 0.28], // Chóp đao uốn nhẹ vào trong
+      [0.7 * scale, 1.45 * scale, 0.08], // Mũi nhọn ngọn lửa dát vàng
+    ];
 
-    for (const { side, n, sx, sz } of cornerConfigs) {
-      // 1. Tọa độ chính xác tại đỉnh góc mái vạt r = 0
-      this.evalRoofPoint(spec, side, n, 0, cornerPt);
+    for (const [signX, signZ] of corners) {
+      const diagLen = Math.hypot(spec.A, spec.B);
+      const dx = (signX * spec.A) / diagLen;
+      const dz = (signZ * spec.B) / diagLen;
+      const tx = -dz;
+      const tz = dx;
 
-      // 2. Tạo đường spline uốn vút lên trời chuẩn Chùa Sen
-      const splinePts: THREE.Vector3[] = ugSpline.map(([e, t]) => {
-        return new THREE.Vector3(
-          cornerPt.x + sx * sInv * e * scale,
-          cornerPt.y + t * scale,
-          cornerPt.z + sz * sInv * e * scale,
+      // Tọa độ góc mép mái (r = 0, n = 1)
+      const cornerX = spec.cx + signX * (spec.A + (spec.flare ?? 0));
+      const cornerZ = spec.cz + signZ * (spec.B + (spec.flare ?? 0));
+      const cornerY = spec.baseY + (spec.curl ?? 0);
+
+      // 1. Tạo các điểm spline 3D dọc thân đao
+      const splinePts: THREE.Vector3[] = [];
+      const radii: number[] = [];
+      for (const [u, v, rRatio] of splineProfile) {
+        splinePts.push(
+          new THREE.Vector3(cornerX + dx * u, cornerY + v, cornerZ + dz * u),
         );
-      });
+        radii.push(baseR * rRatio);
+      }
 
-      // 3. Dựng thân ống đao vuốt nhọn chạy dọc spline
+      // 2. Dựng thân khối lăng trụ 3D dày dặn chạy dọc spline
       let prevRing: number[] = [];
-      const ringSegs = 6;
+      const ringSegs = 8;
       for (let step = 0; step < splinePts.length; step++) {
         const pt = splinePts[step];
-        const t = step / (splinePts.length - 1);
-        const radius = baseR * lerp(1.0, 0.28, t);
-
+        const rad = radii[step];
         const ringVerts: number[] = [];
+
         for (let i = 0; i < ringSegs; i++) {
           const ang = (i / ringSegs) * Math.PI * 2;
-          const rx = pt.x + Math.cos(ang) * radius;
-          const rz = pt.z + Math.sin(ang) * radius;
-          const ry = pt.y + Math.sin(ang) * (radius * 0.5);
-          ringVerts.push(this.vert(rx, ry, rz, 0, 1, 0, woodHornCol));
+          // Tiết diện elip hơi dẹp ngang và cao ở sống lưng
+          const rx = pt.x + tx * Math.cos(ang) * rad;
+          const rz = pt.z + tz * Math.cos(ang) * rad;
+          const ry = pt.y + Math.sin(ang) * (rad * 1.25);
+          ringVerts.push(
+            this.vert(
+              rx,
+              ry,
+              rz,
+              tx * Math.cos(ang),
+              Math.sin(ang),
+              tz * Math.cos(ang),
+              hornCol,
+            ),
+          );
         }
 
         if (step > 0 && prevRing.length > 0) {
@@ -790,17 +830,66 @@ export class GeometryBuilder {
         prevRing = ringVerts;
       }
 
-      // 4. Nếu có goldB, bịt chóp đao bằng ngọn đồng dát vàng kim
-      if (goldB && splinePts.length >= 2) {
-        const lastPt = splinePts[splinePts.length - 1];
-        const secondLastPt = splinePts[splinePts.length - 2];
-        const dir = new THREE.Vector3()
-          .subVectors(lastPt, secondLastPt)
-          .normalize();
-        const tipStart = lastPt.clone().addScaledVector(dir, -0.15 * scale);
-        const tipEnd = lastPt.clone().addScaledVector(dir, 0.22 * scale);
-        goldB.addLimb(tipStart, tipEnd, baseR * 0.35, 0.01, 5, goldCol);
+      // 3. Gờ sống lưng đao dát vàng kim rực rỡ chạy từ chân đao lên tận chóp
+      for (let s = 1; s < splinePts.length - 1; s++) {
+        const p0 = splinePts[s]
+          .clone()
+          .add(new THREE.Vector3(0, radii[s] * 1.15, 0));
+        const p1 = splinePts[s + 1]
+          .clone()
+          .add(new THREE.Vector3(0, radii[s + 1] * 1.15, 0));
+        targetGold.addLimb(
+          p0,
+          p1,
+          radii[s] * 0.28,
+          radii[s + 1] * 0.28,
+          4,
+          goldCol,
+        );
       }
+
+      // 4. Bệ phù điêu mây cuộn đỡ dưới cằm đao (Cloud support brackets)
+      const cloudMid = new THREE.Vector3(
+        cornerX + dx * (0.28 * scale),
+        cornerY + 0.05 * scale,
+        cornerZ + dz * (0.28 * scale),
+      );
+      const cloudDrop = new THREE.Vector3(
+        cornerX + dx * (0.15 * scale),
+        cornerY - 0.16 * scale,
+        cornerZ + dz * (0.15 * scale),
+      );
+      this.addLimb(
+        cloudDrop,
+        cloudMid,
+        0.12 * scale,
+        0.08 * scale,
+        6,
+        hornRidgeCol,
+      );
+      targetGold.addLimb(
+        cloudDrop,
+        cloudMid,
+        0.06 * scale,
+        0.04 * scale,
+        4,
+        goldDeep,
+      );
+
+      // 5. Ngọn lửa dát vàng vút nhọn trên đỉnh đao
+      const tipBase = splinePts[splinePts.length - 1]
+        .clone()
+        .add(new THREE.Vector3(0, radii[radii.length - 1], 0));
+      const tipHigh = tipBase
+        .clone()
+        .add(
+          new THREE.Vector3(
+            dx * (-0.12 * scale),
+            0.28 * scale,
+            dz * (-0.12 * scale),
+          ),
+        );
+      targetGold.addLimb(tipBase, tipHigh, 0.05 * scale, 0.005, 4, goldCol);
     }
   }
 
@@ -1275,48 +1364,48 @@ export class GeometryBuilder {
           spec.cx,
           spec.cz,
           ridgeY + 0.42,
-          ridgeY + 0.62,
-          0.45,
-          0.32,
-          14,
+          ridgeY + 0.65,
+          0.52,
+          0.38,
+          16,
           goldDeep,
         );
-        // 8 Cánh sen dát vàng xòe quanh chân đế mặt nguyệt
-        for (let i = 0; i < 8; i++) {
-          const a = (i / 8) * Math.PI * 2;
+        // 12 Cánh sen dát vàng xòe nở quanh chân đế
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2;
           targetGold.addPetal(
             spec.cx,
-            ridgeY + 0.58,
+            ridgeY + 0.62,
             spec.cz,
             a,
-            0.45,
-            0.28,
-            0.16,
-            0.04,
+            0.5,
+            0.3,
+            0.18,
+            0.05,
             goldCol,
           );
         }
 
         // Đĩa Mặt Nguyệt tròn dát vàng trung tâm
-        targetGold.addBox(
-          spec.cx - 0.45,
-          sunCenterY - 0.45,
-          spec.cz - 0.08,
-          spec.cx + 0.45,
-          sunCenterY + 0.45,
-          spec.cz + 0.08,
+        targetGold.addCylinder(
+          spec.cx,
+          spec.cz,
+          sunCenterY - 0.48,
+          sunCenterY + 0.48,
+          0.48,
+          0.48,
+          24,
           goldCol,
         );
-
         // Vành tròn kim quang viền ngoài
         targetGold.addCylinder(
           spec.cx,
           spec.cz,
-          sunCenterY - 0.52,
-          sunCenterY + 0.52,
+          sunCenterY - 0.54,
+          sunCenterY + 0.54,
           0.58,
           0.58,
-          18,
+          24,
           goldDeep,
         );
 
@@ -1324,7 +1413,7 @@ export class GeometryBuilder {
         for (let i = 0; i < 16; i++) {
           const ang = (i / 16) * Math.PI * 2;
           const inR = 0.62;
-          const outR = i % 2 === 0 ? 1.05 : 0.85;
+          const outR = i % 2 === 0 ? 1.15 : 0.88;
           const p0 = new THREE.Vector3(
             spec.cx + Math.cos(ang) * inR,
             sunCenterY + Math.sin(ang) * inR,
@@ -1340,137 +1429,388 @@ export class GeometryBuilder {
 
         // Trụ đỡ mặt nguyệt nối xuống chân đế
         targetGold.addLimb(
-          new THREE.Vector3(spec.cx, ridgeY + 0.62, spec.cz),
+          new THREE.Vector3(spec.cx, ridgeY + 0.65, spec.cz),
           new THREE.Vector3(spec.cx, sunCenterY - 0.45, spec.cz),
-          0.08,
-          0.08,
-          6,
+          0.09,
+          0.09,
+          8,
           goldDeep,
         );
 
-        // 2. Đôi Rồng Vàng uốn lượn đối xứng 2 bên (Two Symmetrical Golden Dragons)
-        // Tọa độ các điểm uốn thân rồng (đã nâng cao hoàn toàn trên bờ nóc ridgeY + 0.42)
-        const dragonCtrl: [number, number][] = [
-          [1.35, 1.25], // Đầu rồng chầu sát Mặt Nguyệt
-          [1.85, 1.55], // Cổ rồng vươn cao
-          [2.45, 0.95], // Nhịp uốn 1 (bụng rồng lượn trên bờ nóc)
-          [3.25, 1.45], // Nhịp vồng 2 (lưng rồng uốn cao)
-          [4.05, 0.85], // Nhịp uốn 2 (bụng rồng nhịp 2)
-          [4.65, 1.15], // Đuôi rồng bắt đầu vút lên
-          [5.05, 1.65], // Đuôi rồng cuộn vút cao ở đầu hồi thành ngọn lửa vàng
-        ];
+        // =========================================================================
+        // 2. ĐÔI RỒNG VÀNG UỐN LƯỢN ĐỐI XỨNG 2 BÊN (LƯỠNG LONG CHẦU NGUYỆT)
+        // Dáng rồng hình sin 3 nhịp mềm mại sống động, đầy đủ 4 chân, vây mây lửa & bờm râu
+        // =========================================================================
+        const yBase = ridgeY + 0.42;
 
         for (const sign of [-1, 1]) {
-          // Dựng các đốt thân rồng nối nhau bằng addLimb
-          for (let i = 0; i < dragonCtrl.length - 1; i++) {
-            const [x0, y0] = dragonCtrl[i];
-            const [x1, y1] = dragonCtrl[i + 1];
-            const p0 = new THREE.Vector3(
-              spec.cx + sign * x0,
-              ridgeY + y0,
-              spec.cz,
-            );
-            const p1 = new THREE.Vector3(
-              spec.cx + sign * x1,
-              ridgeY + y1,
-              spec.cz,
-            );
+          // 2.1 Tạo đường cong hình sin mềm mại 3 nhịp uốn của thân rồng (28 phân đoạn)
+          const numSteps = 28;
+          const dragonPts: THREE.Vector3[] = [];
+          const dragonRadii: number[] = [];
 
-            // Bán kính thân rồng thuôn dần từ cổ (0.16m) về đuôi (0.05m)
-            const r0 = lerp(0.16, 0.05, i / (dragonCtrl.length - 1));
-            const r1 = lerp(0.16, 0.05, (i + 1) / (dragonCtrl.length - 1));
-            targetGold.addLimb(p0, p1, r0, r1, 7, goldCol);
+          for (let step = 0; step <= numSteps; step++) {
+            const t = step / numSteps;
+            const x = 1.25 + t * 3.85; // từ x: 1.25m đến 5.10m
 
-            // Dãy vây vi cá nhọn nhô lên dọc sống lưng rồng
-            const finP = new THREE.Vector3().lerpVectors(p0, p1, 0.5);
-            const finTip = finP
-              .clone()
-              .add(
-                new THREE.Vector3(
-                  0,
-                  0.22 * (1 - (i / dragonCtrl.length) * 0.35),
-                  0,
-                ),
-              );
-            targetGold.addLimb(finP, finTip, 0.045, 0.006, 4, goldDeep);
+            // 3 Nhịp uốn lượn hình sin uyển chuyển:
+            // Nhịp 1: Cổ rồng ngẩng cao chầu nguyệt (t: 0 -> 0.28, đỉnh tại t=0.10)
+            // Nhịp 2: Lưng rồng uốn vồng cao dũng mãnh (t: 0.28 -> 0.72, đỉnh tại t=0.52)
+            // Nhịp 3: Đuôi rồng cuộn vút cao ở đầu hồi (t: 0.72 -> 1.0, đỉnh tại t=1.0)
+            let waveY = 0;
+            if (t <= 0.28) {
+              const u1 = t / 0.28;
+              waveY = Math.sin(u1 * Math.PI) * 0.95 + 0.15 * (1 - u1);
+            } else if (t <= 0.72) {
+              const u2 = (t - 0.28) / (0.72 - 0.28);
+              waveY = Math.sin(u2 * Math.PI) * 0.88 + 0.05;
+            } else {
+              const u3 = (t - 0.72) / (1.0 - 0.72);
+              waveY = Math.pow(u3, 1.4) * 1.35 + 0.05;
+            }
+
+            // Uốn lượn 3D nhẹ theo trục Z tạo chiều sâu sống động
+            const waveZ = Math.sin(t * Math.PI * 3.5) * 0.07;
+
+            const pt = new THREE.Vector3(
+              spec.cx + sign * x,
+              yBase + 0.18 + waveY,
+              spec.cz + waveZ,
+            );
+            dragonPts.push(pt);
+
+            // Bán kính thân rồng thuôn dần từ ngực cổ (0.17m) -> bụng lưng (0.13m) -> đuôi (0.04m)
+            const rad = lerp(0.17, 0.04, Math.pow(t, 0.85));
+            dragonRadii.push(rad);
           }
 
-          // Móng vuốt rồng (Claws) bám trên bờ nóc
-          const frontClawBase = new THREE.Vector3(
-            spec.cx + sign * 2.35,
-            ridgeY + 0.95,
-            spec.cz,
-          );
-          const frontClawFoot = new THREE.Vector3(
-            spec.cx + sign * 2.25,
-            ridgeY + 0.44,
-            spec.cz + 0.12,
-          );
+          // 2.2 Dựng thân rồng mượt mà nối tiếp nhau
+          for (let i = 0; i < dragonPts.length - 1; i++) {
+            const p0 = dragonPts[i];
+            const p1 = dragonPts[i + 1];
+            const r0 = dragonRadii[i];
+            const r1 = dragonRadii[i + 1];
+            const t = i / (dragonPts.length - 1);
+
+            // Đốt thân rồng vàng
+            targetGold.addLimb(p0, p1, r0, r1, 8, goldCol);
+
+            // Gân sống lưng rồng dát vàng
+            const upVec = new THREE.Vector3(0, 1, 0);
+            targetGold.addLimb(
+              p0.clone().addScaledVector(upVec, r0 * 0.9),
+              p1.clone().addScaledVector(upVec, r1 * 0.9),
+              r0 * 0.25,
+              r1 * 0.25,
+              4,
+              goldDeep,
+            );
+
+            // Dãy vây vi cá (ngọn lửa mây) nhô cao dọc sống lưng rồng
+            const midP = new THREE.Vector3().lerpVectors(p0, p1, 0.5);
+            const finHeight = 0.22 * (1 - t * 0.4) + (i % 2 === 0 ? 0.06 : 0);
+            const finTip = midP
+              .clone()
+              .add(new THREE.Vector3(0, (r0 + r1) * 0.5 + finHeight, 0));
+            targetGold.addLimb(
+              midP.clone().add(new THREE.Vector3(0, (r0 + r1) * 0.4, 0)),
+              finTip,
+              0.04,
+              0.005,
+              4,
+              goldDeep,
+            );
+
+            // Vòng khoang vảy rồng dát vàng nổi (cứ mỗi 2 đốt thân)
+            if (i % 2 === 0 && i < dragonPts.length - 2) {
+              const segDir = new THREE.Vector3().subVectors(p1, p0).normalize();
+              targetGold.addLimb(
+                midP.clone().addScaledVector(segDir, -0.015),
+                midP.clone().addScaledVector(segDir, 0.015),
+                r0 * 1.08,
+                r0 * 1.08,
+                8,
+                goldDeep,
+              );
+            }
+          }
+
+          // 2.3 Đầu rồng uy nghi chạm khắc chi tiết
+          const headBase = dragonPts[0];
+          const hx = headBase.x;
+          const hy = headBase.y;
+          const hz = headBase.z;
+
+          // Hộp sọ đầu rồng
+          const snoutX = hx - sign * 0.38;
+          const snoutY = hy - 0.04;
           targetGold.addLimb(
-            frontClawBase,
-            frontClawFoot,
-            0.06,
-            0.035,
-            5,
-            goldDeep,
-          );
-
-          const rearClawBase = new THREE.Vector3(
-            spec.cx + sign * 3.95,
-            ridgeY + 0.85,
-            spec.cz,
-          );
-          const rearClawFoot = new THREE.Vector3(
-            spec.cx + sign * 3.85,
-            ridgeY + 0.44,
-            spec.cz + 0.12,
-          );
-          targetGold.addLimb(
-            rearClawBase,
-            rearClawFoot,
-            0.055,
-            0.03,
-            5,
-            goldDeep,
-          );
-
-          // Chi tiết Đầu Rồng (Head, Snout, Horns, Whiskers)
-          const headPos = new THREE.Vector3(
-            spec.cx + sign * 1.35,
-            ridgeY + 1.25,
-            spec.cz,
-          );
-          // Mõm rồng há ngậm ngọc hướng vào Mặt Nguyệt
-          const snoutPos = new THREE.Vector3(
-            spec.cx + sign * 0.92,
-            ridgeY + 1.22,
-            spec.cz,
-          );
-          targetGold.addLimb(headPos, snoutPos, 0.13, 0.075, 6, goldCol);
-
-          // Viên ngọc Minh Châu ngậm ở khóe miệng
-          targetGold.addCylinder(
-            spec.cx + sign * 0.82,
-            spec.cz,
-            ridgeY + 1.15,
-            ridgeY + 1.29,
-            0.065,
-            0.065,
+            new THREE.Vector3(hx, hy, hz),
+            new THREE.Vector3(snoutX, snoutY, hz),
+            0.17,
+            0.1,
             8,
-            new THREE.Color(0xffffff),
+            goldCol,
           );
 
-          // Sừng rồng (Dragon Horns) vươn cao uy nghi
-          const hornTip = headPos
-            .clone()
-            .add(new THREE.Vector3(sign * 0.28, 0.45, 0));
-          targetGold.addLimb(headPos, hornTip, 0.045, 0.008, 5, goldCol);
+          // Mũi lân vểnh cao
+          targetGold.addLimb(
+            new THREE.Vector3(snoutX + sign * 0.08, snoutY + 0.08, hz),
+            new THREE.Vector3(snoutX - sign * 0.06, snoutY + 0.12, hz),
+            0.07,
+            0.04,
+            6,
+            goldDeep,
+          );
 
-          // Râu rồng (Whiskers) uốn cong mềm mại bay về phía trước
-          const beardTip = snoutPos
-            .clone()
-            .add(new THREE.Vector3(-sign * 0.24, -0.22, 0.1));
-          targetGold.addLimb(snoutPos, beardTip, 0.028, 0.006, 4, goldCol);
+          // Hàm dưới há rộng
+          targetGold.addLimb(
+            new THREE.Vector3(hx - sign * 0.12, hy - 0.1, hz),
+            new THREE.Vector3(snoutX - sign * 0.02, snoutY - 0.1, hz),
+            0.085,
+            0.05,
+            6,
+            goldDeep,
+          );
+
+          // 4 Răng nanh ngọc trắng nhọn hoắt
+          const fangWhite = new THREE.Color(0xffffff);
+          targetGold.addLimb(
+            new THREE.Vector3(snoutX + sign * 0.04, snoutY + 0.02, hz - 0.05),
+            new THREE.Vector3(snoutX + sign * 0.04, snoutY - 0.07, hz - 0.05),
+            0.02,
+            0.003,
+            4,
+            fangWhite,
+          );
+          targetGold.addLimb(
+            new THREE.Vector3(snoutX + sign * 0.04, snoutY + 0.02, hz + 0.05),
+            new THREE.Vector3(snoutX + sign * 0.04, snoutY - 0.07, hz + 0.05),
+            0.02,
+            0.003,
+            4,
+            fangWhite,
+          );
+
+          // Viên ngọc Minh Châu ngậm trong miệng rồng
+          targetGold.addCylinder(
+            snoutX - sign * 0.12,
+            hz,
+            snoutY - 0.12,
+            snoutY + 0.04,
+            0.08,
+            0.08,
+            12,
+            new THREE.Color(0xfffbe6),
+          );
+
+          // Đôi mắt rồng lồi tròn dát vàng
+          for (const eyeSign of [-1, 1]) {
+            targetGold.addLimb(
+              new THREE.Vector3(
+                hx - sign * 0.12,
+                hy + 0.08,
+                hz + eyeSign * 0.09,
+              ),
+              new THREE.Vector3(
+                hx - sign * 0.18,
+                hy + 0.1,
+                hz + eyeSign * 0.14,
+              ),
+              0.045,
+              0.035,
+              6,
+              new THREE.Color(0xfff4aa),
+            );
+            // Mày rồng vân mây uốn cong
+            targetGold.addLimb(
+              new THREE.Vector3(
+                hx - sign * 0.06,
+                hy + 0.15,
+                hz + eyeSign * 0.08,
+              ),
+              new THREE.Vector3(
+                hx - sign * 0.22,
+                hy + 0.17,
+                hz + eyeSign * 0.15,
+              ),
+              0.03,
+              0.01,
+              4,
+              goldDeep,
+            );
+          }
+
+          // Cặp sừng rồng (Dragon Horns) vươn cao phân nhánh chữ Y
+          for (const hornSign of [-1, 1]) {
+            const hornBase = new THREE.Vector3(
+              hx + sign * 0.05,
+              hy + 0.14,
+              hz + hornSign * 0.08,
+            );
+            const hornTip = new THREE.Vector3(
+              hx + sign * 0.42,
+              hy + 0.58,
+              hz + hornSign * 0.12,
+            );
+            targetGold.addLimb(hornBase, hornTip, 0.05, 0.012, 6, goldCol);
+
+            // Chạc phụ chữ Y
+            const branchStart = hornBase.clone().lerp(hornTip, 0.45);
+            const branchTip = branchStart
+              .clone()
+              .add(new THREE.Vector3(sign * 0.08, 0.24, hornSign * 0.08));
+            targetGold.addLimb(
+              branchStart,
+              branchTip,
+              0.025,
+              0.006,
+              4,
+              goldDeep,
+            );
+          }
+
+          // Bờm rồng xòe 3 dải mây lửa sau gáy và dọc cổ
+          for (const [bmX, bmY] of [
+            [0.45, 0.28],
+            [0.52, 0.12],
+            [0.4, -0.06],
+          ]) {
+            targetGold.addLimb(
+              new THREE.Vector3(hx + sign * 0.08, hy + 0.06, hz),
+              new THREE.Vector3(hx + sign * bmX, hy + bmY, hz),
+              0.045,
+              0.008,
+              4,
+              goldDeep,
+            );
+          }
+
+          // Đôi râu rồng dài uốn lượn chữ S mềm mại bay xuôi về trước
+          for (const rSign of [-1, 1]) {
+            const whiskerP0 = new THREE.Vector3(
+              snoutX,
+              snoutY - 0.02,
+              hz + rSign * 0.09,
+            );
+            const whiskerP1 = new THREE.Vector3(
+              snoutX - sign * 0.24,
+              snoutY - 0.18,
+              hz + rSign * 0.18,
+            );
+            const whiskerP2 = new THREE.Vector3(
+              snoutX - sign * 0.46,
+              snoutY - 0.12,
+              hz + rSign * 0.12,
+            );
+            targetGold.addLimb(whiskerP0, whiskerP1, 0.028, 0.018, 4, goldCol);
+            targetGold.addLimb(whiskerP1, whiskerP2, 0.018, 0.004, 4, goldCol);
+          }
+
+          // 2.4 4 Chân rồng dũng mãnh bám bờ nóc
+          // 2 Chân trước (gắn tại đoạn t = 0.24, x ~ 2.18m)
+          const fLegBase = dragonPts[7];
+          const fKnee = new THREE.Vector3(
+            fLegBase.x - sign * 0.1,
+            yBase + 0.32,
+            fLegBase.z + 0.18,
+          );
+          const fFoot = new THREE.Vector3(
+            fLegBase.x - sign * 0.16,
+            yBase + 0.04,
+            fLegBase.z + 0.16,
+          );
+          targetGold.addLimb(fLegBase, fKnee, 0.07, 0.05, 6, goldCol);
+          targetGold.addLimb(fKnee, fFoot, 0.05, 0.038, 5, goldCol);
+          // Túm bờm lông khuỷu chân
+          targetGold.addLimb(
+            fKnee,
+            fKnee.clone().add(new THREE.Vector3(sign * 0.18, 0.08, 0.05)),
+            0.032,
+            0.005,
+            4,
+            goldDeep,
+          );
+          // 4 Móng vuốt xòe cắm bờ nóc
+          for (let c = -1.5; c <= 1.5; c += 1.0) {
+            targetGold.addLimb(
+              fFoot,
+              fFoot
+                .clone()
+                .add(new THREE.Vector3(-sign * 0.12, -0.04, c * 0.04)),
+              0.016,
+              0.003,
+              3,
+              goldDeep,
+            );
+          }
+
+          // 2 Chân sau (gắn tại đoạn t = 0.70, x ~ 3.95m)
+          const rLegBase = dragonPts[19];
+          const rKnee = new THREE.Vector3(
+            rLegBase.x - sign * 0.12,
+            yBase + 0.3,
+            rLegBase.z + 0.18,
+          );
+          const rFoot = new THREE.Vector3(
+            rLegBase.x - sign * 0.18,
+            yBase + 0.04,
+            rLegBase.z + 0.16,
+          );
+          targetGold.addLimb(rLegBase, rKnee, 0.065, 0.045, 6, goldCol);
+          targetGold.addLimb(rKnee, rFoot, 0.045, 0.035, 5, goldCol);
+          // Túm bờm lông khuỷu chân
+          targetGold.addLimb(
+            rKnee,
+            rKnee.clone().add(new THREE.Vector3(sign * 0.18, 0.08, 0.05)),
+            0.03,
+            0.005,
+            4,
+            goldDeep,
+          );
+          // 4 Móng vuốt bám bờ nóc
+          for (let c = -1.5; c <= 1.5; c += 1.0) {
+            targetGold.addLimb(
+              rFoot,
+              rFoot
+                .clone()
+                .add(new THREE.Vector3(-sign * 0.12, -0.04, c * 0.04)),
+              0.016,
+              0.003,
+              3,
+              goldDeep,
+            );
+          }
+
+          // 2.5 Đuôi rồng cuộn vút cao và bung tỏa mây lửa ở đầu hồi (t = 1.0)
+          const tailTip = dragonPts[dragonPts.length - 1];
+          // Chùm mây lửa ngọn giáo 1: vút thẳng lên trời
+          targetGold.addLimb(
+            tailTip,
+            tailTip.clone().add(new THREE.Vector3(sign * 0.05, 0.45, 0)),
+            0.038,
+            0.004,
+            4,
+            goldCol,
+          );
+          // Chùm mây lửa 2: vút chếch ra ngoài đầu hồi
+          targetGold.addLimb(
+            tailTip,
+            tailTip.clone().add(new THREE.Vector3(sign * 0.32, 0.28, 0.06)),
+            0.035,
+            0.004,
+            4,
+            goldDeep,
+          );
+          // Chùm mây lửa 3: uốn lượn cuộn vòng ngược vào trong
+          targetGold.addLimb(
+            tailTip,
+            tailTip.clone().add(new THREE.Vector3(-sign * 0.22, 0.18, -0.06)),
+            0.032,
+            0.004,
+            4,
+            goldDeep,
+          );
         }
       }
     } else if (spec.Rx > 0 && spec.Rz > 0) {
