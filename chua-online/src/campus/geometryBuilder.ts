@@ -18,6 +18,9 @@ export interface RoofTierSpec {
   ridgeColor?: THREE.Color;
   horns?: boolean; // Chỉ bật đầu đao khi được chỉ định rõ (như Chánh Điện)
   hasDragons?: boolean; // Chỉ bật Lưỡng Long Chầu Nguyệt khi chỉ định rõ (như đỉnh Chánh Điện)
+  sag?: number; // Độ võng lòng máng hình cánh sen giữa mép mái
+  cloudFinials?: boolean; // 4 Đầu đao vân mây cuộn bằng đá/vữa xám trắng (Chòi Chuông Chùa)
+  stoneFinialsBuilder?: GeometryBuilder; // Builder để vẽ đầu đao đá xám trắng
 }
 
 function lerp(a: number, b: number, t: number): number {
@@ -258,10 +261,15 @@ export class GeometryBuilder {
     }
     const power = spec.power ?? 1.7;
     // Độ vuốt cong ở 4 góc đao
-    const u = Math.pow(Math.abs(n), 3) * Math.pow(1 - r, 2.2);
-    const flare = (spec.flare ?? 0) * u;
-    const curl = (spec.curl ?? 0) * u;
-    const f = spec.baseY + spec.H * Math.pow(r, power) + curl;
+    const cornerLift =
+      Math.pow(Math.abs(n), spec.sag ? 2.2 : 3) *
+      Math.pow(1 - r, spec.sag ? 1.8 : 2.2);
+    const flare = (spec.flare ?? 0) * cornerLift;
+    const curl = (spec.curl ?? 0) * cornerLift;
+    // Độ võng lòng máng cánh sen ở giữa vạt mái
+    const sagAmount = spec.sag ?? 0;
+    const sag = (1 - n * n) * sagAmount * Math.pow(1 - r, 1.6);
+    const f = spec.baseY + spec.H * Math.pow(r, power) + curl - sag;
     out.set(
       spec.cx + s + Math.sign(s) * flare,
       f,
@@ -421,6 +429,11 @@ export class GeometryBuilder {
       this.addCornerHorns(spec, goldB);
     }
 
+    // 4b. 4 Đầu đao vân mây cuộn bằng đá xám trắng (Cloud Finials Chòi Chuông Chùa)
+    if (spec.cloudFinials) {
+      this.addCloudFinials(spec, spec.stoneFinialsBuilder ?? goldB ?? this);
+    }
+
     // 5. Bờ nóc mái ngọc / gạch nung đỉnh nóc (Ridge) và Phù điêu Lưỡng Long Chầu Nguyệt
     this.addRidgeAndBeasts(spec, goldB);
   }
@@ -545,7 +558,7 @@ export class GeometryBuilder {
         // Điểm trên đường giao tuyến 45 độ giữa 2 mặt mái
         const curX = spec.cx + signX * lerp(spec.A, spec.Rx, r);
         const curZ = spec.cz + signZ * lerp(spec.B, spec.Rz, r);
-        const u = Math.pow(1 - r, 2.2);
+        const u = Math.pow(1 - r, spec.sag ? 1.8 : 2.2);
         const curl = (spec.curl ?? 0) * u;
         const flare = (spec.flare ?? 0) * u;
         const curY =
@@ -679,6 +692,140 @@ export class GeometryBuilder {
   }
 
   /**
+   * Tạo 4 Đầu đao vân mây cuộn bằng đá/vôi vữa xám trắng (Cloud/Dragon Finials) vút cao ở 4 góc mái
+   * Chuẩn theo ảnh mẫu 3D Chòi Chuông Chùa
+   */
+  private addCloudFinials(spec: RoofTierSpec, stoneB: GeometryBuilder): void {
+    const stoneCol = new THREE.Color(0xdad5cb); // Màu đá xám trắng cẩm thạch sáng
+    const stoneShade = new THREE.Color(0xb5b0a4); // Viền gờ bóng đổ mộc mạc
+    const corners: [number, number][] = [
+      [1, 1],
+      [-1, 1],
+      [1, -1],
+      [-1, -1],
+    ];
+
+    for (const [signX, signZ] of corners) {
+      const diagLen = Math.hypot(signX, signZ);
+      const dx = signX / diagLen;
+      const dz = signZ / diagLen;
+
+      // Tọa độ mũi góc mái tại r = 0
+      const baseCornerX = spec.cx + signX * (spec.A + (spec.flare ?? 0));
+      const baseCornerZ = spec.cz + signZ * (spec.B + (spec.flare ?? 0));
+      const baseCornerY = spec.baseY + (spec.curl ?? 0) + 0.05;
+
+      // Chuỗi điểm uốn lượn hình chữ S mềm mại vút cao lên trời và cuộn xoắn ốc ở đỉnh
+      const pts: THREE.Vector3[] = [
+        // p0: Gốc đao ăn ngàm vào sống ngói bò
+        new THREE.Vector3(
+          baseCornerX - dx * 0.45,
+          baseCornerY - 0.08,
+          baseCornerZ - dz * 0.45,
+        ),
+        // p1: Thân đao bắt đầu vểnh lên
+        new THREE.Vector3(
+          baseCornerX - dx * 0.15,
+          baseCornerY + 0.02,
+          baseCornerZ - dz * 0.15,
+        ),
+        // p2: Vươn ra khỏi mép mái
+        new THREE.Vector3(
+          baseCornerX + dx * 0.22,
+          baseCornerY + 0.18,
+          baseCornerZ + dz * 0.22,
+        ),
+        // p3: Uốn cong vút lên cao
+        new THREE.Vector3(
+          baseCornerX + dx * 0.52,
+          baseCornerY + 0.45,
+          baseCornerZ + dz * 0.52,
+        ),
+        // p4: Dựng dốc đứng vút lên
+        new THREE.Vector3(
+          baseCornerX + dx * 0.72,
+          baseCornerY + 0.78,
+          baseCornerZ + dz * 0.72,
+        ),
+        // p5: Đỉnh vòm cong cao nhất của đầu đao
+        new THREE.Vector3(
+          baseCornerX + dx * 0.75,
+          baseCornerY + 1.12,
+          baseCornerZ + dz * 0.75,
+        ),
+        // p6: Uốn cong lượn ngược vào trong
+        new THREE.Vector3(
+          baseCornerX + dx * 0.6,
+          baseCornerY + 1.3,
+          baseCornerZ + dz * 0.6,
+        ),
+        // p7: Cuộn tròn thành xoắn ốc hoa văn mây
+        new THREE.Vector3(
+          baseCornerX + dx * 0.38,
+          baseCornerY + 1.32,
+          baseCornerZ + dz * 0.38,
+        ),
+        // p8: Đỉnh xoắn ốc cuộn xuống
+        new THREE.Vector3(
+          baseCornerX + dx * 0.25,
+          baseCornerY + 1.18,
+          baseCornerZ + dz * 0.25,
+        ),
+        // p9: Tâm xoắn ốc vân mây
+        new THREE.Vector3(
+          baseCornerX + dx * 0.32,
+          baseCornerY + 1.05,
+          baseCornerZ + dz * 0.32,
+        ),
+      ];
+
+      const radii = [
+        0.15, 0.14, 0.13, 0.115, 0.095, 0.08, 0.065, 0.05, 0.038, 0.025,
+      ];
+
+      for (let i = 0; i < pts.length - 1; i++) {
+        stoneB.addLimb(
+          pts[i],
+          pts[i + 1],
+          radii[i],
+          radii[i + 1],
+          6,
+          i % 2 === 0 ? stoneCol : stoneShade,
+        );
+      }
+
+      // Các gờ vây mây / cánh mây phụ (Cloud spurs / Dorsal fins) nhô ra sau gáy đao
+      // Vây phụ 1: Nhô ra ở điểm p3
+      stoneB.addLimb(
+        pts[3],
+        pts[3].clone().add(new THREE.Vector3(dx * 0.28, 0.12, dz * 0.28)),
+        0.065,
+        0.015,
+        4,
+        stoneCol,
+      );
+      // Vây phụ 2: Nhô ra ở gáy lưng p4
+      stoneB.addLimb(
+        pts[4],
+        pts[4].clone().add(new THREE.Vector3(dx * 0.22, 0.18, dz * 0.22)),
+        0.055,
+        0.012,
+        4,
+        stoneCol,
+      );
+      // Vây phụ 3: Mỏ mây cuộn phụ bên dưới thân đao ở p2
+      stoneB.addLimb(
+        pts[2],
+        pts[2].clone().add(new THREE.Vector3(-dx * 0.14, -0.1, -dz * 0.14)),
+        0.05,
+        0.018,
+        4,
+        stoneCol,
+      );
+    }
+  }
+
+  /**
    * Tạo bờ nóc gạch ngọc (Ridge) và Phù điêu Lưỡng Long Chầu Nguyệt dát vàng (chuasen.com)
    * Toàn bộ phần Rồng và Mặt Nguyệt dát vàng được đưa vào goldB để hiển thị sắc vàng kim óng ả!
    */
@@ -693,47 +840,156 @@ export class GeometryBuilder {
 
     // 1. Trường hợp chóp nón đỉnh nhọn tụ tâm (như Tháp Chuông: Rx <= 0.6 && Rz <= 0.6)
     if (spec.Rx <= 0.6 && spec.Rz <= 0.6) {
-      // Chóp ngói bát giác chụp kín đỉnh mái chống thấm dột
+      // 1.1 Chóp ngói bát giác chụp kín đỉnh mái chống thấm dột
       this.addCylinder(
         spec.cx,
         spec.cz,
         ridgeY - 0.05,
-        ridgeY + 0.22,
-        0.38,
-        0.24,
+        ridgeY + 0.2,
+        0.42,
+        0.28,
         8,
         ridgeCol,
       );
-      // Quả hồ lô phong thủy dát vàng ngự đỉnh chóp thanh thoát (TUYỆT ĐỐI KHÔNG CÓ RỒNG)
+
+      // 1.2 Bệ phù điêu mây cuộn bằng đá xám trắng ôm chân bình hồ lô
+      const stoneTarget = spec.stoneFinialsBuilder ?? goldB ?? this;
+      stoneTarget.addCylinder(
+        spec.cx,
+        spec.cz,
+        ridgeY + 0.16,
+        ridgeY + 0.38,
+        0.36,
+        0.26,
+        8,
+        new THREE.Color(0xdad5cb),
+      );
+      // 4 Cánh mây cuộn đá xám trắng áp 4 góc sống mái vươn lên
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          const cloudBase = new THREE.Vector3(
+            spec.cx + sx * 0.26,
+            ridgeY + 0.15,
+            spec.cz + sz * 0.26,
+          );
+          const cloudMid = new THREE.Vector3(
+            spec.cx + sx * 0.34,
+            ridgeY + 0.35,
+            spec.cz + sz * 0.34,
+          );
+          const cloudTip = new THREE.Vector3(
+            spec.cx + sx * 0.22,
+            ridgeY + 0.54,
+            spec.cz + sz * 0.22,
+          );
+          stoneTarget.addLimb(
+            cloudBase,
+            cloudMid,
+            0.075,
+            0.06,
+            5,
+            new THREE.Color(0xdad5cb),
+          );
+          stoneTarget.addLimb(
+            cloudMid,
+            cloudTip,
+            0.06,
+            0.02,
+            5,
+            new THREE.Color(0xdad5cb),
+          );
+        }
+      }
+
+      // 1.3 Quả bầu Hồ Lô phong thủy dát vàng ngự đỉnh chóp thanh thoát (TUYỆT ĐỐI KHÔNG CÓ RỒNG)
       if (goldB) {
+        // Bầu dưới tròn phình
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 0.22,
-          ridgeY + 0.62,
-          0.24,
-          0.16,
-          10,
+          ridgeY + 0.34,
+          ridgeY + 0.74,
+          0.26,
+          0.2,
+          14,
           goldCol,
         );
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 0.62,
-          ridgeY + 0.72,
-          0.1,
-          0.1,
-          8,
-          goldDeep,
+          ridgeY + 0.48,
+          ridgeY + 0.64,
+          0.29,
+          0.28,
+          14,
+          new THREE.Color(0xf5d77f), // Gờ sáng vàng óng giữa bầu
         );
+        // Cổ thắt eo hồ lô
         goldB.addCylinder(
           spec.cx,
           spec.cz,
-          ridgeY + 0.72,
-          ridgeY + 1.12,
-          0.16,
-          0.02,
+          ridgeY + 0.74,
+          ridgeY + 0.85,
+          0.13,
+          0.13,
+          10,
+          goldDeep,
+        );
+        // Bầu trên thuôn tròn búp sen
+        goldB.addCylinder(
+          spec.cx,
+          spec.cz,
+          ridgeY + 0.85,
+          ridgeY + 1.2,
+          0.18,
+          0.11,
+          12,
+          goldCol,
+        );
+        // Chóp búp sen đỉnh hồ lô
+        goldB.addCylinder(
+          spec.cx,
+          spec.cz,
+          ridgeY + 1.2,
+          ridgeY + 1.38,
+          0.11,
+          0.04,
           8,
+          goldCol,
+        );
+
+        // 1.4 CÂY KIM THU LÔI DÁT VÀNG THANH MẢNH VÚT THẲNG LÊN BẦU TRỜI
+        // Chân đế kim thu lôi
+        goldB.addCylinder(
+          spec.cx,
+          spec.cz,
+          ridgeY + 1.38,
+          ridgeY + 1.46,
+          0.04,
+          0.025,
+          8,
+          goldDeep,
+        );
+        // Thân kim thu lôi vút cao thanh thoát
+        goldB.addCylinder(
+          spec.cx,
+          spec.cz,
+          ridgeY + 1.46,
+          ridgeY + 2.55,
+          0.022,
+          0.006,
+          8,
+          new THREE.Color(0xfbf3b5), // Sắc vàng kim sáng lấp lánh
+        );
+        // Ngọn mũi kim nhọn hoắt
+        goldB.addCylinder(
+          spec.cx,
+          spec.cz,
+          ridgeY + 2.55,
+          ridgeY + 2.85,
+          0.006,
+          0.001,
+          6,
           goldCol,
         );
       }

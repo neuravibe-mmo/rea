@@ -1960,24 +1960,30 @@ export class Campus {
       PALETTE.woodDark,
     );
 
-    // 4. Tầng mái hạ (Tầng 1) xòe rộng 4 hướng
-    roofB.addCurvedRoofTier({
-      cx: bx,
-      cz: bz,
-      baseY: 3.95,
-      A: 3.1,
-      B: 3.1,
-      Rx: 1.5,
-      Rz: 1.5,
-      H: 0.9,
-      power: 1.5,
-      curl: 0.45,
-      flare: 0.45,
-      tileColor: new THREE.Color(0x6a5a45),
-      mossAmount: 0.8,
-      horns: false,
-      hasDragons: false,
-    });
+    // 4. Tầng mái hạ (Tầng 1) xòe rộng 4 hướng với 4 đầu đao vân mây đá xám trắng & vạt mái võng cánh sen
+    roofB.addCurvedRoofTier(
+      {
+        cx: bx,
+        cz: bz,
+        baseY: 3.95,
+        A: 3.3,
+        B: 3.3,
+        Rx: 1.5,
+        Rz: 1.5,
+        H: 0.95,
+        power: 1.85,
+        curl: 0.75,
+        flare: 0.6,
+        sag: 0.16, // Độ võng mép mái cánh sen
+        tileColor: new THREE.Color(0x6a5a45),
+        mossAmount: 0.8,
+        horns: false,
+        hasDragons: false,
+        cloudFinials: true, // 4 Đầu đao vân mây xám trắng tầng 1
+        stoneFinialsBuilder: stoneB,
+      },
+      goldB,
+    );
 
     // 5. Cổ lầu sàn gỗ tầng 2 nối khít tuyệt đối giữa 2 tầng mái (y: 4.7 đến 4.85m)
     woodB.addBox(
@@ -2260,24 +2266,27 @@ export class Campus {
       PALETTE.woodDark,
     );
 
-    // 10. Tầng mái thượng (Tầng 2) chóp nón nhọn tụ vào tâm (Rx: 0, Rz: 0, không có rồng)
+    // 10. Tầng mái thượng (Tầng 2) chóp nón nhọn tụ vào tâm với 4 đầu đao vân mây & đỉnh chóp Kim Lôi Hồ Lô
     roofB.addCurvedRoofTier(
       {
         cx: bx,
         cz: bz,
         baseY: 7.2,
-        A: 2.5,
-        B: 2.5,
+        A: 2.7,
+        B: 2.7,
         Rx: 0.0,
         Rz: 0.0, // Chóp nón đỉnh nhọn chuẩn Chùa Sen
-        H: 1.4,
-        power: 1.6,
-        curl: 0.6,
-        flare: 0.6,
+        H: 1.5,
+        power: 1.95,
+        curl: 0.9,
+        flare: 0.7,
+        sag: 0.14, // Độ võng mép mái cánh sen
         tileColor: new THREE.Color(0x8a6b4b),
         mossAmount: 0.7,
         horns: false,
         hasDragons: false, // TUYỆT ĐỐI KHÔNG CÓ RỒNG TRÊN THÁP CHUÔNG
+        cloudFinials: true, // 4 Đầu đao vân mây xám trắng tầng 2
+        stoneFinialsBuilder: stoneB,
       },
       goldB,
     );
