@@ -2392,137 +2392,139 @@ export class Campus {
     );
 
     // =========================================================================
-    // PHẦN 6: TẦNG CỔ DIÊM (TẦNG 2) & HỆ LAN CAN GỖ CHẤN SONG
+    // PHẦN 6: TẦNG CỔ DIÊM (TẦNG 2) & HỆ LAN CAN GỖ CHẤN SONG THÔNG THOÁNG
     // =========================================================================
-    // Sàn gỗ cổ lầu tầng 2 (y: 4.40m đến 4.52m)
+    // Sàn gỗ cổ lầu tầng 2 thu gọn tinh tế, vừa khít cổ ngói tầng 1 (y: 4.40m đến 4.48m)
+    const floorR = 1.24;
     woodB.addBox(
-      bx - 1.48,
+      bx - floorR,
       4.4,
-      bz - 1.48,
-      bx + 1.48,
-      4.52,
-      bz + 1.48,
+      bz - floorR,
+      bx + floorR,
+      4.48,
+      bz + floorR,
       woodLimDark,
     );
 
-    // Lan can tay vịn gỗ lim tầng 2
-    const baseRailY = 4.54;
-    const railY = 4.96;
+    // Lan can tay vịn gỗ lim tầng 2 (thông thoáng, nhìn xuyên thấu bầu trời và chuông)
+    const baseRailY = 4.48;
+    const railY = 4.86;
+    const railR = 1.18;
     // Gờ tay vịn 4 cạnh
     woodB.addBox(
-      bx - 1.44,
+      bx - railR,
       railY,
-      bz - 1.44,
-      bx + 1.44,
-      railY + 0.05,
-      bz - 1.38,
+      bz - railR,
+      bx + railR,
+      railY + 0.045,
+      bz - railR + 0.06,
       woodLimDark,
     );
     woodB.addBox(
-      bx - 1.44,
+      bx - railR,
       railY,
-      bz + 1.38,
-      bx + 1.44,
-      railY + 0.05,
-      bz + 1.44,
+      bz + railR - 0.06,
+      bx + railR,
+      railY + 0.045,
+      bz + railR,
       woodLimDark,
     );
     woodB.addBox(
-      bx - 1.44,
+      bx - railR,
       railY,
-      bz - 1.44,
-      bx - 1.38,
-      railY + 0.05,
-      bz + 1.44,
+      bz - railR,
+      bx - railR + 0.06,
+      railY + 0.045,
+      bz + railR,
       woodLimDark,
     );
     woodB.addBox(
-      bx + 1.38,
+      bx + railR - 0.06,
       railY,
-      bz - 1.44,
-      bx + 1.44,
-      railY + 0.05,
-      bz + 1.44,
+      bz - railR,
+      bx + railR,
+      railY + 0.045,
+      bz + railR,
       woodLimDark,
     );
 
     // Gờ chân lan can
     woodB.addBox(
-      bx - 1.44,
+      bx - railR,
       baseRailY,
-      bz - 1.44,
-      bx + 1.44,
-      baseRailY + 0.04,
-      bz - 1.38,
+      bz - railR,
+      bx + railR,
+      baseRailY + 0.035,
+      bz - railR + 0.06,
       woodLimDark,
     );
     woodB.addBox(
-      bx - 1.44,
+      bx - railR,
       baseRailY,
-      bz + 1.38,
-      bx + 1.44,
-      baseRailY + 0.04,
-      bz + 1.44,
+      bz + railR - 0.06,
+      bx + railR,
+      baseRailY + 0.035,
+      bz + railR,
       woodLimDark,
     );
     woodB.addBox(
-      bx - 1.44,
+      bx - railR,
       baseRailY,
-      bz - 1.44,
-      bx - 1.38,
-      baseRailY + 0.04,
-      bz + 1.44,
+      bz - railR,
+      bx - railR + 0.06,
+      baseRailY + 0.035,
+      bz + railR,
       woodLimDark,
     );
     woodB.addBox(
-      bx + 1.38,
+      bx + railR - 0.06,
       baseRailY,
-      bz - 1.44,
-      bx + 1.44,
-      baseRailY + 0.04,
-      bz + 1.44,
+      bz - railR,
+      bx + railR,
+      baseRailY + 0.035,
+      bz + railR,
       woodLimDark,
     );
 
-    // Hàng con tiện gỗ tiện tròn
-    for (let pos = -1.3; pos <= 1.3; pos += 0.26) {
+    // Hàng con tiện gỗ thanh mảnh tạo độ thông thoáng tuyệt đối
+    for (let pos = -1.02; pos <= 1.02; pos += 0.22) {
       woodB.addCylinder(
         bx + pos,
-        bz - 1.41,
-        baseRailY + 0.04,
+        bz - railR + 0.03,
+        baseRailY + 0.035,
         railY,
-        0.022,
-        0.022,
+        0.016,
+        0.016,
         6,
         woodLim,
       );
       woodB.addCylinder(
         bx + pos,
-        bz + 1.41,
-        baseRailY + 0.04,
+        bz + railR - 0.03,
+        baseRailY + 0.035,
         railY,
-        0.022,
-        0.022,
+        0.016,
+        0.016,
         6,
         woodLim,
       );
       woodB.addCylinder(
-        bx - 1.41,
+        bx - railR + 0.03,
         bz + pos,
-        baseRailY + 0.04,
+        baseRailY + 0.035,
         railY,
-        0.022,
-        0.022,
+        0.016,
+        0.016,
         6,
         woodLim,
       );
       woodB.addCylinder(
-        bx + 1.41,
+        bx + railR - 0.03,
         bz + pos,
-        baseRailY + 0.04,
+        baseRailY + 0.035,
         railY,
-        0.022,
-        0.022,
+        0.016,
+        0.016,
         6,
         woodLim,
       );

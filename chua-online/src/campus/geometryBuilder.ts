@@ -421,8 +421,11 @@ export class GeometryBuilder {
       this.addTileRibs(spec, side, tileColor);
     }
 
-    // 3. Sống ngói bờ đao (Hip caps) chạy dọc 4 góc tiếp giáp mái
+    // 3. Sống ngói bờ đao (Hip caps) đắp vữa đá xám trắng chạy dọc 4 góc tiếp giáp mái
     this.addHipCaps(spec);
+
+    // 3b. Bờ diềm ngói hoa chanh / ngói mũi hài rủ diềm ở mép dưới vạt mái (Eave borders)
+    this.addEaveBorders(spec);
 
     // 4. 4 Đầu đao vuốt cong vút lên không trung bịt đồng dát vàng (Corner Horns Gg)
     if (spec.horns) {
@@ -535,13 +538,15 @@ export class GeometryBuilder {
   }
 
   /**
-   * Tạo dải ngói bò (Hip Caps) hình ống bán nguyệt chạy dọc 4 đường sống mái
+   * Tạo dải ngói bò bờ quyết (Hip Caps) hình chóp lăng trụ vát đều đắp vữa đá xám trắng
+   * Chạy dọc 4 đường giao tuyến sống mái, chuẩn xác 100% không bị vặn xoắn hay bay lơ lửng.
    */
   private addHipCaps(spec: RoofTierSpec): void {
+    const target = spec.stoneFinialsBuilder ?? this;
     const ridgeCol =
       spec.ridgeColor ??
       (spec.cloudFinials
-        ? new THREE.Color(0xd2cdc4)
+        ? new THREE.Color(0xdad5cb)
         : new THREE.Color(0x4a3424));
     const corners: [number, number][] = [
       [1, 1],
@@ -549,61 +554,165 @@ export class GeometryBuilder {
       [1, -1],
       [-1, -1],
     ];
-    const steps = 8;
-    const pt = new THREE.Vector3();
+    const steps = 14;
+    const W = 0.085; // Nửa bề rộng dải sống ngói bò (8.5cm mỗi bên = 17cm)
+    const capR = 0.085; // Độ nhô cao sống ngói
 
     for (const [signX, signZ] of corners) {
-      let prevV0 = -1,
-        prevV1 = -1,
-        prevV2 = -1;
+      const diagLen = Math.hypot(signX, signZ);
+      const dx = signX / diagLen;
+      const dz = signZ / diagLen;
+      // Vector vuông góc với sống chéo nằm ngang:
+      const tx = -dz;
+      const tz = dx;
+
+      let prevLeft = -1,
+        prevCrest = -1,
+        prevRight = -1;
 
       for (let s = 0; s <= steps; s++) {
         const r = s / steps;
-        // Điểm trên đường giao tuyến 45 độ giữa 2 mặt mái
+        // Tọa độ tâm trên đường giao tuyến 45 độ giữa 2 mặt mái
         const curX = spec.cx + signX * lerp(spec.A, spec.Rx, r);
         const curZ = spec.cz + signZ * lerp(spec.B, spec.Rz, r);
         const u = Math.pow(1 - r, spec.sag ? 1.8 : 2.2);
         const curl = (spec.curl ?? 0) * u;
         const flare = (spec.flare ?? 0) * u;
         const curY =
-          spec.baseY + spec.H * Math.pow(r, spec.power ?? 1.7) + curl + 0.06; // Nổi trên mặt mái
+          spec.baseY + spec.H * Math.pow(r, spec.power ?? 1.7) + curl + 0.04;
 
-        pt.set(
-          curX + Math.sign(signX) * flare,
-          curY,
-          curZ + Math.sign(signZ) * flare,
-        );
+        const px = curX + signX * flare;
+        const py = curY;
+        const pz = curZ + signZ * flare;
 
-        // Bán kính dải ngói bò dày 12cm
-        const capR = 0.12;
-        const v0 = this.vert(
-          pt.x - 0.08 * signX,
-          pt.y,
-          pt.z - 0.08 * signZ,
-          0,
-          1,
-          0,
-          ridgeCol,
-        );
-        const v1 = this.vert(pt.x, pt.y + capR, pt.z, 0, 1, 0, ridgeCol);
-        const v2 = this.vert(
-          pt.x + 0.08 * signZ,
-          pt.y,
-          pt.z - 0.08 * signX,
-          0,
-          1,
-          0,
-          ridgeCol,
-        );
+        // 3 đỉnh tiết diện sống ngói: mép trái, đỉnh chóp, mép phải
+        const lx = px - W * tx;
+        const ly = py;
+        const lz = pz - W * tz;
 
-        if (s > 0 && prevV0 !== -1) {
-          this.quad(prevV0, prevV1, v1, v0);
-          this.quad(prevV1, prevV2, v2, v1);
+        const cxPt = px;
+        const cyPt = py + capR;
+        const czPt = pz;
+
+        const rx = px + W * tx;
+        const ry = py;
+        const rz = pz + W * tz;
+
+        const vLeft = target.vert(lx, ly, lz, -tx, 1, -tz, ridgeCol);
+        const vCrest = target.vert(cxPt, cyPt, czPt, 0, 1, 0, ridgeCol);
+        const vRight = target.vert(rx, ry, rz, tx, 1, tz, ridgeCol);
+
+        if (s > 0 && prevLeft !== -1) {
+          // Mặt dốc trái sống ngói
+          target.quad(prevLeft, prevCrest, vCrest, vLeft);
+          // Mặt dốc phải sống ngói
+          target.quad(prevCrest, prevRight, vRight, vCrest);
+        } else if (s === 0) {
+          // Bịt kín mặt đáy sống ngói ở mũi góc mái
+          target.tri(vLeft, vRight, vCrest);
         }
 
-        prevV0 = v0;
-        prevV1 = v1;
-        prevV2 = v2;
+        prevLeft = vLeft;
+        prevCrest = vCrest;
+        prevRight = vRight;
+      }
+    }
+  }
+
+  /**
+   * Tạo bờ diềm ngói hoa chanh / ngói mũi hài rủ diềm (Eave Borders)
+   * Viền bao quanh 4 mép dưới vạt mái (r = 0) bằng dải đá vữa xám trắng thanh thoát và hàng răng cưa rủ xuống
+   */
+  private addEaveBorders(spec: RoofTierSpec): void {
+    const target = spec.stoneFinialsBuilder ?? this;
+    const borderCol = spec.ridgeColor ?? new THREE.Color(0xdad5cb);
+    const borderDark = new THREE.Color(0xb2aca0);
+    const steps = 24;
+    const pt = new THREE.Vector3();
+    const bandH = 0.055; // Độ cao diềm ngói 5.5cm
+    const bandOut = 0.045; // Nhô ra ngoài mép 4.5cm
+
+    for (let side = 0; side < 4; side++) {
+      let prevOutTop = -1,
+        prevOutBot = -1,
+        prevInTop = -1,
+        prevInBot = -1;
+
+      for (let i = 0; i <= steps; i++) {
+        const n = -1 + (2 * i) / steps;
+        this.evalRoofPoint(spec, side, n, 0, pt);
+
+        // Vector hướng vuông góc ra ngoài vạt mái:
+        let outX = 0,
+          outZ = 0;
+        if (side === 0) outZ = 1;
+        else if (side === 1) outZ = -1;
+        else if (side === 2) outX = 1;
+        else outX = -1;
+
+        const ox = pt.x + outX * bandOut;
+        const oy = pt.y + 0.015;
+        const oz = pt.z + outZ * bandOut;
+
+        const vInTop = target.vert(
+          pt.x,
+          pt.y + 0.015,
+          pt.z,
+          0,
+          1,
+          0,
+          borderCol,
+        );
+        const vInBot = target.vert(
+          pt.x,
+          pt.y - bandH,
+          pt.z,
+          0,
+          -1,
+          0,
+          borderDark,
+        );
+        const vOutTop = target.vert(ox, oy, oz, outX, 1, outZ, borderCol);
+        const vOutBot = target.vert(
+          ox,
+          oy - bandH,
+          oz,
+          outX,
+          0,
+          outZ,
+          borderDark,
+        );
+
+        if (i > 0 && prevOutTop !== -1) {
+          // Mặt vát trên diềm
+          target.quad(prevInTop, prevOutTop, vOutTop, vInTop);
+          // Mặt đứng viền ngoài (Fascia border face)
+          target.quad(prevOutTop, prevOutBot, vOutBot, vOutTop);
+          // Mặt đáy dưới
+          target.quad(prevOutBot, prevInBot, vInBot, vOutBot);
+        }
+
+        // Hàng hoa chanh / ngói mũi hài rủ diềm hình răng cưa tam giác mềm
+        if (i > 0 && i % 2 === 1 && Math.abs(n) < 0.88 && prevOutBot !== -1) {
+          const toothTipX = (ox + pt.x) * 0.5 + outX * 0.025;
+          const toothTipY = oy - bandH - 0.035;
+          const toothTipZ = (oz + pt.z) * 0.5 + outZ * 0.025;
+          const vTip = target.vert(
+            toothTipX,
+            toothTipY,
+            toothTipZ,
+            outX,
+            -1,
+            outZ,
+            borderCol,
+          );
+          target.tri(vOutBot, vTip, prevOutBot);
+        }
+
+        prevInTop = vInTop;
+        prevInBot = vInBot;
+        prevOutTop = vOutTop;
+        prevOutBot = vOutBot;
       }
     }
   }
@@ -699,10 +808,10 @@ export class GeometryBuilder {
    * Tạo 4 Phù điêu Đầu đao vân mây đá xám trắng (Cloud/Dragon Finials) ở 4 góc mái
    * Dáng uốn lượn chữ S mềm mại, ôm khít 100% dọc bờ đao dốc ngói và vút cao lên trời.
    * Gồm:
-   * 1. Phần chân đao chạy dọc sống ngói bò dài 1.1m với 3 tầng vân mây lửa đắp nổi
-   * 2. Phần thân đao vươn ra khỏi mép mái và vút cong uyển chuyển lên cao 0.65m
-   * 3. Ngọn đao cuộn tròn vân xoắn ốc tinh xảo
-   * 4. Khối 3D dày dặn 16cm với các gờ gân mây đắp nổi hai bên hông tạo bóng đổ sống động
+   * 1. Phần chân đao chạy dọc sống ngói bò dài 1.1m với 3 tầng vân mây tam sơn đắp nổi
+   * 2. Phần thân đao vươn ra khỏi mép mái và vút cong uyển chuyển lên cao 0.8m
+   * 3. Ngọn đao cuộn tròn vân xoắn ốc tinh xảo với ngọn lửa vút cao
+   * 4. Khối 3D dày dặn 18cm với các gờ gân mây đắp nổi hai bên hông tạo bóng đổ sống động
    */
   private addCloudFinials(spec: RoofTierSpec, stoneB: GeometryBuilder): void {
     const stoneCol = new THREE.Color(0xdedad2); // Đá xám trắng sáng đón ánh mặt trời
@@ -716,8 +825,8 @@ export class GeometryBuilder {
     ];
 
     // Tỉ lệ đầu đao co giãn theo kích thước tầng mái
-    const scale = clamp(spec.A / 3.25, 0.78, 1.05);
-    const W = 0.16 * scale; // Độ dày thân đao 16cm
+    const scale = clamp(spec.A / 3.0, 0.9, 1.25);
+    const W = 0.17 * scale; // Độ dày thân đao 17cm
 
     // Biên dạng 2D uốn lượn hình chữ S truyền thống Việt Nam:
     // Dáng đao mây vút cao ngạo nghễ, chuẩn 100% bản vẽ phối cảnh 3D
@@ -725,18 +834,20 @@ export class GeometryBuilder {
     // v: cao độ so với mép góc vạt mái
     const finialProfile: [number, number, number, number][] = [
       // [u_bot, v_bot, u_top, v_top]
-      [-0.65 * scale, 0.24 * scale, -0.62 * scale, 0.36 * scale], // Chân đao ôm sống ngói bò
-      [-0.45 * scale, 0.16 * scale, -0.4 * scale, 0.34 * scale], // Tầng vân mây thứ 1
-      [-0.25 * scale, 0.08 * scale, -0.2 * scale, 0.32 * scale], // Tầng vân mây thứ 2
-      [-0.08 * scale, 0.02 * scale, -0.05 * scale, 0.32 * scale], // Chân đao tiếp giáp góc mái
-      [0.0 * scale, 0.0 * scale, 0.02 * scale, 0.35 * scale], // Điểm mũi góc vạt mái (r = 0)
-      [0.08 * scale, 0.04 * scale, 0.08 * scale, 0.44 * scale], // Bắt đầu vút vểnh lên
-      [0.14 * scale, 0.12 * scale, 0.12 * scale, 0.55 * scale], // Lượn cong cánh sen vút cao
-      [0.18 * scale, 0.24 * scale, 0.12 * scale, 0.66 * scale], // Thân đao vươn cao
-      [0.16 * scale, 0.38 * scale, 0.08 * scale, 0.74 * scale], // Đỉnh cao nhất của ngọn đao
-      [0.1 * scale, 0.5 * scale, 0.02 * scale, 0.72 * scale], // Cuộn ngược vào trong
-      [0.05 * scale, 0.55 * scale, 0.0 * scale, 0.64 * scale], // Mắt xoắn ốc
-      [0.04 * scale, 0.56 * scale, 0.02 * scale, 0.58 * scale], // Tâm vân xoắn cuộn
+      [-0.88 * scale, 0.22 * scale, -0.85 * scale, 0.34 * scale], // Đuôi chân đao ôm sống ngói
+      [-0.68 * scale, 0.18 * scale, -0.64 * scale, 0.42 * scale], // Tầng vân mây tam sơn 1
+      [-0.5 * scale, 0.14 * scale, -0.46 * scale, 0.35 * scale], // Eo trũng giữa 2 sóng
+      [-0.32 * scale, 0.09 * scale, -0.28 * scale, 0.44 * scale], // Tầng vân mây tam sơn 2
+      [-0.16 * scale, 0.05 * scale, -0.13 * scale, 0.36 * scale], // Eo trũng
+      [-0.03 * scale, 0.02 * scale, -0.01 * scale, 0.46 * scale], // Tầng vân mây tam sơn 3
+      [0.1 * scale, 0.03 * scale, 0.08 * scale, 0.48 * scale], // Vươn khỏi mép mái
+      [0.25 * scale, 0.08 * scale, 0.18 * scale, 0.58 * scale], // Bắt đầu vút vểnh lên
+      [0.38 * scale, 0.18 * scale, 0.28 * scale, 0.7 * scale], // Cổ đao lượn cong cánh sen vút cao
+      [0.48 * scale, 0.36 * scale, 0.32 * scale, 0.85 * scale], // Thân đao vươn cao
+      [0.44 * scale, 0.56 * scale, 0.24 * scale, 0.94 * scale], // Đỉnh vòm ngọn đao
+      [0.32 * scale, 0.7 * scale, 0.16 * scale, 0.94 * scale], // Cuộn ngược vào trong
+      [0.2 * scale, 0.74 * scale, 0.12 * scale, 0.84 * scale], // Vòng ngoài mắt xoắn ốc
+      [0.16 * scale, 0.7 * scale, 0.12 * scale, 0.74 * scale], // Tâm xoắn cuộn
     ];
 
     for (const [signX, signZ] of corners) {
@@ -863,69 +974,69 @@ export class GeometryBuilder {
       );
 
       // Các gờ mây phụ (Cloud curls / vây rồng) đắp nổi hai bên má đao
-      // 1. Cụm xoắn ốc tròn ở tâm ngọn đao
+      // 1. Cụm xoắn ốc tròn ở tâm ngọn đao (mắt xoắn ốc nổi 3D)
       const spiralCenter = new THREE.Vector3(
-        curX + 0.05 * scale * dx,
-        curY + 0.58 * scale,
-        curZ + 0.05 * scale * dz,
+        curX + 0.2 * scale * dx,
+        curY + 0.78 * scale,
+        curZ + 0.2 * scale * dz,
       );
       stoneB.addCylinder(
-        spiralCenter.x - W * 0.4 * tx,
-        spiralCenter.z - W * 0.4 * tz,
-        spiralCenter.y - 0.04 * scale,
-        spiralCenter.y + 0.04 * scale,
-        0.05 * scale,
-        0.05 * scale,
+        spiralCenter.x - W * 0.45 * tx,
+        spiralCenter.z - W * 0.45 * tz,
+        spiralCenter.y - 0.05 * scale,
+        spiralCenter.y + 0.05 * scale,
+        0.065 * scale,
+        0.065 * scale,
         8,
         stoneDark,
       );
       stoneB.addCylinder(
-        spiralCenter.x + W * 0.4 * tx,
-        spiralCenter.z + W * 0.4 * tz,
-        spiralCenter.y - 0.04 * scale,
-        spiralCenter.y + 0.04 * scale,
-        0.05 * scale,
-        0.05 * scale,
+        spiralCenter.x + W * 0.45 * tx,
+        spiralCenter.z + W * 0.45 * tz,
+        spiralCenter.y - 0.05 * scale,
+        spiralCenter.y + 0.05 * scale,
+        0.065 * scale,
+        0.065 * scale,
         8,
         stoneCol,
       );
 
-      // 2. Gờ vây mây nổi ở vòm ngọn đao
+      // 2. Ngọn lửa vút cao chầu trời ở đỉnh vòm đao
       const flameBase = new THREE.Vector3(
-        curX + 0.1 * scale * dx,
-        curY + 0.35 * scale,
-        curZ + 0.1 * scale * dz,
+        curX + 0.35 * scale * dx,
+        curY + 0.65 * scale,
+        curZ + 0.35 * scale * dz,
       );
       const flameTip = new THREE.Vector3(
-        curX + 0.15 * scale * dx,
-        curY + 0.5 * scale,
-        curZ + 0.15 * scale * dz,
+        curX + 0.25 * scale * dx,
+        curY + 1.05 * scale,
+        curZ + 0.25 * scale * dz,
       );
       stoneB.addLimb(
         flameBase,
         flameTip,
-        0.04 * scale,
-        0.012 * scale,
+        0.045 * scale,
+        0.01 * scale,
         5,
         stoneSpur,
       );
 
       // 3. Gờ mây cuộn trên sống mái dốc
       const ridgeSpurBase = new THREE.Vector3(
-        curX - 0.35 * scale * dx,
-        curY + 0.18 * scale,
-        curZ - 0.35 * scale * dz,
+        curX - 0.45 * scale * dx,
+        curY + 0.22 * scale,
+        curZ - 0.45 * scale * dz,
       );
       const ridgeSpurTip = new THREE.Vector3(
-        curX - 0.25 * scale * dx,
-        curY + 0.28 * scale,
-        curZ - 0.25 * scale * dz,
+        curX - 0.32 * scale * dx,
+        curY + 0.36 * scale,
+        curZ - 0.32 * scale * dz,
       );
       stoneB.addLimb(
         ridgeSpurBase,
         ridgeSpurTip,
-        0.04 * scale,
-        0.01 * scale,
+        0.045 * scale,
+        0.012 * scale,
         5,
         stoneCol,
       );
@@ -1362,8 +1473,54 @@ export class GeometryBuilder {
           targetGold.addLimb(snoutPos, beardTip, 0.028, 0.006, 4, goldCol);
         }
       }
+    } else if (spec.Rx > 0 && spec.Rz > 0) {
+      // Cổ lầu hở tầng thông thoáng (Tầng 1 tháp chuông / gác lầu):
+      // CHỈ tạo 4 dải gờ viền đá/gạch (Curb rim) xung quanh mép lỗ thông tầng, TUYỆT ĐỐI không bịt kín!
+      const target = spec.stoneFinialsBuilder ?? this;
+      const curbW = 0.08;
+      const curbH = 0.06;
+      // Cạnh trước (+Z)
+      target.addBox(
+        spec.cx - spec.Rx - curbW,
+        ridgeY - 0.02,
+        spec.cz + spec.Rz - curbW,
+        spec.cx + spec.Rx + curbW,
+        ridgeY + curbH,
+        spec.cz + spec.Rz + curbW,
+        ridgeCol,
+      );
+      // Cạnh sau (-Z)
+      target.addBox(
+        spec.cx - spec.Rx - curbW,
+        ridgeY - 0.02,
+        spec.cz - spec.Rz - curbW,
+        spec.cx + spec.Rx + curbW,
+        ridgeY + curbH,
+        spec.cz - spec.Rz + curbW,
+        ridgeCol,
+      );
+      // Cạnh trái (-X)
+      target.addBox(
+        spec.cx - spec.Rx - curbW,
+        ridgeY - 0.02,
+        spec.cz - spec.Rz,
+        spec.cx - spec.Rx + curbW,
+        ridgeY + curbH,
+        spec.cz + spec.Rz,
+        ridgeCol,
+      );
+      // Cạnh phải (+X)
+      target.addBox(
+        spec.cx + spec.Rx - curbW,
+        ridgeY - 0.02,
+        spec.cz - spec.Rz,
+        spec.cx + spec.Rx + curbW,
+        ridgeY + curbH,
+        spec.cz + spec.Rz,
+        ridgeCol,
+      );
     } else {
-      // Đỉnh nóc hình hộp vuông (cổ lầu / tháp chuông)
+      // Đỉnh nóc hình hộp kín
       this.addBox(
         spec.cx - ridgeHalfX,
         ridgeY - 0.05,
