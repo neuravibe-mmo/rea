@@ -53,6 +53,13 @@ export function getGroundHeight(x: number, z: number): number {
   if (Math.abs(x) <= 1.8 && z >= 28.5 && z <= 47.5) {
     return 0.35;
   }
+  // 3. Tháp chuông (Chòi Chuông Chùa cổ truyền)
+  if (Math.abs(x - 15.5) <= 2.85 && Math.abs(z - 4.0) <= 2.85) {
+    return 0.65;
+  }
+  if (Math.abs(x - 15.5) <= 0.85 && z >= 6.8 && z <= 7.8) {
+    return 0.35;
+  }
   // 3. Sân chùa lát đá phiến trung tâm (-19.3..19.3, -24.3..24.8) -> mặt gạch y = 0.08m
   if (x >= -19.3 && x <= 19.3 && z >= -24.3 && z <= 24.8) {
     return 0.08;
@@ -1494,25 +1501,408 @@ export class Campus {
     const bx = 15.5,
       bz = 4.0;
 
-    // 1. Bệ đá vuông 2 tầng Chùa Sen
+    // =========================================================================
+    // BƯỚC 1: DỰNG BỆ NỀN TAM CẤP & HỆ LAN CAN TRỤ BÚP SEN ĐÁ + ĐÔI RỒNG ĐÁ
+    // =========================================================================
+
+    // 1.1 Khối bệ móng (Podium ốp gạch thẻ & mặt sàn đá hoa cương phẳng rộng 5.6m x 5.6m)
+    // Lớp móng chân gạch thẻ (Brick base)
     stoneB.addBox(
-      bx - 2.2,
-      -0.1,
-      bz - 2.2,
-      bx + 2.2,
-      0.4,
-      bz + 2.2,
+      bx - 2.82,
+      -0.05,
+      bz - 2.82,
+      bx + 2.82,
+      0.58,
+      bz + 2.82,
+      new THREE.Color(0x524337), // Gạch thẻ nung nâu xám trầm
+    );
+
+    // Biển đá chữ nổi "Chòi Chuông Chùa" ở mặt tiền bệ móng
+    stoneB.addBox(
+      bx - 0.75,
+      0.16,
+      bz + 2.81,
+      bx + 0.75,
+      0.44,
+      bz + 2.85,
+      new THREE.Color(0x352b23), // Phiến đá sẫm chạm tên chòi
+    );
+
+    // Gờ phào chỉ đá xám bao quanh viền bệ móng
+    stoneB.addBox(
+      bx - 2.86,
+      0.56,
+      bz - 2.86,
+      bx + 2.86,
+      0.61,
+      bz + 2.86,
+      PALETTE.stoneDark,
+    );
+
+    // Mặt sàn lát đá hoa cương xám nhẵn (Floor slab cao 0.65m)
+    stoneB.addBox(
+      bx - 2.8,
+      0.59,
+      bz - 2.8,
+      bx + 2.8,
+      0.65,
+      bz + 2.8,
+      PALETTE.stoneLight,
+    );
+
+    // 1.2 Bậc tam cấp phía trước (z: bz + 2.82 đến bz + 3.82, rộng 1.5m)
+    const stairMinX = bx - 0.75;
+    const stairMaxX = bx + 0.75;
+    // Bậc 1 (chân)
+    stoneB.addBox(
+      stairMinX,
+      0.0,
+      bz + 2.82,
+      stairMaxX,
+      0.16,
+      bz + 3.82,
+      PALETTE.stone,
+    );
+    // Bậc 2
+    stoneB.addBox(
+      stairMinX,
+      0.16,
+      bz + 2.82,
+      stairMaxX,
+      0.32,
+      bz + 3.52,
+      PALETTE.stoneLight,
+    );
+    // Bậc 3
+    stoneB.addBox(
+      stairMinX,
+      0.32,
+      bz + 2.82,
+      stairMaxX,
+      0.48,
+      bz + 3.22,
+      PALETTE.stone,
+    );
+    // Bậc 4 (nối sàn)
+    stoneB.addBox(
+      stairMinX,
+      0.48,
+      bz + 2.82,
+      stairMaxX,
+      0.65,
+      bz + 2.92,
+      PALETTE.stoneLight,
+    );
+
+    // 1.3 Đôi Rồng đá tay vịn trườn chúc đầu xuống 2 bên bậc tam cấp
+    for (const signX of [-1, 1]) {
+      const rx = bx + signX * 0.88;
+      // Dải bệ đá dốc đỡ thân rồng
+      stoneB.addLimb(
+        new THREE.Vector3(rx, 0.72, bz + 2.78),
+        new THREE.Vector3(rx, 0.15, bz + 3.85),
+        0.13,
+        0.13,
+        4,
+        PALETTE.stoneDark,
+      );
+
+      // Thân Rồng đá chạm nổi uốn khúc men theo độ dốc
+      // Đuôi rồng cuộn vút ở trên sàn
+      stoneB.addLimb(
+        new THREE.Vector3(rx, 0.88, bz + 2.76),
+        new THREE.Vector3(rx, 0.72, bz + 2.98),
+        0.08,
+        0.11,
+        6,
+        PALETTE.whiteMarble,
+      );
+      // Khúc thân giữa uốn lượn có vây lưng
+      stoneB.addLimb(
+        new THREE.Vector3(rx, 0.72, bz + 2.98),
+        new THREE.Vector3(rx, 0.52, bz + 3.38),
+        0.11,
+        0.12,
+        6,
+        PALETTE.whiteMarble,
+      );
+      stoneB.addLimb(
+        new THREE.Vector3(rx, 0.52, bz + 3.38),
+        new THREE.Vector3(rx, 0.28, bz + 3.78),
+        0.12,
+        0.13,
+        6,
+        PALETTE.whiteMarble,
+      );
+      // Đầu Rồng đá ngẩng cao uy nghi ở chân bậc thang
+      stoneB.addBox(
+        rx - 0.1,
+        0.16,
+        bz + 3.74,
+        rx + 0.1,
+        0.48,
+        bz + 4.04,
+        PALETTE.whiteMarble,
+      );
+      // Mũi rồng và miệng há ngậm ngọc
+      stoneB.addCylinder(
+        rx,
+        bz + 4.06,
+        0.22,
+        0.34,
+        0.08,
+        0.05,
+        8,
+        PALETTE.whiteMarble,
+      );
+      goldB.addCylinder(
+        rx,
+        bz + 4.04,
+        0.24,
+        0.32,
+        0.045,
+        0.045,
+        8,
+        PALETTE.gold,
+      ); // Ngọc minh châu
+      // Bờm và sừng rồng vuốt ngược
+      stoneB.addLimb(
+        new THREE.Vector3(rx, 0.46, bz + 3.92),
+        new THREE.Vector3(rx, 0.58, bz + 3.65),
+        0.05,
+        0.015,
+        4,
+        PALETTE.whiteMarble,
+      );
+    }
+
+    // 1.4 Hệ Lan can đá & Trụ đá đỉnh Búp Sen nở (Lotus Posts & Balustrades)
+    // Các vị trí trụ đá búp sen:
+    const lotusPosts: [number, number][] = [
+      // 4 góc bệ nền
+      [bx - 2.65, bz - 2.65],
+      [bx + 2.65, bz - 2.65],
+      [bx - 2.65, bz + 2.65],
+      [bx + 2.65, bz + 2.65],
+      // Cạnh sau (bz - 2.65)
+      [bx - 1.76, bz - 2.65],
+      [bx - 0.88, bz - 2.65],
+      [bx, bz - 2.65],
+      [bx + 0.88, bz - 2.65],
+      [bx + 1.76, bz - 2.65],
+      // Cạnh trái (bx - 2.65)
+      [bx - 2.65, bz - 1.76],
+      [bx - 2.65, bz - 0.88],
+      [bx - 2.65, bz],
+      [bx - 2.65, bz + 0.88],
+      [bx - 2.65, bz + 1.76],
+      // Cạnh phải (bx + 2.65)
+      [bx + 2.65, bz - 1.76],
+      [bx + 2.65, bz - 0.88],
+      [bx + 2.65, bz],
+      [bx + 2.65, bz + 0.88],
+      [bx + 2.65, bz + 1.76],
+      // Cạnh trước (bz + 2.65, chừa lối vào giữa)
+      [bx - 1.82, bz + 2.65],
+      [bx - 1.0, bz + 2.65],
+      [bx + 1.0, bz + 2.65],
+      [bx + 1.82, bz + 2.65],
+    ];
+
+    // Vẽ từng trụ đá đỉnh búp sen nở
+    for (const [px, pz] of lotusPosts) {
+      // Thân trụ đá hoa cương
+      stoneB.addBox(
+        px - 0.13,
+        0.65,
+        pz - 0.13,
+        px + 0.13,
+        1.15,
+        pz + 0.13,
+        PALETTE.stoneDark,
+      );
+      // Gờ phào đệm đỉnh trụ
+      stoneB.addBox(
+        px - 0.15,
+        1.14,
+        pz - 0.15,
+        px + 0.15,
+        1.18,
+        pz + 0.15,
+        PALETTE.stoneLight,
+      );
+      // Bệ đài sen đá nở
+      stoneB.addCylinder(px, pz, 1.18, 1.24, 0.11, 0.14, 8, PALETTE.stoneLight);
+      // Thân búp sen đá cẩm thạch trắng
+      stoneB.addCylinder(px, pz, 1.24, 1.34, 0.14, 0.1, 8, PALETTE.whiteMarble);
+      stoneB.addCylinder(
+        px,
+        pz,
+        1.34,
+        1.45,
+        0.1,
+        0.015,
+        8,
+        PALETTE.whiteMarble,
+      );
+    }
+
+    // Các dải gờ chân, tay vịn và con tiện đá giữa các trụ
+    // Cạnh sau
+    stoneB.addBox(
+      bx - 2.65,
+      0.65,
+      bz - 2.7,
+      bx + 2.65,
+      0.72,
+      bz - 2.6,
       PALETTE.stoneDark,
     );
     stoneB.addBox(
-      bx - 2.0,
-      0.4,
-      bz - 2.0,
-      bx + 2.0,
-      0.5,
-      bz + 2.0,
+      bx - 2.65,
+      1.05,
+      bz - 2.7,
+      bx + 2.65,
+      1.12,
+      bz - 2.6,
       PALETTE.stone,
     );
+    for (let x = bx - 2.5; x <= bx + 2.5; x += 0.22) {
+      stoneB.addCylinder(
+        x,
+        bz - 2.65,
+        0.72,
+        1.05,
+        0.035,
+        0.035,
+        6,
+        PALETTE.stoneLight,
+      );
+    }
+    // Cạnh trái
+    stoneB.addBox(
+      bx - 2.7,
+      0.65,
+      bz - 2.65,
+      bx - 2.6,
+      0.72,
+      bz + 2.65,
+      PALETTE.stoneDark,
+    );
+    stoneB.addBox(
+      bx - 2.7,
+      1.05,
+      bz - 2.65,
+      bx - 2.6,
+      1.12,
+      bz + 2.65,
+      PALETTE.stone,
+    );
+    for (let z = bz - 2.5; z <= bz + 2.5; z += 0.22) {
+      stoneB.addCylinder(
+        bx - 2.65,
+        z,
+        0.72,
+        1.05,
+        0.035,
+        0.035,
+        6,
+        PALETTE.stoneLight,
+      );
+    }
+    // Cạnh phải
+    stoneB.addBox(
+      bx + 2.6,
+      0.65,
+      bz - 2.65,
+      bx + 2.7,
+      0.72,
+      bz + 2.65,
+      PALETTE.stoneDark,
+    );
+    stoneB.addBox(
+      bx + 2.6,
+      1.05,
+      bz - 2.65,
+      bx + 2.7,
+      1.12,
+      bz + 2.65,
+      PALETTE.stone,
+    );
+    for (let z = bz - 2.5; z <= bz + 2.5; z += 0.22) {
+      stoneB.addCylinder(
+        bx + 2.65,
+        z,
+        0.72,
+        1.05,
+        0.035,
+        0.035,
+        6,
+        PALETTE.stoneLight,
+      );
+    }
+    // Cạnh trước (bên trái bậc thang: bx - 2.65 đến bx - 1.0)
+    stoneB.addBox(
+      bx - 2.65,
+      0.65,
+      bz + 2.6,
+      bx - 1.0,
+      0.72,
+      bz + 2.7,
+      PALETTE.stoneDark,
+    );
+    stoneB.addBox(
+      bx - 2.65,
+      1.05,
+      bz + 2.6,
+      bx - 1.0,
+      1.12,
+      bz + 2.7,
+      PALETTE.stone,
+    );
+    for (let x = bx - 2.5; x <= bx - 1.1; x += 0.22) {
+      stoneB.addCylinder(
+        x,
+        bz + 2.65,
+        0.72,
+        1.05,
+        0.035,
+        0.035,
+        6,
+        PALETTE.stoneLight,
+      );
+    }
+    // Cạnh trước (bên phải bậc thang: bx + 1.0 đến bx + 2.65)
+    stoneB.addBox(
+      bx + 1.0,
+      0.65,
+      bz + 2.6,
+      bx + 2.65,
+      0.72,
+      bz + 2.7,
+      PALETTE.stoneDark,
+    );
+    stoneB.addBox(
+      bx + 1.0,
+      1.05,
+      bz + 2.6,
+      bx + 2.65,
+      1.12,
+      bz + 2.7,
+      PALETTE.stone,
+    );
+    for (let x = bx + 1.1; x <= bx + 2.5; x += 0.22) {
+      stoneB.addCylinder(
+        x,
+        bz + 2.65,
+        0.72,
+        1.05,
+        0.035,
+        0.035,
+        6,
+        PALETTE.stoneLight,
+      );
+    }
 
     // 2. 4 Chân tảng đá kê cột & 4 Cột gỗ tầng 1 (y: 0.7 đến 3.5m)
     for (const t of [-1, 1]) {
