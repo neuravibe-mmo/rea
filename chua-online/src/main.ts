@@ -17,6 +17,7 @@ initViewport();
 // 2. Khởi tạo 3D Canvas
 const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
 const engine = new Engine(canvas);
+(window as unknown as { engine: Engine }).engine = engine;
 
 // 3. Khởi tạo Âm thanh (Spatial Audio Engine & Ducking)
 const audio = new AudioManager();
