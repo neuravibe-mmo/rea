@@ -410,9 +410,10 @@ export class PlayerController {
     // Cập nhật hoạt họa chuyển động cơ thể (Animation Bobbing & Posture)
     this.updateAnimations(deltaSec);
 
-    // Cập nhật độ cao Y bám sát mặt gạch lát / sàn chùa mượt mà
+    // Cập nhật độ cao Y bám sát mặt gạch lát / bậc tam cấp / sàn chùa mượt mà
     const targetY = getGroundHeight(this.position.x, this.position.z);
-    this.position.y += (targetY - this.position.y) * Math.min(1, 14 * deltaSec);
+    const climbSpeed = targetY > this.position.y ? 28 : 16;
+    this.position.y += (targetY - this.position.y) * Math.min(1, climbSpeed * deltaSec);
 
     this.mesh.position.copy(this.position);
   }

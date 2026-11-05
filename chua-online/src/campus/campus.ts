@@ -13,6 +13,9 @@ import {
   buildQuanAmGarden,
   buildPureBasin,
   buildStoneLanterns,
+  buildStairDragons,
+  buildPagodaTower,
+  buildChuaMotCot,
 } from "./models/index.ts";
 
 export type { CampusCollider, CushionSeat };
@@ -45,11 +48,33 @@ export function getGroundHeight(x: number, z: number): number {
     if (z > 7.05) return 0.48;
     return 0.65;
   }
-  // 3. Sân chùa lát đá phiến trung tâm (-19.3..19.3, -24.3..24.8) -> mặt gạch y = 0.08m
+  // 4. Tháp Bút (Bảo tháp 7 tầng) & Bậc tam cấp tại (px = 23.5, pz = 14.5)
+  // Bậc tam cấp dẫn lên tháp ở mặt tiền phía Nam nhìn ra Hồ Sen (x: 22.3 -> 24.7, z: 16.7 -> 18.4)
+  if (Math.abs(x - 23.5) <= 1.15 && z >= 16.7 && z <= 18.4) {
+    if (z >= 18.0) return 0.16;  // Bậc 1
+    if (z >= 17.65) return 0.32; // Bậc 2
+    if (z >= 17.25) return 0.48; // Bậc 3
+    return 0.64;                 // Bậc 4 & Mặt sàn bệ tháp phẳng tuyệt đối
+  }
+  // Bệ móng bát giác Tháp Bút (sàn đỉnh cao đúng 0.64m, gờ tầng 1 cao 0.32m)
+  const distPagoda = Math.hypot(x - 23.5, z - 14.5);
+  if (distPagoda <= 3.25) {
+    if (distPagoda > 2.8) return 0.32;
+    return 0.64;
+  }
+  // 5. Chùa Một Cột (px = -23.5, pz = 14.5) & cầu thang lên chùa
+  if (x >= -23.5 && x <= -19.0 && z >= 14.6 && z <= 15.8) {
+    const t = (x - -19.0) / (-23.5 - -19.0);
+    return 0.15 + t * 1.95;
+  }
+  if (x >= -26.0 && x <= -23.5 && z >= 13.0 && z <= 16.0) {
+    return 2.10;
+  }
+  // 6. Sân chùa lát đá phiến trung tâm (-19.3..19.3, -24.3..24.8) -> mặt gạch y = 0.08m
   if (x >= -19.3 && x <= 19.3 && z >= -24.3 && z <= 24.8) {
     return 0.08;
   }
-  // 4. Sân cỏ khuôn viên chùa
+  // 7. Sân cỏ khuôn viên chùa
   return 0.0;
 }
 
@@ -206,6 +231,9 @@ export class Campus {
     buildQuanAmGarden(this);
     buildPureBasin(this);
     buildStoneLanterns(this);
+    buildStairDragons(this);
+    buildPagodaTower(this);
+    buildChuaMotCot(this);
   }
 
   /**

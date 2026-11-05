@@ -10,6 +10,7 @@ import { NetworkClient } from "./net/client.ts";
 import { RITUAL_TYPES, ANIM_TYPES } from "./net/protocol.ts";
 import { getTodayLunar } from "./rituals/lunarCalendar.ts";
 import { getTodayQue, markTaskComplete } from "./rituals/queCards.ts";
+import { getGroundHeight } from "./campus/campus.ts";
 
 // 1. Tối ưu khung nhìn di động
 initViewport();
@@ -18,6 +19,21 @@ initViewport();
 const canvas = document.getElementById("webgl-canvas") as HTMLCanvasElement;
 const engine = new Engine(canvas);
 (window as unknown as { engine: Engine }).engine = engine;
+
+// Cho phép điều chỉnh vị trí và góc nhìn kiểm tra kiểm thử qua URL params (?spawnX=..&spawnZ=..&yaw=..)
+const initialUrlParams = new URLSearchParams(window.location.search);
+if (initialUrlParams.has("spawnX") && initialUrlParams.has("spawnZ")) {
+  const sx = parseFloat(initialUrlParams.get("spawnX")!);
+  const sz = parseFloat(initialUrlParams.get("spawnZ")!);
+  engine.player.position.set(sx, getGroundHeight(sx, sz), sz);
+  engine.player.mesh.position.copy(engine.player.position);
+}
+if (initialUrlParams.has("yaw")) {
+  engine.cameraCtrl.yaw = parseFloat(initialUrlParams.get("yaw")!);
+}
+if (initialUrlParams.has("dist")) {
+  engine.cameraCtrl.distance = parseFloat(initialUrlParams.get("dist")!);
+}
 
 // 3. Khởi tạo Âm thanh (Spatial Audio Engine & Ducking)
 const audio = new AudioManager();
@@ -125,6 +141,7 @@ let currentProfile: CharacterProfile = {
 };
 
 const savedChar = localStorage.getItem(CHAR_STORAGE_KEY);
+const shouldAutoEnter = Boolean(savedChar) || new URLSearchParams(window.location.search).has("enter");
 if (savedChar) {
   try {
     currentProfile = JSON.parse(savedChar);
@@ -138,6 +155,11 @@ const bootFill = document.getElementById("bootFill");
 const bootStatus = document.getElementById("bootStatus");
 const onboardingRoot = document.getElementById("onboarding-root");
 const hud = document.getElementById("hud");
+
+if (shouldAutoEnter) {
+  onboardingRoot?.classList.add("hidden");
+  hud?.classList.remove("hidden");
+}
 
 const inputDharmaName = document.getElementById(
   "input-dharma-name",
@@ -263,7 +285,7 @@ setTimeout(() => {
 
   engine.start();
 
-  if (!savedChar) {
+  if (!savedChar && !shouldAutoEnter) {
     onboardingRoot?.classList.remove("hidden");
   } else {
     hud?.classList.remove("hidden");

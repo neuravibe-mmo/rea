@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview 3D Model: chua_mot_cot.glb</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+    body {
+      background: radial-gradient(circle at 50% 40%, #2b2520 0%, #15110e 100%);
+      color: #eae5dc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    #viewport {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #viewport:active {
+      cursor: grabbing;
+    }
+    .panel {
+      position: absolute;
+      background: rgba(22, 17, 13, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(223, 171, 82, 0.25);
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      pointer-events: auto;
+    }
+    .panel-header {
+      top: 20px;
+      left: 20px;
+      max-width: 380px;
+    }
+    .panel-header h1 {
+      font-size: 18px;
+      color: #dfab52;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel-header p {
+      font-size: 13px;
+      color: #bfaea0;
+      line-height: 1.4;
+    }
+    .stats {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #dedede;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      row-gap: 4px;
+      column-gap: 12px;
+      background: rgba(0,0,0,0.3);
+      padding: 8px 12px;
+      border-radius: 6px;
+    }
+    .stats span.label {
+      color: #9f8e7f;
+    }
+    .panel-controls {
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+    }
+    button {
+      background: #2a2018;
+      color: #dfab52;
+      border: 1px solid rgba(223, 171, 82, 0.4);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    button:hover {
+      background: #dfab52;
+      color: #1a120b;
+      box-shadow: 0 0 12px rgba(223, 171, 82, 0.4);
+    }
+    button.active {
+      background: #dfab52;
+      color: #1a120b;
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 16px;
+      color: #dfab52;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      pointer-events: none;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(223, 171, 82, 0.2);
+      border-top-color: #dfab52;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="viewport"></canvas>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <div>Đang tải mô hình 3D dragon.glb (4.0 MB)...</div>
+  </div>
+
+  <div class="panel panel-header">
+    <h1>🐉 3D Model Inspector</h1>
+    <p>Mô hình rồng đá cẩm thạch bậc tam cấp (dragon.glb). Dùng chuột kéo để xoay 360°, cuộn để phóng to/thu nhỏ, chuột phải để di chuyển.</p>
+    <div class="stats" id="modelStats">
+      <span class="label">Kích thước:</span><span id="statSize">Đang đọc...</span>
+      <span class="label">Số đa giác:</span><span id="statTris">Đang đọc...</span>
+      <span class="label">Vật liệu:</span><span id="statMat">PBR Metallic/Roughness</span>
+    </div>
+  </div>
+
+  <div class="panel panel-controls">
+    <button id="btnRotate" class="active">🔄 Tự động xoay</button>
+    <button id="btnWireframe">🕸️ Khung dây (Wireframe)</button>
+    <button id="btnMatToggle">🗿 Đổi màu đá</button>
+    <button id="btnReset">🎯 Reset góc nhìn</button>
+    <button id="btnLight">💡 Đổi ánh sáng</button>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+    import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+    const canvas = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(3, 2, 4);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.5;
+
+    // Chiếu sáng Studio
+    const hemiLight = new THREE.HemisphereLight(0xfff6ea, 0x221a14, 0.9);
+    scene.add(hemiLight);
+
+    const keyLight = new THREE.DirectionalLight(0xfffaed, 2.2);
+    keyLight.position.set(5, 8, 6);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 2048;
+    keyLight.shadow.mapSize.height = 2048;
+    keyLight.shadow.bias = -0.0001;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xb4d3ff, 0.9);
+    fillLight.position.set(-6, 3, -4);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xffc266, 1.4);
+    rimLight.position.set(0, -4, -6);
+    scene.add(rimLight);
+
+    // Mặt sàn phản xạ nhẹ & đổ bóng
+    const floorGeo = new THREE.PlaneGeometry(30, 30);
+    const floorMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+    // Lưới tọa độ phụ
+    const grid = new THREE.GridHelper(10, 20, 0xdfab52, 0x443525);
+    grid.position.y = -0.001;
+    scene.add(grid);
+
+    let loadedModel = null;
+    let initialCamPos = new THREE.Vector3();
+    let initialTarget = new THREE.Vector3();
+    let isWireframe = false;
+    let isStone = false;
+    let originalMaterial = null;
+
+    const stoneMaterial = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(0xe3ddd3),
+      roughness: 0.48,
+      metalness: 0.02,
+    });
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const modelPath = "./models/chua_mot_cot.glb";
+    const modelName = urlParams.get('model') || 'dragon.glb';
+    document.querySelector('h1').textContent = `🏛️ 3D Model Inspector: ${modelName}`;
+
+    const loader = new GLTFLoader();
+    loader.load(
+      modelPath,
+      (gltf) => {
+        document.getElementById('loading').style.display = 'none';
+        loadedModel = gltf.scene;
+
+        // Tính Bounding Box để căn giữa và chuẩn hóa kích thước hiển thị
+        const box = new THREE.Box3().setFromObject(loadedModel);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+
+        let totalVertices = 0;
+        let totalTriangles = 0;
+
+        loadedModel.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+            if (child.geometry) {
+              const geo = child.geometry;
+              if (geo.index) {
+                totalTriangles += geo.index.count / 3;
+              } else if (geo.attributes.position) {
+                totalTriangles += geo.attributes.position.count / 3;
+              }
+              if (geo.attributes.position) {
+                totalVertices += geo.attributes.position.count;
+              }
+            }
+          }
+        });
+
+        // Đặt tâm mô hình vào (0, 0, 0) và đáy chạm sàn
+        loadedModel.position.x = -center.x;
+        loadedModel.position.y = -box.min.y;
+        loadedModel.position.z = -center.z;
+
+        scene.add(loadedModel);
+
+        // Nếu là rồng, mặc định áp dụng chất liệu đá cẩm thạch
+        if (modelName.includes('dragon')) {
+          loadedModel.traverse((child) => {
+            if (child.isMesh) {
+              originalMaterial = child.material;
+              child.material = stoneMaterial;
+            }
+          });
+          isStone = true;
+          btnMatToggle.classList.add('active');
+          btnMatToggle.textContent = '✨ Đổi màu ngọc';
+        } else {
+          btnMatToggle.style.display = 'none';
+        }
+
+        // Hiển thị thông số kỹ thuật
+        document.getElementById('statSize').textContent = 
+          `${size.x.toFixed(2)}m × ${size.y.toFixed(2)}m × ${size.z.toFixed(2)}m`;
+        document.getElementById('statTris').textContent = 
+          `${totalTriangles.toLocaleString()} tam giác (${totalVertices.toLocaleString()} đỉnh)`;
+
+        // Đặt camera góc nhìn đẹp bao quát toàn bộ mô hình
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = camera.fov * (Math.PI / 180);
+        let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+        cameraZ = Math.max(cameraZ, 2.5);
+
+        camera.position.set(cameraZ * 0.7, size.y * 0.8, cameraZ * 0.9);
+        camera.lookAt(0, size.y * 0.4, 0);
+        controls.target.set(0, size.y * 0.4, 0);
+
+        initialCamPos.copy(camera.position);
+        initialTarget.copy(controls.target);
+      },
+      (xhr) => {
+        if (xhr.total > 0) {
+          const pct = Math.round((xhr.loaded / xhr.total) * 100);
+          const el = document.getElementById('loading');
+          if (el) el.querySelector('div:last-child').textContent = `Đang tải ${modelName}: ${pct}%`;
+        }
+      },
+      (error) => {
+        console.error('Lỗi khi tải GLB:', error);
+        document.getElementById('loading').innerHTML = `
+          <div style="color: #ff6b6b;">❌ Không thể tải file dragon.glb</div>
+          <div style="font-size: 13px; color: #bfaea0;">${error.message || 'Lỗi không xác định'}</div>
+        `;
+      }
+    );
+
+    // Xử lý các nút điều khiển
+    const btnRotate = document.getElementById('btnRotate');
+    btnRotate.addEventListener('click', () => {
+      controls.autoRotate = !controls.autoRotate;
+      btnRotate.classList.toggle('active', controls.autoRotate);
+    });
+
+    const btnWireframe = document.getElementById('btnWireframe');
+    btnWireframe.addEventListener('click', () => {
+      isWireframe = !isWireframe;
+      btnWireframe.classList.toggle('active', isWireframe);
+      if (loadedModel) {
+        loadedModel.traverse((child) => {
+          if (child.isMesh && child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((m) => (m.wireframe = isWireframe));
+            } else {
+              child.material.wireframe = isWireframe;
+            }
+          }
+        });
+      }
+    });
+
+    const btnMatToggle = document.getElementById('btnMatToggle');
+    btnMatToggle.addEventListener('click', () => {
+      isStone = !isStone;
+      btnMatToggle.classList.toggle('active', isStone);
+      btnMatToggle.textContent = isStone ? '✨ Đổi màu ngọc' : '🗿 Đổi màu đá';
+      if (loadedModel) {
+        loadedModel.traverse((child) => {
+          if (child.isMesh) {
+            if (!originalMaterial) originalMaterial = child.material;
+            child.material = isStone ? stoneMaterial : originalMaterial;
+          }
+        });
+      }
+    });
+
+    const btnReset = document.getElementById('btnReset');
+    btnReset.addEventListener('click', () => {
+      camera.position.copy(initialCamPos);
+      controls.target.copy(initialTarget);
+      controls.update();
+    });
+
+    let lightMode = 0;
+    const btnLight = document.getElementById('btnLight');
+    btnLight.addEventListener('click', () => {
+      lightMode = (lightMode + 1) % 3;
+      if (lightMode === 0) {
+        // Studio ban ngày
+        hemiLight.color.setHex(0xfff6ea);
+        keyLight.intensity = 2.2;
+        btnLight.textContent = '💡 Đèn Studio';
+      } else if (lightMode === 1) {
+        // Đêm chùa ấm cúng
+        hemiLight.color.setHex(0x1a223a);
+        keyLight.intensity = 0.6;
+        btnLight.textContent = '🌙 Đêm thanh tịnh';
+      } else {
+        // Ánh sáng kịch tính (Dramatic High Contrast)
+        hemiLight.color.setHex(0x111111);
+        keyLight.intensity = 3.5;
+        btnLight.textContent = '🔥 Chiếu kịch tính';
+      }
+    });
+
+    // Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Vòng lặp render
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
+
