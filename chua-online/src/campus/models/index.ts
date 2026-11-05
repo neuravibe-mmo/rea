@@ -9,4 +9,8 @@ export { buildBellTower } from "./bellTower.ts";
 export { buildQuanAmGarden } from "./quanAmGarden.ts";
 export { buildPureBasin } from "./pureBasin.ts";
 export { buildStoneLanterns } from "./stoneLanterns.ts";
+export {
+  buildImperialDragon,
+  createImperialDragonModel,
+} from "./imperialDragon.ts";
 

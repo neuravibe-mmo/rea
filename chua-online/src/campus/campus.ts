@@ -30,16 +30,20 @@ export function getGroundHeight(x: number, z: number): number {
     if (Math.abs(x) <= 3.2 && z <= -7.4) return 0.55;
     return 0.3;
   }
-  // 2. Cầu gỗ qua hồ sen
+  // 2. Cầu gỗ cong qua hồ sen (từ z: 28.5 đến 47.5, nhịp vồng cong hình sin đạt 1.5m ở giữa nhịp)
   if (Math.abs(x) <= 1.8 && z >= 28.5 && z <= 47.5) {
-    return 0.35;
+    const t = (z - 28.5) / (47.5 - 28.5);
+    return 0.1 + Math.sin(t * Math.PI) * 1.4;
   }
-  // 3. Tháp chuông (Chòi Chuông Chùa cổ truyền)
+  // 3. Tháp chuông (Chòi Chuông Chùa cổ truyền) & Bậc tam cấp
   if (Math.abs(x - 15.5) <= 2.85 && Math.abs(z - 4.0) <= 2.85) {
     return 0.65;
   }
-  if (Math.abs(x - 15.5) <= 0.85 && z >= 6.8 && z <= 7.8) {
-    return 0.35;
+  if (Math.abs(x - 15.5) <= 0.85 && z >= 6.8 && z <= 7.85) {
+    if (z > 7.55) return 0.16;
+    if (z > 7.30) return 0.32;
+    if (z > 7.05) return 0.48;
+    return 0.65;
   }
   // 3. Sân chùa lát đá phiến trung tâm (-19.3..19.3, -24.3..24.8) -> mặt gạch y = 0.08m
   if (x >= -19.3 && x <= 19.3 && z >= -24.3 && z <= 24.8) {
